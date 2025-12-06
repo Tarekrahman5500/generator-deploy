@@ -3,7 +3,7 @@ FROM node:20 AS builder
 WORKDIR /app
 
 # Copy package files and install all dependencies
-COPY package.json yarn.lock ./
+
 
 RUN yarn install --network-timeout 300000
 
@@ -20,7 +20,6 @@ ENV NODE_ENV=production
 
 
 # Copy only production dependencies
-COPY package.json yarn.lock ./
 RUN yarn install --production --network-timeout 300000
 
 # Copy built files from builder
