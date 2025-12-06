@@ -1,0 +1,18 @@
+165.232.76.157 {
+# Frontend
+    handle {
+               reverse_proxy frontend:3000
+           }
+
+# API requests
+    handle_path /api/* {
+                           reverse_proxy api:8000
+                           header {
+                                      Access-Control-Allow-Origin "*"
+                                      Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+                                      Access-Control-Allow-Headers "*"
+                                  }
+                       }
+
+    encode gzip
+}
