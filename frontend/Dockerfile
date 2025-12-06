@@ -7,15 +7,17 @@ COPY . .
 RUN yarn build
 
 # --- Production Stage ---
-FROM caddy:2 AS production
+FROM node:20-slim AS production
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy built files to Caddy web root
-COPY --from=builder /app/dist /usr/share/caddy
-COPY --from=builder /app/public /usr/share/caddy
+# Use faster registry
 
-# Copy your Caddyfile
-COPY Caddyfile /etc/caddy/Caddyfile
+COPY package.json yarn.lock ./
+RUN yarn install  --production=false --network-timeout 300000
 
-EXPOSE 80
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+CMD ["yarn", "preview"]

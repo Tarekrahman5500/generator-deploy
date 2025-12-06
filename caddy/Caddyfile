@@ -1,8 +1,8 @@
 165.232.76.157 {
-
-# Serve frontend static files
-    root * /usr/share/caddy
-    file_server
+# Frontend
+    handle {
+               reverse_proxy frontend:3000
+           }
 
 # API requests
     handle_path /api/* {
