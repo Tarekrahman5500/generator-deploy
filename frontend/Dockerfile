@@ -1,20 +1,13 @@
-# Frontend Dockerfile
-FROM node:20 AS builder
-WORKDIR /app
-
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-
-COPY . .
-RUN yarn build
-
 # Production stage
 FROM node:20-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Use faster registry
+RUN yarn config set registry https://registry.npmmirror.com
+
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile --production=false  # vite is dev dependency but needed for preview
+RUN yarn install --frozen-lockfile --production=false
 
 # Copy built files
 COPY --from=builder /app/dist ./dist
