@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy package files and install all dependencies
 COPY package.json yarn.lock ./
-RUN yarn config set registry https://registry.npmmirror.com
+
 RUN yarn install --network-timeout 300000
 
 # Copy source code and build
@@ -17,7 +17,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Use faster registry
-RUN yarn config set registry https://registry.npmmirror.com
+
 
 # Copy only production dependencies
 COPY package.json yarn.lock ./

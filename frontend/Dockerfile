@@ -12,7 +12,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Use faster registry
-RUN yarn config set registry https://registry.npmmirror.com
 
 COPY package.json yarn.lock ./
 RUN yarn install --network-timeout 300000
