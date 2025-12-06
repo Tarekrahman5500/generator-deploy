@@ -1,11 +1,8 @@
 import { z } from 'zod';
-import * as dotenv from 'dotenv';
 import { DevelopmentTypeEnum } from '../common/enums';
 
-dotenv.config({
-  path: '.env.development',
-});
-
+import * as dotenv from 'dotenv';
+dotenv.config();
 // 🔹 Reusable validators
 const numericString = z
   .string()
