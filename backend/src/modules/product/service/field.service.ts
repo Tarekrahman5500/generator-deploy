@@ -22,11 +22,11 @@ export class FieldService {
   // Create Field
   // ------------------------------------------------------------
   async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
-    const { groupId, ...fieldData } = createFieldDto;
+    const { id, ...fieldData } = createFieldDto;
 
     // Check if group exists
     const group = await this.groupRepository.findOne({
-      where: { id: groupId },
+      where: { id },
     });
     if (!group) {
       throw new NotFoundException('Group not found');

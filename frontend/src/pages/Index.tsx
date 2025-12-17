@@ -96,7 +96,18 @@ const Index = () => {
     const fetchCategories = async () => {
       setLoading(true);
 
-      const cached = sessionStorage.getItem(CACHE_KEY);
+      // Modern way: Check navigation type using PerformanceNavigationTiming
+      const navigationEntry = performance.getEntriesByType(
+        "navigation"
+      )[0] as PerformanceNavigationTiming;
+      const isReloaded = navigationEntry?.type === "reload";
+
+      // Optional fallback for older browsers (still works today but deprecated)
+      // const isReloaded = isReloaded || performance.navigation?.type === performance.navigation.TYPE_RELOAD;
+
+      // If reloaded, bypass cache
+      const cached = isReloaded ? null : sessionStorage.getItem(CACHE_KEY);
+
       if (cached) {
         setCategories(JSON.parse(cached));
         setLoading(false);
@@ -106,7 +117,6 @@ const Index = () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
         const json = await res.json();
-
         const mappedCategories: Category[] = (json.categories || []).map(
           (cat: any) => ({
             id: cat.id,
@@ -119,7 +129,6 @@ const Index = () => {
             products: Array.isArray(cat.products) ? cat.products : [],
           })
         );
-
         setCategories(mappedCategories);
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(mappedCategories));
       } catch (err) {

@@ -126,17 +126,6 @@ const ProductTable = ({
   const [missingFields, setMissingFields] = useState<{ [key: string]: any }>(
     {}
   );
-
-  // const handleAddField = (groupName: string) => {
-  //   setEditedGroups((prev) => ({
-  //     ...prev,
-  //     General: [
-  //       ...(prev.General || []),
-  //       { fieldId: crypto.randomUUID(), fieldName: "", value: "" },
-  //     ],
-  //   }));
-  // };
-
   const handleAddField = async (productId: string) => {
     try {
       const response = await fetch(
@@ -155,7 +144,6 @@ const ProductTable = ({
       console.error("Error fetching missing fields:", error);
     }
   };
-
   const [matchedId, setMatchedId] = useState("");
   const handleRemoveField = async (
     groupName: string,
@@ -199,7 +187,6 @@ const ProductTable = ({
       console.error("Error deleting field value:", err);
     }
   };
-
   const handleFieldChange = (
     groupName: string,
     index: number,
@@ -213,7 +200,6 @@ const ProductTable = ({
       ),
     }));
   };
-
   const handleSaveEdit = async () => {
     //  console.log(editedGroups);
     if (!editProduct) return;
@@ -263,7 +249,6 @@ const ProductTable = ({
       console.error(error);
     }
   };
-
   const handleConfirmDelete = async () => {
     //  console.log("Deleting product:", deleteProduct);
 
@@ -710,7 +695,7 @@ const ProductTable = ({
                   </AccordionItem>
                 ))}
 
-                {missingFields.category?.groups?.map((group: any) => (
+                {/* {missingFields.category?.groups?.map((group: any) => (
                   <AccordionItem
                     key={group.id}
                     value={group.groupName}
@@ -766,7 +751,7 @@ const ProductTable = ({
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                ))}
+                ))} */}
               </Accordion>
               <div>
                 {editProduct?.files && editProduct.files.length > 0 && (

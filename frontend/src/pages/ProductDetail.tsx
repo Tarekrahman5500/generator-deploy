@@ -114,13 +114,15 @@ const ProductDetail = () => {
               </p>
 
               <div className="space-y-3 mt-6">
-                <h2 className="tex-2xl">Key Feature</h2>
-                {features.map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                    <span className="text-muted-foreground">{feature}</span>
-                  </div>
-                ))}
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full mt-8 bg-accent hover:bg-accent"
+                >
+                  <NavLink to="/quote" state={{ product: product }}>
+                    Request a Quote
+                  </NavLink>
+                </Button>
               </div>
             </div>
           </div>
@@ -163,16 +165,6 @@ const ProductDetail = () => {
                 </AccordionItem>
               ))}
             </Accordion>
-
-            <Button
-              asChild
-              size="lg"
-              className="w-full mt-8 bg-accent hover:bg-accent"
-            >
-              <NavLink to="/quote" state={{ product: product }}>
-                Request a Quote
-              </NavLink>
-            </Button>
           </div>
         </div>
       </section>

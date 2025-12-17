@@ -3,21 +3,38 @@ import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/meraxis.png";
 import { useEffect, useState } from "react";
-import { GitCompare, Menu } from "lucide-react";
+import { GitCompare, Menu, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import FloatingCompareButton from "./FloatingCompareButton";
 import { Link, useNavigate } from "react-router-dom";
+import { secureStorage } from "@/security/SecureStorage";
+import { Input } from "./ui/input";
+import { Card, CardContent } from "./ui/card";
+///search?q=titan
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [hovered, setHovered] = useState(false);
   const navigate = useNavigate();
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const accessToken = secureStorage.get("accessToken");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const updateProducts = () => {
     const compareData = JSON.parse(
       localStorage.getItem("compare") || '{"products": []}'
     );
     setProducts(compareData.products || []);
   };
+  // Debounce the search query with 100ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     updateProducts();
@@ -56,6 +73,55 @@ const Navbar = () => {
     );
 
     updateProducts();
+  };
+  const fetchSearchResults = async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/search?q=${encodeURIComponent(query)}`
+      );
+
+      if (!res.ok) throw new Error("Search failed");
+
+      const data = await res.json();
+      setSearchResults(data.results || []);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    fetchSearchResults(value);
+  };
+  const handleResultClick = (result: any) => {
+    setSearchQuery("");
+    setSearchResults([]);
+    const category = {
+      categoryName: result.metadata.categoryName,
+    };
+    if (result.type === "category") {
+      navigate("/products", {
+        state: {
+          category,
+        },
+      });
+    }
+
+    if (result.type === "product") {
+      navigate(`/product/${result.id}`);
+    } else if (result.type === "field") {
+      navigate(`/product/${result.metadata.productId}`);
+    }
   };
 
   return (
@@ -109,6 +175,55 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <form className="hidden md:flex items-center relative">
+              <div className="relative w-48 lg:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
+                <Input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={handleInputChange}
+                  className="pl-9 h-9"
+                />
+
+                {/* Dropdown */}
+                {searchQuery.length >= 3 && (
+                  <Card className="absolute top-full mt-1 w-full z-50 shadow-lg">
+                    <CardContent className="p-2 max-h-64 overflow-y-auto">
+                      {isLoading ? (
+                        <div className="py-3 text-center text-sm text-muted-foreground">
+                          Searching...
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((result) => (
+                          <div
+                            key={result.id}
+                            className="px-3 py-2 rounded-md cursor-pointer hover:bg-muted transition"
+                            onClick={() => handleResultClick(result)}
+                          >
+                            {result?.type === "field" && (
+                              <p className="text-sm font-medium">
+                                Model: {result?.metadata?.productModel}
+                              </p>
+                            )}
+                            <p className="text-sm font-medium">{result.name}</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {result.type}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-3 text-center text-sm text-muted-foreground">
+                          No match found
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </form>
+
             <Button asChild size="sm" className="hidden md:inline-flex">
               <Link to={"/compare"}>
                 <>
@@ -128,11 +243,59 @@ const Navbar = () => {
               size="sm"
               className="hidden md:inline-flex"
             >
-              <NavLink to="/login" className="bg-inherit">
+              <NavLink
+                to={accessToken ? "/dashboard" : "/login"}
+                className="bg-inherit"
+              >
                 Login
               </NavLink>
             </Button>
+            <form className="md:hidden flex items-center relative">
+              <div className="relative w-48 lg:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
+                <Input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={handleInputChange}
+                  className="pl-9 h-9"
+                />
+
+                {/* Dropdown */}
+                {searchQuery.length >= 3 && (
+                  <Card className="absolute top-full mt-1 w-full z-50 shadow-lg">
+                    <CardContent className="p-2 max-h-64 overflow-y-auto">
+                      {isLoading ? (
+                        <div className="py-3 text-center text-sm text-muted-foreground">
+                          Searching...
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((result) => (
+                          <div
+                            key={result.id}
+                            className="px-3 py-2 rounded-md cursor-pointer hover:bg-muted transition"
+                            onClick={() => handleResultClick(result)}
+                          >
+                            <p className="text-sm font-medium">
+                              {result?.metadata?.productModel}
+                            </p>
+                            <p className="text-sm font-medium">{result.name}</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {result.type}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-3 text-center text-sm text-muted-foreground">
+                          No match found
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </form>
             {/* Mobile Menu */}
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -204,7 +367,10 @@ const Navbar = () => {
                       size="sm"
                       className="md:inline-flex"
                     >
-                      <NavLink to="/login" className="bg-inherit">
+                      <NavLink
+                        to={accessToken ? "/dashboard" : "/login"}
+                        className="bg-inherit"
+                      >
                         Login
                       </NavLink>
                     </Button>

@@ -9,19 +9,25 @@ const GetQuoteTableSkeleton = () => {
       {Array.from({ length: ROWS }).map((_, index) => (
         <TableRow key={index}>
           <TableCell>
-            <Skeleton className="h-4 w-32 rounded-md" />
+            <Skeleton className="h-4 w-44 rounded-md" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-44 rounded-md" />
           </TableCell>
           <TableCell>
-            <Skeleton className="h-4 w-28 rounded-md" />
+            <Skeleton className="h-4 w-44 rounded-md" />
           </TableCell>
           <TableCell>
-            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-4 w-44 rounded-md" />
           </TableCell>
           <TableCell>
-            <Skeleton className="h-4 w-36 rounded-md" />
+            <Skeleton className="h-4 w-44 rounded-md" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-44 rounded-md" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-44 rounded-md" />
           </TableCell>
         </TableRow>
       ))}

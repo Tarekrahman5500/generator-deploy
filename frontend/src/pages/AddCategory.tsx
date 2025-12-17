@@ -50,6 +50,12 @@ const AddCategory = () => {
   const userName = secureStorage.get("userInfo") || "";
   const formattedName = userName.charAt(0).toUpperCase();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileInfo, setFileInfo] = useState<{
+    originalName?: string;
+    url?: string;
+    id?: string;
+  }>({});
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [categories, setCategories] = useState<CategoryResponse>({
     statusCode: 0,
@@ -69,6 +75,7 @@ const AddCategory = () => {
 
       const result = await res.json();
       setFileIds(result?.response?.id);
+      setFileInfo(result?.response);
       toast.success("Image Uploaded Successfully", {
         style: {
           background: "#326e12", // your custom red
@@ -161,6 +168,7 @@ const AddCategory = () => {
           padding: "12px 16px",
         },
       });
+      fetchCategories();
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong!", {
@@ -173,38 +181,70 @@ const AddCategory = () => {
       });
     }
   };
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/category/list`);
+      const json = await res.json();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const categories: Category[] = json.categories.map((category: any) => ({
+        id: category.id || "",
+        categoryName: category.categoryName || "",
+        description: category.description || "",
+      }));
+
+      setCategories({
+        statusCode: res.status,
+        categories,
+      });
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      setCategories({
+        statusCode: 500,
+        categories: [],
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/category/list`
-        );
-        const json = await res.json();
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const categories: Category[] = json.categories.map((category: any) => ({
-          id: category.id || "",
-          categoryName: category.categoryName || "",
-          description: category.description || "",
-        }));
-
-        setCategories({
-          statusCode: res.status,
-          categories,
-        });
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        setCategories({
-          statusCode: 500,
-          categories: [],
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCategories();
   }, []);
+  const removeFile = async (id: string) => {
+    try {
+      console.log("Removing file:", id);
+
+      // Call API to delete file
+      await fetch(`${import.meta.env.VITE_API_URL}/file/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          // If you need authorization:
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      // Update local state
+      setFileIds([]);
+      setFileInfo({});
+      toast.success("File deleted successfully", {
+        style: {
+          background: "#326e12", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+        },
+      });
+    } catch (error) {
+      toast.error("Failed to delete file", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+        },
+      });
+      console.error("Failed to delete file:", error);
+    }
+  };
   return (
     <div>
       <div className="space-y-6 p-4">
@@ -286,23 +326,22 @@ const AddCategory = () => {
               {uploadedFile && (
                 <div className="bg-muted rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-accent rounded flex items-center justify-center">
-                      <ImageIcon className="w-5 h-5 text-accent-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {uploadedFile.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(uploadedFile.size / 1024).toFixed(1)} KB
-                      </p>
+                    <div className="w-10 h-10 rounded flex items-center justify-center">
+                      <img
+                        src={
+                          fileInfo?.url
+                            ? `${import.meta.env.VITE_API_URL}/${fileInfo.url}`
+                            : ""
+                        }
+                        alt="File"
+                      />
                     </div>
                   </div>
 
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setUploadedFile(null)}
+                    onClick={() => removeFile(fileInfo.id)}
                     className="text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -313,7 +352,7 @@ const AddCategory = () => {
           </div>
         </div>
       </div>
-      <Button onClick={handleSaveCategory} className="mt-5 ml-5">
+      <Button onClick={handleSaveCategory} className="mt-5 ml-5 sm:mt-20">
         Save Category
       </Button>
     </div>

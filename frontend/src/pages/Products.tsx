@@ -53,7 +53,7 @@ const Products = () => {
   const location = useLocation();
 
   const filterCategoryName = location.state?.category?.categoryName;
-
+  // console.log(location.state);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [Error, setError] = useState(false);

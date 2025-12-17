@@ -79,7 +79,7 @@ export function FieldRow({
             ) : (
               <Button
                 size="icon"
-                onClick={!isEditing && handleConfirm}
+                onClick={handleConfirm}
                 className="shrink-0"
                 aria-label="Confirm field edit"
               >

@@ -11,7 +11,7 @@ export const fieldSchema = z.object({
 // Create
 export const fieldCreateSchema = fieldSchema.pick({
   fieldName: true,
-  groupId: true,
+  id: true,
 });
 
 // Update

@@ -33,16 +33,32 @@ interface InfoRequest {
 export const InfoRequestsTable = () => {
   const [requests, setRequests] = useState<InfoRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
+  const [meta, setMeta] = useState<{
+    total: number;
+    page: number;
+    limit: number;
+    perPage: number;
+    totalPages: number;
+  } | null>(null);
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/contact-form/info-request`
+        `${
+          import.meta.env.VITE_API_URL
+        }/contact-form/info-request?page=${page}&limit=${limit}`
       );
+
       if (!res.ok) throw new Error("Failed to fetch info requests");
-      const data = await res.json();
-      setRequests(data.allInfoRequests.data || []);
+
+      const json = await res.json();
+
+      // ✅ CORRECT PATH
+      setRequests(json.data || []);
+      setMeta(json.meta || null);
     } catch (err) {
       console.error(err);
       toast({
@@ -57,7 +73,7 @@ export const InfoRequestsTable = () => {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [page]);
 
   return (
     <div className="p-4">
@@ -70,17 +86,14 @@ export const InfoRequestsTable = () => {
               <TableHead>Email</TableHead>
               <TableHead>Telephone</TableHead>
               <TableHead>Country</TableHead>
-              {/* <TableHead>Product</TableHead> */}
+              <TableHead>Product</TableHead>
               <TableHead>Requested At</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center text-muted-foreground"
-                >
+                <TableCell colSpan={6}>
                   <GetQuoteTableSkeleton />
                 </TableCell>
               </TableRow>
@@ -100,11 +113,11 @@ export const InfoRequestsTable = () => {
                   <TableCell>{req.email}</TableCell>
                   <TableCell>{req.telephone}</TableCell>
                   <TableCell>{req.country}</TableCell>
-                  {/* <TableCell>
+                  <TableCell>
                     <Badge variant="secondary" className="bg-green-400/15">
                       {req.product.modelName}
                     </Badge>
-                  </TableCell> */}
+                  </TableCell>
                   <TableCell>
                     {new Date(req.createdAt).toLocaleString()}
                   </TableCell>
@@ -114,6 +127,38 @@ export const InfoRequestsTable = () => {
           </TableBody>
         </Table>
       </ScrollArea>
+      <div>
+        {meta && meta.page >= 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+              Page {meta.page} of {meta.totalPages}
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <span className="bg-blue-600 p-1 w-8 h-8 rounded-sm text-white text-center">
+                {" "}
+                {page}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

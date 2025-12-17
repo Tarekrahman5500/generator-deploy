@@ -1,12 +1,9 @@
 import { NavLink } from "@/components/NavLink";
 import { secureStorage } from "@/security/SecureStorage";
-import { Factory, Facebook, Twitter, Linkedin } from "lucide-react";
+import { Factory } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Footer = () => {
-  const navigate = useNavigate();
-  const accessToken = secureStorage.get("accessToken");
-
   return (
     <footer className="bg-navy text-navy-foreground ">
       <div className="container mx-auto px-6 py-12">
@@ -101,21 +98,7 @@ const Footer = () => {
                   Terms of Service
                 </a>
               </li>
-              <li className="my-2">
-                <button
-                  onClick={() => {
-                    const accessToken = secureStorage.get("accessToken");
-                    if (accessToken) {
-                      navigate("/dashboard");
-                    } else {
-                      navigate("/login");
-                    }
-                  }}
-                  className="text-navy-foreground/80 hover:text-navy-foreground transition-colors bg-accent px-4 py-2 rounded-sm"
-                >
-                  Corporate
-                </button>
-              </li>
+              <li className="my-2"></li>
             </ul>
           </div>
         </div>

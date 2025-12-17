@@ -55,7 +55,7 @@ export function GroupFormModal({
     statusCode: 0,
     categories: [],
   });
-
+  const [upsert, setUpsert] = useState(false);
   const accessToken = secureStorage.get("accessToken");
 
   useEffect(() => {
@@ -68,39 +68,36 @@ export function GroupFormModal({
     }
     setEditingFieldId(null);
   }, [group, open]);
-
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/category/list`);
+      const json = await res.json();
+      const categories: Category[] = json.categories.map((category: any) => ({
+        id: category.id || "",
+        categoryName: category.categoryName || "",
+        description: category.description || "",
+      }));
+      setCategories({ statusCode: res.status, categories });
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      setCategories({ statusCode: 500, categories: [] });
+    }
+  };
   useEffect(() => {
     if (!open) return;
     if (categories.categories.length > 0) return;
-
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/category/list`
-        );
-        const json = await res.json();
-        const categories: Category[] = json.categories.map((category: any) => ({
-          id: category.id || "",
-          categoryName: category.categoryName || "",
-          description: category.description || "",
-        }));
-        setCategories({ statusCode: res.status, categories });
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        setCategories({ statusCode: 500, categories: [] });
-      }
-    };
 
     fetchCategories();
   }, [open]);
 
   const addField = () => {
     const newField: Field = {
-      id: generateId(),
+      id: group.id,
       fieldName: "",
     };
     setFields([...fields, newField]);
     setEditingFieldId(newField.id);
+    setUpsert(true);
   };
 
   const updateField = async (updatedField: Field) => {
@@ -116,7 +113,7 @@ export function GroupFormModal({
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/field`, {
-        method: "PATCH",
+        method: `${upsert ? "POST" : "PATCH"}`,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
@@ -136,6 +133,7 @@ export function GroupFormModal({
           padding: "12px 16px",
         },
       });
+      fetchCategories();
     } catch (error) {
       toast.error("Failed to update field name", {
         style: {
@@ -198,7 +196,7 @@ export function GroupFormModal({
       });
 
       const json = await res.json();
-      console.log("API Response:", json);
+      //console.log("API Response:", json);
 
       toast.success(`${name}" group created successfully.`, {
         style: {
@@ -210,6 +208,7 @@ export function GroupFormModal({
       });
 
       onOpenChange(false);
+      fetchCategories();
     } catch (err) {
       console.error(err);
       toast.error("Failed to save group.", {
@@ -255,6 +254,7 @@ export function GroupFormModal({
           padding: "12px 16px",
         },
       });
+      fetchCategories();
     } catch (error) {
       toast.error("Failed to update group name", {
         style: {

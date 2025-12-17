@@ -118,6 +118,8 @@ export class SearchService {
 
     // 3. Search Field names - find related PRODUCTS
 
+    //console.log(JSON.stringify(fields, null, 2));
+
     fields.forEach((field) => {
       // Get unique products (active only)
       const uniqueProducts = new Map<string, any>();
@@ -138,6 +140,10 @@ export class SearchService {
       });
 
       const relatedProducts = Array.from(uniqueProducts.values());
+
+      //console.log(JSON.stringify(relatedProducts, null, 2));
+
+      //  console.log(relatedProducts.length);
 
       if (relatedProducts.length > 0) {
         // Create one result per product for this field
@@ -198,7 +204,7 @@ export class SearchService {
     });
 
     // Remove duplicates and return
-    return this.removeDuplicates(results);
+    return results;
   }
 
   private removeDuplicates(results: SearchResult[]): SearchResult[] {

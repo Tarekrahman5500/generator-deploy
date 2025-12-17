@@ -41,7 +41,7 @@ const App = () => {
 
   // Hide UI for dashboard routes
   const hideNavbar = location.pathname.startsWith("/dashboard");
-  const hideLogin = location.pathname.startsWith("/dashboard");
+  const hideLogin = location.pathname.startsWith("/login");
   //const hideFloatingCompare = location.pathname.startsWith("/dashboard");
 
   return (

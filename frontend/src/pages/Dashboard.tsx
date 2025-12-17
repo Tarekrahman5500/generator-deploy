@@ -164,14 +164,14 @@ const Dashboard = () => {
             label: "View Products",
           })}
 
-          <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+          {/* <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
             MEDIA
           </p>
           {navItem({
             to: "/dashboard/backgrounds",
             icon: ImageIcon,
             label: "Backgrounds",
-          })}
+          })} */}
           <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
             Contact Form
           </p>
@@ -270,9 +270,9 @@ const Dashboard = () => {
               PRODUCTS
             </p>
             {navItem({
-              to: "/dashboard/add-product",
-              icon: Package,
-              label: "Add Product",
+              to: "/dashboard/add-groups",
+              icon: Boxes,
+              label: "Add Groups",
             })}
             {navItem({
               to: "/dashboard/view-products",
@@ -280,13 +280,27 @@ const Dashboard = () => {
               label: "View Products",
             })}
 
-            <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+            {/* <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
               MEDIA
-            </p>
-            {navItem({
+            </p> */}
+            {/* {navItem({
               to: "/dashboard/backgrounds",
               icon: ImageIcon,
               label: "Backgrounds",
+            })} */}
+            <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+              Contact Form
+            </p>
+            {navItem({
+              to: "/dashboard/contact-form",
+              icon: Clipboard,
+              label: "Contact",
+            })}
+
+            {navItem({
+              to: "/dashboard/get-quote",
+              icon: BookText,
+              label: "Get Quote",
             })}
           </nav>
 

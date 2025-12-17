@@ -82,6 +82,23 @@ export default function ProductsAdd() {
 
     fetchCategories();
   }, []);
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/group/category/${selectedCategoryId}`
+      );
+      const data = await res.json();
+      console.log(data);
+      setGroups(data.groups || []);
+    } catch (error) {
+      console.error("Failed to fetch groups:", error);
+    }
+  };
+  useEffect(() => {
+    if (!selectedCategoryId) return;
+
+    fetchGroups();
+  }, [selectedCategoryId]);
   const handleSaveGroup = (group: ProductGroup) => {
     const existingIndex = groups.findIndex((g) => g.id === group.id);
     if (existingIndex >= 0) {
@@ -91,6 +108,7 @@ export default function ProductsAdd() {
     } else {
       setGroups([...groups, group]);
     }
+    fetchGroups();
   };
 
   const handleViewDetails = (group: ProductGroup) => {
@@ -101,6 +119,7 @@ export default function ProductsAdd() {
   const handleEdit = (group: ProductGroup) => {
     setSelectedGroup(group);
     setIsFormOpen(true);
+    fetchGroups();
   };
 
   const handleDeleteConfirm = () => {
@@ -113,11 +132,13 @@ export default function ProductsAdd() {
       });
       setDeleteId(null);
     }
+    fetchGroups();
   };
 
   const handleAddNew = () => {
     setSelectedGroup(null);
     setIsFormOpen(true);
+    fetchGroups();
   };
 
   return (
