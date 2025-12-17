@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('contact_forms')
-export class ContactForm {
+export class ContactFormEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -20,12 +20,13 @@ export class ContactForm {
   @Column({ type: 'varchar' })
   country: string;
 
-  @Column({ type: 'varchar' })
-  department: string;
-
   @Column({ type: 'text' })
   message: string;
 
-  @Column({ name: 'created_at', type: 'datetime' })
+  @Column({
+    type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+    name: 'created_at',
+  })
   createdAt: Date;
 }

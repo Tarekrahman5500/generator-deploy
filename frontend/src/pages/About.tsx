@@ -2,10 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { Target, Eye, Settings, Lightbulb, Users } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import aboutHeroImg from "@/assets/about-hero.jpg";
-
+import CEO from "@/assets/ceo.jpg";
+import CE from "@/assets/CE.jpg";
+import COO from "@/assets/coo.jpg";
+import SM from "@/assets/sm.jpg";
 const About = () => {
   const values = [
     {
@@ -30,18 +32,22 @@ const About = () => {
 
   const team = [
     {
+      img: CEO,
       name: "John D. Miller",
       role: "Founder & CEO",
     },
     {
+      img: COO,
       name: "Sarah Chen",
       role: "Chief Operating Officer",
     },
     {
+      img: CE,
       name: "David Rodriguez",
       role: "Head of Engineering",
     },
     {
+      img: SM,
       name: "Emily White",
       role: "VP of Sales & Marketing",
     },
@@ -49,8 +55,6 @@ const About = () => {
 
   return (
     <div className="min-h-screen">
-      <Navbar />
-
       {/* Hero */}
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
@@ -148,7 +152,11 @@ const About = () => {
           <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {team.map((member, index) => (
               <Card key={index} className="overflow-hidden">
-                <div className="aspect-square bg-secondary" />
+                <img
+                  src={member.img}
+                  alt={member.name}
+                  className="w-full h-64 object-cover"
+                />
                 <div className="p-6 text-center">
                   <h3 className="font-heading font-bold mb-1">{member.name}</h3>
                   <p className="text-sm text-primary">{member.role}</p>

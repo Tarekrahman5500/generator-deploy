@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { ProductEntity } from '../product';
 
 @Entity('info_request_forms')
-export class InfoRequestForm {
+export class InfoRequestFormEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -17,9 +24,18 @@ export class InfoRequestForm {
   @Column({ type: 'varchar' })
   country: string;
 
-  @Column({ name: 'model_number', type: 'varchar' })
-  modelNumber: string;
+  // ✅ PROPER FOREIGN KEY RELATION
+  @ManyToOne(() => ProductEntity, (product) => product.infoRequestForms, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'product_id' })
+  product: ProductEntity;
 
-  @Column({ name: 'created_at', type: 'datetime' })
+  @Column({
+    type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+    name: 'created_at',
+  })
   createdAt: Date;
 }

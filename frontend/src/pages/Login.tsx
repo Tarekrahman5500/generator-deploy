@@ -15,6 +15,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -37,13 +38,32 @@ const Login = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || "Login failed");
+        toast.error(
+          data.statusCode === 901 && Array.isArray(data?.errors)
+            ? data?.errors[0]?.message
+            : data.message,
+          {
+            style: {
+              background: "#ff0000", // your custom red
+              color: "#fff",
+              borderRadius: "10px",
+              padding: "12px 16px",
+            },
+          }
+        );
         return;
       }
 
       const { tokens } = data;
       if (!tokens?.accessToken) {
-        toast.error("Invalid login response");
+        toast.error("Invalid login response", {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
         return;
       }
 
@@ -52,11 +72,30 @@ const Login = () => {
       secureStorage.set("accessToken", tokens.accessToken);
       secureStorage.set("refreshToken", tokens.refreshToken);
 
-      toast.success("Login successful!");
+      toast.success("Login successful!", {
+        style: {
+          background: "#326e12", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
-      toast.error("Something went wrong!");
+      toast.error(
+        error.statusCode === 901 && Array.isArray(error?.errors)
+          ? error?.errors[0]?.message
+          : error.message,
+        {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
     } finally {
       setLoading(false);
     }
@@ -69,7 +108,12 @@ const Login = () => {
         <div className="w-full max-w-md space-y-8">
           {/* Logo and Brand */}
           <div className="flex items-center gap-3">
-            <img src={marexis} style={{ height: "50%", width: "50%" }} />
+            <Link to="/">
+              <img
+                src={marexis}
+                style={{ height: "50%", width: "50%", cursor: "pointer" }}
+              />
+            </Link>
           </div>
 
           {/* Welcome Text */}

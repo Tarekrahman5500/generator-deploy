@@ -1,5 +1,4 @@
-import * as dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
 import { z } from 'zod';
 import { DevelopmentTypeEnum } from '../common/enums';
 
@@ -19,7 +18,7 @@ export const environmentSchema = z.object({
   PORT: numericString.transform(Number).default(5000),
 
   DATABASE_USERNAME: nonEmptyString,
-  DATABASE_PASSWORD: z.string(),
+  DATABASE_PASSWORD: nonEmptyString,
   DATABASE_NAME: nonEmptyString,
   DATABASE_HOST: nonEmptyString,
   DATABASE_PORT: numericString.transform(Number).default(5432),

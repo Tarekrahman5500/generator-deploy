@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emailSchema, passwordSchema } from './base.schema';
+import { emailSchema } from './base.schema';
 
 export const loginSchema = z.object({
   email: emailSchema,

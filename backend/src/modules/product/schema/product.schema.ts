@@ -1,47 +1,92 @@
-import { z } from 'zod';
-import {
-  dieselGeneratorSetSchema,
-  dieselGeneratorSetUpdateSchema,
-} from './diesel.generator.set.schema';
-import { compressorSchema, compressorUpdateSchema } from './compressor.schema';
-import { forkliftSchema, forkliftUpdateSchema } from './forklift.schema';
-import { towerLightSchema, towerLightUpdateSchema } from './tower.light.schema';
-import { upsSchema, upsUpdateSchema } from './ups.schema';
-import {
-  automaticTransferSwitchSchema,
-  automaticTransferSwitchUpdateSchema,
-} from './automatic.transfer.switch.schema';
-import {
-  distributorPanelSchema,
-  distributorPanelUpdateSchema,
-} from './distributor.panel.schema';
-import { Categories } from 'src/common/enums';
+import z from 'zod';
 
-export type ProductSchemaType = z.infer<typeof productSchema>;
+const productValueSchema = z.object({
+  fieldId: z.uuidv4(),
+  value: z.string().min(1),
+});
 
-export const productSchema = z.discriminatedUnion('type', [
-  dieselGeneratorSetSchema,
-  compressorSchema,
-  forkliftSchema,
-  towerLightSchema,
-  upsSchema,
-  automaticTransferSwitchSchema,
-  distributorPanelSchema,
-]);
+export const productSchema = z.object({
+  id: z.uuidv4(),
+  categoryId: z.uuidv4(),
+  modelName: z.string().min(5).max(100),
+  description: z.string().min(100),
+  information: z.array(productValueSchema),
+  fileIds: z.array(z.uuidv4().min(1)),
+});
 
-export const productUpdateSchema = z.discriminatedUnion('type', [
-  dieselGeneratorSetUpdateSchema,
-  compressorUpdateSchema,
-  forkliftUpdateSchema,
-  towerLightUpdateSchema,
-  upsUpdateSchema,
-  automaticTransferSwitchUpdateSchema,
-  distributorPanelUpdateSchema,
-]);
+export const createProductSchema = productSchema.omit({ id: true });
+export const updateProductSchema = productSchema
+  .partial()
+  .extend({ id: z.uuidv4() })
+  .refine(
+    (data) => {
+      return Object.entries(data).some(
+        ([key, value]) => key !== 'id' && value !== undefined,
+      );
+    },
+    {
+      message: "At least one field other than 'id' must be provided.",
+    },
+  );
 
-export const productSoftDeleteSchema = z
-  .object({
-    id: z.uuidv4(),
-    type: z.enum(Object.values(Categories)),
+// create product with group and category
+
+export const groupFieldsSchema = z.object({
+  fieldName: z.string(),
+  value: z.string().min(1),
+});
+
+export const informationSchema = z
+  .array(groupFieldsSchema)
+  .optional()
+  .refine(
+    (arr) => {
+      if (!arr) return true; // optional → skip validation
+      const names = arr.map((i) => i.fieldName);
+      return names.length === new Set(names).size;
+    },
+    {
+      message: 'Each fieldName must be unique',
+      path: ['information'],
+    },
+  );
+
+export const groupProductSchema = z.object({
+  modelName: z.string().min(5).max(100),
+  description: z.string().min(100).optional(),
+  fileIds: z.array(z.uuid().min(1)),
+  information: informationSchema,
+});
+
+export const productCreateGroupSchema = z.object({
+  categoryId: z.uuid(),
+  groupName: z.string(),
+  product: groupProductSchema.optional(),
+});
+
+export const productCompareScheme = z.object({
+  productIds: z
+    .array(z.uuidv4())
+    .min(2, 'At least two product IDs are required for comparison')
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      'Product IDs must be unique',
+    ),
+});
+
+export const productUpsertSchema = productSchema
+  .pick({
+    id: true,
+    modelName: true,
+    description: true,
+    fileIds: true,
+  })
+  .partial({
+    modelName: true,
+    description: true,
+    fileIds: true,
+  })
+  .extend({
+    information: z.array(productValueSchema).optional(),
   })
   .strict();

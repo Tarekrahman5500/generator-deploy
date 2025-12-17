@@ -12,7 +12,9 @@ if (!fs.existsSync(EXECUTE_DIR)) {
 }
 
 // Get all migration files from history
-const historyFiles = fs.readdirSync(HISTORY_DIR).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
+const historyFiles = fs
+  .readdirSync(HISTORY_DIR)
+  .filter((f) => f.endsWith('.ts') || f.endsWith('.js'));
 if (historyFiles.length === 0) {
   console.error('❌ No migration files found in history!');
   process.exit(1);
@@ -26,7 +28,9 @@ const destFile = path.join(EXECUTE_DIR, LAST_EXECUTED_FILE);
 
 // Copy latest migration to execute folder
 fs.copyFileSync(sourceFile, destFile);
-console.log(`➡️ Copied last migration to execute folder: ${LAST_EXECUTED_FILE}`);
+console.log(
+  `➡️ Copied last migration to execute folder: ${LAST_EXECUTED_FILE}`,
+);
 
 // Run TypeORM migration
 try {

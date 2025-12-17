@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,22 +38,24 @@ import { toast } from "sonner";
 import { NavLink, useNavigate } from "react-router-dom";
 import { secureStorage } from "@/security/SecureStorage";
 import { handleLogout } from "@/Util/LogOut";
+import { Category, CategoryResponse } from "./Products";
 const AddCategory = () => {
   const navigate = useNavigate();
   const accessToken = secureStorage.get("accessToken");
   const [categoryName, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [categories, setCategories] = useState<any[]>([]);
+
   const [fileIds, setFileIds] = useState<string[]>([]);
   // Product state
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [productData, setProductData] = useState<any>({});
-  const [products, setProducts] = useState<any[]>([]);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
   const userName = secureStorage.get("userInfo") || "";
   const formattedName = userName.charAt(0).toUpperCase();
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [categories, setCategories] = useState<CategoryResponse>({
+    statusCode: 0,
+    categories: [],
+  });
+  const [loading, setLoading] = useState(true);
   // Auto Upload API Call
   const uploadImage = async (file: File) => {
     const formData = new FormData();
@@ -67,12 +69,18 @@ const AddCategory = () => {
 
       const result = await res.json();
       setFileIds(result?.response?.id);
-      toast.success("Image Uploaded Successfully");
+      toast.success("Image Uploaded Successfully", {
+        style: {
+          background: "#326e12", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
     } catch (error) {
       console.error("Upload error:", error);
     }
   };
-
   // File selection handler
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,10 +96,16 @@ const AddCategory = () => {
     setUploadedFile(file);
     uploadImage(file); // Upload automatically
   };
-
   const handleSaveCategory = async () => {
-    if (!categoryName || !description || fileIds.length === 0) {
-      toast.error("Please fill in all required fields");
+    if (!categoryName || !description) {
+      toast.error("Please fill in all required fields", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       return;
     }
 
@@ -103,7 +117,6 @@ const AddCategory = () => {
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/category`, {
-          credentials: 'include',
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,13 +125,27 @@ const AddCategory = () => {
         body: JSON.stringify(payload),
       });
       if (res.status === 401) {
-        toast.error("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.", {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
         handleLogout();
         navigate("/login");
         return;
       }
       if (!res.ok) {
-        toast.error("Failed to save category");
+        toast.error("Failed to save category", {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
         return;
       }
 
@@ -126,64 +153,104 @@ const AddCategory = () => {
       setDescription("");
       setFileIds([]);
       setUploadedFile(null);
-      toast.success("Category saved successfully!");
+      toast.success("Category saved successfully!", {
+        style: {
+          background: "#326e12", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
     } catch (error) {
       console.error(error);
-      toast.error("Something went wrong!");
+      toast.error("Something went wrong!", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
     }
   };
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/category/list`
+        );
+        const json = await res.json();
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const categories: Category[] = json.categories.map((category: any) => ({
+          id: category.id || "",
+          categoryName: category.categoryName || "",
+          description: category.description || "",
+        }));
+
+        setCategories({
+          statusCode: res.status,
+          categories,
+        });
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        setCategories({
+          statusCode: 500,
+          categories: [],
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
   return (
     <div>
       <div className="space-y-6 p-4">
         <h1 className="text-left text-3xl">Add Your Categories</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Category Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 h-80">
             <div className="bg-background rounded-xl border border-border p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="category">Category Name</Label>
-                  <Select value={categoryName} onValueChange={setCategory}>
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Diesel Generator">
-                        Diesel Generator
-                      </SelectItem>
-                      <SelectItem value="Compressor">Compressor</SelectItem>
-                      <SelectItem value="Forklift">Forklift</SelectItem>
-                      <SelectItem value="Tower Light">Tower Light</SelectItem>
-                      <SelectItem value="UPS">UPS</SelectItem>
-                      <SelectItem value="Automatic Transfer Switch">
-                        Automatic Transfer Switch
-                      </SelectItem>
-                      <SelectItem value="Distributor Panel">
-                        Distributor Panel
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="category">
+                    Category Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="category"
+                    value={categoryName}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="Enter category name"
+                    required
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Category Description</Label>
+                <Label htmlFor="description">
+                  Category Description{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
                 <Textarea
                   id="description"
                   placeholder="Enter a detailed category description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-[120px]"
+                  required
                 />
               </div>
             </div>
           </div>
 
           {/* Right Column - Image Upload */}
-          <div className="space-y-6">
+          <div className="space-y-6 h-80">
             <div className="bg-background rounded-xl border border-border p-6 space-y-4">
-              <Label>Category Image</Label>
+              <Label>
+                Category Image <span className="text-destructive">*</span>
+              </Label>
 
               <input
                 ref={inputRef}
@@ -191,6 +258,7 @@ const AddCategory = () => {
                 accept="image/png, image/jpeg, image/jpg"
                 className="hidden"
                 onChange={handleFileSelect}
+                required
               />
 
               <div className="border-2 border-dashed border-border rounded-lg p-8 text-center space-y-4">
@@ -242,10 +310,12 @@ const AddCategory = () => {
                 </div>
               )}
             </div>
-            <Button onClick={handleSaveCategory}>Save Category</Button>
           </div>
         </div>
       </div>
+      <Button onClick={handleSaveCategory} className="mt-5 ml-5">
+        Save Category
+      </Button>
     </div>
   );
 };

@@ -16,10 +16,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:8080',
       'http://localhost:5000',
-      'http://localhost:3000',
-      'http://server-frontend:3000',
-      'https://localhost',
-      'https://165.232.76.157',
+      'https://frankfurt-equivalent-constraints-guide.trycloudflare.com',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -33,6 +30,6 @@ async function bootstrap() {
     credentials: true,
     exposedHeaders: ['set-cookie', 'Authorization'],
   });
-  await app.listen(process.env.PORT ?? 8000, '0.0.0.0');
+  await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

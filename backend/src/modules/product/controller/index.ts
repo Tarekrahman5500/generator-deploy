@@ -1,3 +1,4 @@
 export * from './category.controller';
-export * from './category.info.controller';
 export * from './product.controller';
+export * from './field.controller';
+export * from './group.controller';

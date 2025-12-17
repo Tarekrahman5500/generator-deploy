@@ -1,15 +1,20 @@
 import { NavLink } from "@/components/NavLink";
+import { secureStorage } from "@/security/SecureStorage";
 import { Factory, Facebook, Twitter, Linkedin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Footer = () => {
+  const navigate = useNavigate();
+  const accessToken = secureStorage.get("accessToken");
+
   return (
-    <footer className="bg-navy text-navy-foreground">
+    <footer className="bg-navy text-navy-foreground ">
       <div className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Factory className="h-6 w-6" />
-              <span className="font-heading font-bold text-xl">IndusTech</span>
+              <span className="font-heading font-bold text-xl">Marexis</span>
             </div>
             <p className="text-sm text-navy-foreground/80">
               Providing innovative industrial solutions to power the world's
@@ -79,7 +84,7 @@ const Footer = () => {
 
           <div>
             <h3 className="font-heading font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2 text-sm mt-3">
               <li>
                 <a
                   href="#"
@@ -96,42 +101,29 @@ const Footer = () => {
                   Terms of Service
                 </a>
               </li>
-              <li>
-                <a
-                  href="/login"
-                  className="text-navy-foreground/80 hover:text-navy-foreground transition-colors border-solid bg-accent px-4 py-2 rounded-sm mt-1"
+              <li className="my-2">
+                <button
+                  onClick={() => {
+                    const accessToken = secureStorage.get("accessToken");
+                    if (accessToken) {
+                      navigate("/dashboard");
+                    } else {
+                      navigate("/login");
+                    }
+                  }}
+                  className="text-navy-foreground/80 hover:text-navy-foreground transition-colors bg-accent px-4 py-2 rounded-sm"
                 >
                   Corporate
-                </a>
+                </button>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-navy-foreground/20">
+        <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-navy-foreground/20 m-auto">
           <p className="text-sm text-navy-foreground/80 mb-4 md:mb-0">
-            © 2024 Marexis All rights reserved.
+            © 2025 Marexis All rights reserved.
           </p>
-          <div className="flex gap-4">
-            <a
-              href="#"
-              className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
-            >
-              <Facebook className="h-5 w-5" />
-            </a>
-            <a
-              href="#"
-              className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
-            >
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a
-              href="#"
-              className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
-            >
-              <Linkedin className="h-5 w-5" />
-            </a>
-          </div>
         </div>
       </div>
     </footer>

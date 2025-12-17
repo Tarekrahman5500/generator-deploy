@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { CategoryInfoEntity } from './category.info.entity';
 import { CategoryFileRelationEntity } from './category.file.reation.entity';
+import { GroupEntity } from 'src/entities/product/group.entity';
 
 @Entity('category')
 export class CategoryEntity {
@@ -12,6 +12,13 @@ export class CategoryEntity {
 
   @Column({ type: 'text', nullable: false })
   description: string;
+
+  @Column({
+    type: 'boolean',
+    default: false,
+    name: 'is_deleted',
+  })
+  isDeleted: boolean;
 
   @Column({
     type: 'datetime',
@@ -28,15 +35,11 @@ export class CategoryEntity {
   })
   updatedAt: Date;
 
-  @OneToMany(() => CategoryInfoEntity, (info) => info.category, {
-    cascade: true,
-  })
-  categoryInfo: CategoryInfoEntity[];
-
   @OneToMany(() => CategoryFileRelationEntity, (rel) => rel.category, {
     cascade: true,
   })
   categoryFiles: CategoryFileRelationEntity[];
 
-  products?: Record<string, any[]>;
+  @OneToMany(() => GroupEntity, (group) => group.category)
+  groups: GroupEntity[]; // Add this
 }

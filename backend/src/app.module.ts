@@ -13,6 +13,7 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { AllExceptionsFilter } from './error/allExceptionsFilter';
 import { AuthModule } from './auth/auth.module';
 import { FileModule } from './modules/file/file.module';
+import { SearchModule } from './modules/search/search.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { FileModule } from './modules/file/file.module';
     ContactFormModule,
     AuthModule,
     FileModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [

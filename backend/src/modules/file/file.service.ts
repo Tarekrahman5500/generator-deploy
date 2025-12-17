@@ -35,6 +35,7 @@ export class FileService {
     ids: string[],
     manager?: EntityManager,
   ): Promise<FileEntity[]> {
+    if (ids.length === 0) return [];
     const repo = manager ? manager.getRepository(FileEntity) : this.fileRepo;
 
     return repo.find({

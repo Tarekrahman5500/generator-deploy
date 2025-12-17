@@ -1,85 +1,101 @@
 import {
-  Controller,
-  Post,
   Body,
-  Query,
-  BadRequestException,
+  Controller,
+  Delete,
   Get,
   HttpStatus,
+  Param,
   Patch,
+  Post,
 } from '@nestjs/common';
+import {
+  CreateProductDto,
+  ProductCompareDto,
+  ProductCreateGroupDto,
+  ProductUpsertDto,
+} from '../dto';
 import { ProductService } from '../service';
-import { ProductDto, ProductSoftDeleteDto, ProductUpdateDto } from '../dto';
-import { productSchema, productUpdateSchema } from '../schema';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 
 @Controller('product')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
-
   @Post()
-  async createProduct(@Body() dto: ProductDto) {
-    try {
-      // console.log(dto);
-      const validatedData = productSchema.parse(dto);
-      const product = await this.productService.productCreate(validatedData);
-
-      return apiResponse({
-        statusCode: HttpStatus.OK,
-        payload: { product },
-      });
-    } catch (error) {
-      throw error;
-    }
+  async createProduct(@Body() createProductDto: CreateProductDto) {
+    const product = await this.productService.createProduct(createProductDto);
+    return apiResponse({
+      statusCode: HttpStatus.CREATED,
+      payload: { product },
+    });
   }
 
   @Patch()
-  async updateProduct(@Body() productUpdateDto: ProductUpdateDto) {
-    try {
-      const validatedData = productUpdateSchema.parse(productUpdateDto);
-
-      const product = await this.productService.productUpdate(validatedData);
-      return apiResponse({
-        statusCode: HttpStatus.OK,
-        payload: { product },
-      });
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Patch('soft-delete')
-  async productSoftDelete(@Body() productSoftDeleteDto: ProductSoftDeleteDto) {
-    const product =
-      await this.productService.productSoftDelete(productSoftDeleteDto);
-
+  async upsertProduct(@Body() productUpsertDto: ProductUpsertDto) {
+    const product = await this.productService.upsertProduct(productUpsertDto);
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { product },
     });
   }
 
-  @Get()
-  async getProductByIdAndType(
-    @Query('id') id: string,
-    @Query('type') type: string,
+  @Post('group')
+  async productCreateWithGroup(
+    @Body() createProductDto: ProductCreateGroupDto,
   ) {
-    if (!id) {
-      throw new BadRequestException('Product ID is required');
-    }
+    const product =
+      await this.productService.productCreateWithGroup(createProductDto);
+    return apiResponse({
+      statusCode: HttpStatus.CREATED,
+      payload: { groupProduct: product },
+    });
+  }
 
-    if (!type) {
-      throw new BadRequestException('Product type is required');
-    }
-
-    const product = await this.productService.getSingleProductByIdAndType(
-      id,
-      type,
-    );
+  @Get('missing-field/:id')
+  async getProductMissingFields(@Param('id') productId: string) {
+    const missingFields =
+      await this.productService.productMissingFields(productId);
 
     return apiResponse({
       statusCode: HttpStatus.OK,
-      payload: { product },
+      payload: { missingFields },
+    });
+  }
+
+  @Get(':id')
+  async getProductDetails(@Param('id') productId: string) {
+    const productDetails =
+      await this.productService.getProductDetails(productId);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { productDetails },
+    });
+  }
+
+  @Post('compare')
+  async compareProducts(@Body() productCompareDto: ProductCompareDto) {
+    const comparedProducts =
+      await this.productService.compareProducts(productCompareDto);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { comparedProducts },
+    });
+  }
+
+  @Patch('soft-delete/:id')
+  async softDeleteProduct(@Param('id') productId: string) {
+    const result = await this.productService.softDeleteProduct(productId);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { result },
+    });
+  }
+
+  @Delete('delete-field-value/:id')
+  async deleteProductFieldValues(@Param('id') productId: string) {
+    await this.productService.productFieldValueDelete(productId);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: {},
     });
   }
 }

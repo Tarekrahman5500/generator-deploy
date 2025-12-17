@@ -1,70 +1,25 @@
 import { createZodDto } from 'nestjs-zod';
 import {
-  automaticTransferSwitchSchema,
-  automaticTransferSwitchUpdateSchema,
-  compressorSchema,
-  compressorUpdateSchema,
-  dieselGeneratorSetSchema,
-  dieselGeneratorSetUpdateSchema,
-  distributorPanelSchema,
-  distributorPanelUpdateSchema,
-  forkliftSchema,
-  forkliftUpdateSchema,
-  productSoftDeleteSchema,
-  towerLightSchema,
-  towerLightUpdateSchema,
-  upsSchema,
-  upsUpdateSchema,
+  createProductSchema,
+  groupFieldsSchema,
+  productCompareScheme,
+  productCreateGroupSchema,
+  productQuerySchema,
+  productUpsertSchema,
+  updateProductSchema,
 } from '../schema';
 
-// Create individual DTOs
-export class DieselGeneratorDto extends createZodDto(
-  dieselGeneratorSetSchema,
-) {}
-export class CompressorDto extends createZodDto(compressorSchema) {}
-export class ForkliftDto extends createZodDto(forkliftSchema) {}
-export class TowerLightDto extends createZodDto(towerLightSchema) {}
-export class UpsDto extends createZodDto(upsSchema) {}
-export class AutomaticTransferSwitchDto extends createZodDto(
-  automaticTransferSwitchSchema,
-) {}
-export class DistributorPanelDto extends createZodDto(distributorPanelSchema) {}
+export class CreateProductDto extends createZodDto(createProductSchema) {}
+export class UpdateProductDto extends createZodDto(updateProductSchema) {}
 
-// Union type for service method
-export type ProductDto =
-  | DieselGeneratorDto
-  | CompressorDto
-  | ForkliftDto
-  | TowerLightDto
-  | UpsDto
-  | AutomaticTransferSwitchDto
-  | DistributorPanelDto;
-
-// Update DTOs
-export class DieselGeneratorUpdateDto extends createZodDto(
-  dieselGeneratorSetUpdateSchema,
+export class ProductCreateGroupDto extends createZodDto(
+  productCreateGroupSchema,
 ) {}
 
-export class CompressorUpdateDto extends createZodDto(compressorUpdateSchema) {}
-export class ForkliftUpdateDto extends createZodDto(forkliftUpdateSchema) {}
-export class TowerLightUpdateDto extends createZodDto(towerLightUpdateSchema) {}
-export class UpsUpdateDto extends createZodDto(upsUpdateSchema) {}
-export class AutomaticTransferSwitchUpdateDto extends createZodDto(
-  automaticTransferSwitchUpdateSchema,
-) {}
-export class DistributorPanelUpdateDto extends createZodDto(
-  distributorPanelUpdateSchema,
-) {}
+export class GroupFieldsDto extends createZodDto(groupFieldsSchema) {}
 
-export type ProductUpdateDto =
-  | DieselGeneratorUpdateDto
-  | CompressorUpdateDto
-  | ForkliftUpdateDto
-  | TowerLightUpdateDto
-  | UpsUpdateDto
-  | AutomaticTransferSwitchUpdateDto
-  | DistributorPanelUpdateDto;
+export class ProductFilterDto extends createZodDto(productQuerySchema) {}
 
-export class ProductSoftDeleteDto extends createZodDto(
-  productSoftDeleteSchema,
-) {}
+export class ProductCompareDto extends createZodDto(productCompareScheme) {}
+
+export class ProductUpsertDto extends createZodDto(productUpsertSchema) {}

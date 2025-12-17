@@ -14,7 +14,6 @@ export const handleLogout = async () => {
     const response = await fetch(
       `${import.meta.env.VITE_API_URL}/auth/logout`,
       {
-          credentials: 'include',
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,15 +24,36 @@ export const handleLogout = async () => {
 
     if (!response.ok) {
       const data = await response.json();
-      toast.error(data.message || "Logout failed");
+      toast.error(data.message || "Logout failed", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       return;
     }
 
     secureStorage.clear();
-    toast.success("Logged out successfully!");
+    toast.success("Logged out successfully!", {
+      style: {
+        background: "#326e12", // your custom red
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+    });
     window.location.replace("/login");
   } catch (error) {
     console.error(error);
-    toast.error("Something went wrong!");
+    toast.error("Something went wrong!", {
+      style: {
+        background: "#ff0000", // your custom red
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+    });
   }
 };

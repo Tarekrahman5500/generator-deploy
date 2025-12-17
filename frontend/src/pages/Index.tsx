@@ -1,14 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { ArrowRight, Star } from "lucide-react";
 import heroImage from "@/assets/hero-industrial.jpg";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useEffect, useState } from "react";
-import { Category, CategoryResponse } from "./Products";
 import { SkeletonCard } from "@/components/Skeleton/SkeletonLoading";
+import { Link } from "react-router-dom";
+import heavyMachineryImg from "@/assets/category-heavy-machinery.jpg";
+import automationImg from "@/assets/category-automation.jpg";
+import precisionToolsImg from "@/assets/category-precision-tools.jpg";
+import PageLoader from "./PageLoader";
+import FloatingCompareButton from "@/components/FloatingCompareButton";
+import { Category } from "./Products";
+import ImageLoader from "@/components/Skeleton/ImageLoader";
 
 const Index = () => {
   const testimonials = [
@@ -28,50 +35,106 @@ const Index = () => {
       role: "Lead Engineer, Quantum Dynamics",
     },
   ];
-  const [data, setData] = useState<CategoryResponse>({
-    statusCode: 0,
-    categories: [],
-  });
+
   const [loading, setLoading] = useState(true);
+  const categoriesStatic = [
+    {
+      id: "diesel-generators",
+      title: "Diesel Generator",
+      description:
+        "Reliable and robust power solutions for continuous and standby applications.",
+      image: heavyMachineryImg,
+    },
+    {
+      id: "compressors",
+      title: "Compressor",
+      description:
+        "High-performance compressed air systems for a wide range of industrial uses.",
+      image: automationImg,
+    },
+    {
+      id: "ups",
+      title: "UPS",
+      description:
+        "Uninterruptible power supplies to protect your critical operations from outages.",
+      image: precisionToolsImg,
+    },
+    {
+      id: "tower-lights",
+      title: "Tower Light",
+      description:
+        "Portable and powerful lighting solutions for construction sites and outdoor events.",
+      image: heavyMachineryImg,
+    },
+    {
+      id: "distributors-panel",
+      title: "Distributors Panel",
+      description:
+        "Efficient and safe power distribution and control panels for any setup.",
+      image: automationImg,
+    },
+    {
+      id: "ats",
+      title: "ATS",
+      description:
+        "Automatic Transfer Switches for seamless switching between power sources.",
+      image: precisionToolsImg,
+    },
+    {
+      id: "forklifts",
+      title: "Forklift",
+      description:
+        "Versatile and durable material handling and lifting equipment for warehouses.",
+      image: heavyMachineryImg,
+    },
+  ];
+  const [Error, setError] = useState(false);
+  const CACHE_KEY = "cachedCategories";
+  const cached = sessionStorage.getItem(CACHE_KEY);
+  const [categories, setCategories] = useState<Category[]>([]);
   useEffect(() => {
     const fetchCategories = async () => {
+      setLoading(true);
+
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached) {
+        setCategories(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
         const json = await res.json();
-        console.log(json);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const categories: Category[] = json.categories.map((category: any) => ({
-          id: category.id || "",
-          categoryName: category.categoryName || "",
-          description: category.description || "",
-          categoryFiles: (category.categoryFiles || []).map((fileObj: any) => ({
-            id: fileObj.id || "",
-            file: {
-              url: fileObj.file?.url || "",
-            },
-          })),
-        }));
 
-        setData({
-          statusCode: res.status,
-          categories,
-        });
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        setData({
-          statusCode: 500,
-          categories: [],
-        });
+        const mappedCategories: Category[] = (json.categories || []).map(
+          (cat: any) => ({
+            id: cat.id,
+            categoryName: cat.categoryName,
+            description: cat.description,
+            categoryFiles: (cat.categoryFiles || []).map((fileObj: any) => ({
+              id: fileObj.id,
+              file: { url: fileObj.file?.url || "" },
+            })),
+            products: Array.isArray(cat.products) ? cat.products : [],
+          })
+        );
+
+        setCategories(mappedCategories);
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(mappedCategories));
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
+
     fetchCategories();
   }, []);
+
   return (
     <div className="min-h-screen">
-      <Navbar />
-
       {/* Hero Section */}
       <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
@@ -102,8 +165,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-      {/* Product Categories */}
       <section className="py-20 bg-secondary/30">
         <div className="container px-6">
           <div className="text-center mb-16">
@@ -116,46 +177,48 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {loading
-              ? // Show 6 skeletons while loading
-                Array.from({ length: 3 }).map((_, index) => (
-                  <SkeletonCard key={index} />
-                ))
-              : data.categories.map((category) => (
-                  <Card className="overflow-hidden group hover:shadow-xl transition-shadow duration-300">
-                    <div className="aspect-video overflow-hidden">
-                      <img
+          <div className="grid md:grid-cols-1  gap-4">
+            <div className="grid md:grid-cols-3 lg:grid-cols-3 gap-8">
+              {categories?.map((category) => (
+                <Card
+                  key={category.id}
+                  className="overflow-hidden group hover:shadow-xl transition-all duration-300 flex flex-col"
+                >
+                  <div className="aspect-[4/3] overflow-hidden">
+                    {loading ? (
+                      <PageLoader />
+                    ) : (
+                      <ImageLoader
                         src={`${import.meta.env.VITE_API_URL}/${
                           category.categoryFiles[0].file.url
                         }`}
-                        alt="Heavy Machinery"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        alt={category?.categoryName}
                       />
-                    </div>
-                    <CardContent className="p-6">
-                      <h3 className="text-2xl font-heading font-bold mb-3">
-                        {category.categoryName}
-                      </h3>
-                      <p className="text-muted-foreground mb-4">
-                        {category.description}
-                      </p>
-                      <Button
-                        asChild
-                        variant="link"
-                        className="p-0 h-auto text-primary"
-                      >
-                        <NavLink to={`/products/${category.id}`}>
-                          View More <ArrowRight className="ml-1 h-4 w-4" />
-                        </NavLink>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                    )}
+                  </div>
+
+                  <CardContent className="p-6 flex-1">
+                    <h3 className="text-xl font-heading font-bold mb-2">
+                      {category?.categoryName}
+                    </h3>
+                    <p className="text-muted-foreground text-sm mb-4">
+                      {category?.description}
+                    </p>
+                  </CardContent>
+
+                  <CardFooter className="flex gap-2 mt-auto">
+                    <Button variant="link" className="p-0 h-auto text-primary">
+                      <Link to="/products" state={{ category: category }}>
+                        View Products
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
-
       {/* Testimonials */}
       <section className="py-20">
         <div className="container px-6">
@@ -215,7 +278,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
       <Footer />
     </div>
   );

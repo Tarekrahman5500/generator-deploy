@@ -1,16 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import {
-  AutomaticTransferSwitchEntity,
-  CategoryEntity,
-  CompressorEntity,
-  DieselGeneratorSetEnitiy,
-  DistributorPanelEntity,
-  ForkliftEntity,
-  TowerLightEntity,
-  UpsEntity,
-} from 'src/entities/product';
+import { CategoryEntity } from 'src/entities/product';
 import { CategoryCreateDto, CategoryUpdateDto } from '../dto';
 import { Categories } from 'src/common/enums';
 import { FileService } from 'src/modules/file/file.service';
@@ -23,27 +14,6 @@ export class CategoryService {
     private readonly categoryRepository: Repository<CategoryEntity>,
     private readonly fileService: FileService,
     private readonly dataSource: DataSource,
-
-    @InjectRepository(DieselGeneratorSetEnitiy)
-    private readonly dieselRepo: Repository<DieselGeneratorSetEnitiy>,
-
-    @InjectRepository(ForkliftEntity)
-    private readonly forkliftRepo: Repository<ForkliftEntity>,
-
-    @InjectRepository(CompressorEntity)
-    private readonly compressorRepo: Repository<CompressorEntity>,
-
-    @InjectRepository(TowerLightEntity)
-    private readonly towerLightRepo: Repository<TowerLightEntity>,
-
-    @InjectRepository(UpsEntity)
-    private readonly upsRepo: Repository<UpsEntity>,
-
-    @InjectRepository(AutomaticTransferSwitchEntity)
-    private readonly atsRepo: Repository<AutomaticTransferSwitchEntity>,
-
-    @InjectRepository(DistributorPanelEntity)
-    private readonly distributorPanelRepo: Repository<DistributorPanelEntity>,
   ) {}
 
   // ------------------------------------------------------------
@@ -93,8 +63,11 @@ export class CategoryService {
   //   return this.categoryRepository.find();
   // }
 
-  async findAllCategories() {
-    const categories = await this.categoryRepository
+  async findAllCategories(page = 1, limit = 10) {
+    const take = Math.min(Math.max(limit, 1), 100); // safety cap
+    const skip = (Math.max(page, 1) - 1) * take;
+
+    const qb = this.categoryRepository
       .createQueryBuilder('category')
       .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
       .leftJoinAndSelect('categoryFile.file', 'file')
@@ -102,89 +75,28 @@ export class CategoryService {
         'category.id',
         'category.categoryName',
         'category.description',
+
         'categoryFile.id',
+
         'file.id',
         'file.url',
         'file.mimeType',
       ])
-      .getMany();
+      .where('category.isDeleted = false')
+      .skip(skip)
+      .take(take);
 
-    for (const category of categories) {
-      const categoryId = category.id;
+    const [categories, total] = await qb.getManyAndCount();
 
-      const [
-        compressors,
-        dieselGenerators,
-        forklifts,
-        towerLights,
-        ups,
-        ats,
-        distributorPanels,
-      ] = await Promise.all([
-        this.compressorRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.dieselRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.forkliftRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.towerLightRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.upsRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.atsRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-        this.distributorPanelRepo.find({
-          where: { categoryId },
-          order: { createdAt: 'DESC' },
-          take: 2,
-          relations: ['fileRelations', 'fileRelations.file'],
-        }),
-      ]);
-
-      // Build only non-empty product groups
-      const productData: Record<string, any[]> = {};
-
-      if (compressors.length > 0) productData.compressors = compressors;
-      if (dieselGenerators.length > 0)
-        productData.dieselGenerators = dieselGenerators;
-      if (forklifts.length > 0) productData.forklifts = forklifts;
-      if (towerLights.length > 0) productData.towerLights = towerLights;
-      if (ups.length > 0) productData.ups = ups;
-      if (ats.length > 0) productData.ats = ats;
-      if (distributorPanels.length > 0)
-        productData.distributorPanels = distributorPanels;
-
-      // Assign only if something exists
-      if (Object.keys(productData).length > 0) {
-        category.products = productData;
-      }
-    }
-
-    return categories;
+    return {
+      meta: {
+        total,
+        page,
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
+      categories,
+    };
   }
 
   // ------------------------------------------------------------
@@ -215,6 +127,7 @@ export class CategoryService {
         'file.mimeType',
       ])
       .where('category.id = :id', { id })
+      .andWhere('category.isDeleted = false')
       .getOne();
 
     return category || null;
@@ -224,13 +137,13 @@ export class CategoryService {
     return await this.categoryRepository
       .createQueryBuilder('category')
       .select(['category.id', 'category.categoryName', 'category.description'])
+      .andWhere('category.isDeleted = false')
       .getMany();
   }
 
   async categoryUpdate(categoryDto: CategoryUpdateDto) {
-    const { id, fileIds, description } = categoryDto;
+    const { id, fileIds, categoryName, description } = categoryDto;
 
-    // 1️⃣ Check if category exists
     const category = await this.categoryRepository.findOne({
       where: { id },
       relations: ['categoryFiles'],
@@ -240,61 +153,73 @@ export class CategoryService {
       throw new NotFoundException('Category not found');
     }
 
-    // 2️⃣ Validate fileIds if provided
-    if (fileIds) {
+    if (fileIds?.length) {
       const files = await this.fileService.getFileByIds(fileIds);
 
-      if (!files || files.length !== fileIds.length) {
-        throw new NotFoundException('Files are already used or not found');
+      if (files.length !== fileIds.length) {
+        throw new NotFoundException('One or more files not found');
       }
     }
 
-    // 3️⃣ Run whole update inside a Transaction
     return await this.dataSource.transaction(async (manager) => {
-      // ------------------------------------------
-      // A) Update category data (if provided)
-      // ------------------------------------------
-      if (description) {
-        await manager.update(CategoryEntity, { id }, { description });
+      // -------------------------
+      // A) Update category fields
+      // -------------------------
+      if (categoryName || description) {
+        await manager.update(
+          CategoryEntity,
+          { id },
+          {
+            ...(categoryName && { categoryName }),
+            ...(description && { description }),
+          },
+        );
       }
 
-      // ------------------------------------------
-      // B) If fileIds provided, replace old relations
-      // ------------------------------------------
-      if (fileIds) {
-        // 1️⃣ Mark files as used
-        await this.fileService.usedAtUpdate(fileIds, manager);
-
-        await this.fileService.deleteFilesByIds(fileIds, manager);
-        // 2️⃣ Remove existing relations
+      // -------------------------
+      // B) Replace file relations
+      // -------------------------
+      if (fileIds?.length) {
+        // 1️⃣ Remove old relations ONLY
         await manager.delete(CategoryFileRelationEntity, {
           categoryId: id,
         });
 
-        // 3️⃣ Create new relations payload
-        const relationsPayload = fileIds.map((fileId) => ({
+        // 2️⃣ Create new relations
+        const relations = fileIds.map((fileId) => ({
           categoryId: id,
           fileId,
         }));
 
-        // 4️⃣ Insert new relations
-        const newRelations = manager.create(
-          CategoryFileRelationEntity,
-          relationsPayload,
-        );
+        await manager.insert(CategoryFileRelationEntity, relations);
 
-        await manager.save(CategoryFileRelationEntity, newRelations);
+        // 3️⃣ Mark files as used (DO NOT DELETE)
+        await this.fileService.usedAtUpdate(fileIds, manager);
       }
 
-      // ------------------------------------------
-      // C) Return updated category with files
-      // ------------------------------------------
-      const updatedCategory = await manager.findOne(CategoryEntity, {
+      // -------------------------
+      // C) Return updated entity
+      // -------------------------
+      return manager.findOne(CategoryEntity, {
         where: { id },
         relations: ['categoryFiles', 'categoryFiles.file'],
       });
-
-      return updatedCategory;
     });
+  }
+
+  async categorySoftDelete(id: string) {
+    // 1️⃣ Check if category exists
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    // 2️⃣ Soft delete by setting isDeleted to true
+    category.isDeleted = true;
+    await this.categoryRepository.save(category);
+    return { message: 'Category soft deleted successfully' };
   }
 }

@@ -20,10 +20,7 @@ export const adminRegisterSchema = z.object({
 
   password: passwordSchema,
 
-  role: z
-    .enum(Object.values(AdministratorRole))
-    .default(AdministratorRole.ADMIN)
-    .optional(),
+  role: z.enum(AdministratorRole).default(AdministratorRole.ADMIN).optional(),
 });
 
 export const adminUpdateSchema = adminRegisterSchema
@@ -35,7 +32,7 @@ export const adminUpdateSchema = adminRegisterSchema
   })
   .partial()
   .extend({
-    id: z.uuid(),
+    id: z.uuidv4(),
   })
   .refine(
     (data) => data.email || data.userName || data.phone || data.password,

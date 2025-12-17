@@ -1,722 +1,339 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  AppWindowIcon,
-  CodeIcon,
-  FileText,
-  ImageIcon,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CategoryTabs } from "@/components/CategoryTabs";
+import { ProductInformation } from "@/components/ProductInformation";
+import { ProductGroupDetails } from "@/components/ProductGroupDetails";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React, { useRef, useState } from "react";
-import { toast } from "sonner";
-import { Textarea } from "@/components/ui/textarea";
+  ProductMediaUpload,
+  UploadedFile,
+} from "@/components/ProductMediaUpload";
+import { DocumentsUpload } from "@/components/DocumentsUpload";
+
 import { useLocation } from "react-router-dom";
-function InputField({ label, value, onChange }) {
-  return (
-    <div className="grid gap-1">
-      <Label>{label}</Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
+
+import { toast } from "sonner";
+import { secureStorage } from "@/security/SecureStorage";
+const categories = [
+  { id: "diesel-generator", label: "Diesel Generator" },
+  { id: "compressor", label: "Compressor" },
+  { id: "tower-light", label: "Tower Light" },
+  { id: "ats", label: "ATS" },
+  { id: "distributor-panel", label: "Distributor Panel" },
+  { id: "forklift", label: "Forklift" },
+  { id: "ups", label: "UPS" },
+];
+
+interface MediaFile {
+  id: string;
+  name: string;
+  size: string;
+  progress: number;
+  status: "uploading" | "complete" | "error";
+  preview?: string;
 }
-const AddProducts = () => {
+
+interface DocFile {
+  id: string;
+  name: string;
+  size: string;
+  progress: number;
+  status: "uploading" | "complete" | "error";
+  type: string;
+}
+
+export default function AddProducts() {
   const location = useLocation();
-  const receivedCategory = location.state?.category || "";
-  console.log(receivedCategory);
-  const sanitized = receivedCategory?.categoryName?.replace(/\s+/g, "");
+  const { category } = location.state || {};
+  const accessToken = secureStorage.get("accessToken");
 
-  const [activeTab, setActiveTab] = useState(sanitized);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const pdfInputRef = useRef<HTMLInputElement | null>(null);
-  const [product, setProduct] = useState({
-    type: receivedCategory.categoryName,
-    categoryId: receivedCategory.id,
-    description: "",
-    modelName: "",
-    powerOutputKva: "",
-    powerOutputKw: "",
-    frequencyHz: "",
-    voltageMin: "",
-    voltageMax: "",
-    voltageUnit: "V",
-    fuelTankCapacityLiters: "",
-    fuelConsumptionLPerHr: "",
-    noiseLevelDb: "",
-    engineMode: "",
-    cylinders: "",
-    displacementCc: "",
-    aspiration: "",
-    alternatorBrand: "",
-    alternatorModel: "",
-    alternatorInsulationClass: "",
-    length: "",
-    width: "",
-    height: "",
-    weightKg: "",
-    fileIds: [],
-  });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const updateField = (key: string, value: any) => {
-    setProduct((prev) => ({ ...prev, [key]: value }));
+  const [activeCategory, setActiveCategory] = useState("");
+  const [disableOthers, setDisableOthers] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState("technical");
+  const [productName, setProductName] = useState("");
+  const [productModel, setProductModel] = useState("");
+  const [description, setDescription] = useState("");
+  const [groupValues, setGroupValues] = useState<Record<string, string>>({});
+
+  const [docFiles, setDocFiles] = useState<DocFile[]>([]);
+  const [apiGroups, setApiGroups] = useState([]);
+  const [fileIds, setFileIds] = useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
+
+  const [isUploading, setIsUploading] = useState(false);
+  // fetch categories first
+
+  useEffect(() => {
+    if (!category?.categoryName) return;
+    if (categories.length === 0) return;
+
+    const matched = categories.find(
+      (c) => c.label.toLowerCase() === category.categoryName.toLowerCase()
+    );
+
+    setActiveCategory(category?.categoryName);
+    setDisableOthers(true);
+  }, [category, categories]); // ✅ REQUIRED
+
+  // fetch groups when activeCategory is set
+  useEffect(() => {
+    //console.log("effect-2 fired", activeCategory);
+
+    //if (!activeCategory) return;
+    const fetchGroups = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/group/category/${category.id}`
+        );
+
+        const json = await res.json();
+        setApiGroups(json.groups || []);
+      } catch (err) {
+        console.error(err);
+        setApiGroups([]);
+      }
+    };
+
+    fetchGroups();
+  }, [category]);
+
+  const handleCategoryChange = (categoryName: string) => {
+    const matched = categories.find(
+      (c) => c.label.toLowerCase() === categoryName.toLowerCase()
+    );
+
+    if (matched) {
+      setActiveCategory(matched.id); // activate the correct tab id
+    }
+    setCurrentGroup("technical");
+    setGroupValues({});
   };
-  const toBase64 = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    // Validate image MIME types
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
-    if (!allowedTypes.includes(file.type)) {
-      alert("Only JPG, JPEG & PNG files are allowed!");
+  const handleGroupValueChange = (fieldId: string, value: string) => {
+    setGroupValues((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  /****Image upload functions */
+  const uploadImage = (fileObj: UploadedFile) => {
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", fileObj.file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/image`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+
+        setMediaFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileObj.id ? { ...f, progress: percent } : f
+          )
+        );
+      }
+    };
+
+    xhr.onload = () => {
+      const res = JSON.parse(xhr.responseText);
+      const backendId = res?.response?.id;
+
+      if (backendId) {
+        setMediaFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileObj.id
+              ? { ...f, status: "complete", backendId, progress: 100 }
+              : f
+          )
+        );
+
+        setFileIds((prev) => [...prev, backendId]);
+      }
+
+      setIsUploading(false);
+    };
+
+    xhr.onerror = () => {
+      setMediaFiles((prev) =>
+        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f))
+      );
+      setIsUploading(false);
+    };
+
+    xhr.send(formData);
+  };
+
+  const information = Object.entries(groupValues).map(([fieldId, value]) => ({
+    fieldId,
+    value,
+  }));
+  const handleSave = async () => {
+    if (!productModel.trim()) {
+      toast.error("Product Model is required.", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       return;
     }
-
-    setUploadedFile(file);
-    uploadImage(file); // Upload automatically
-  };
-  const uploadImage = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/file/image`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await res.json();
-      updateField("fileIds", [...product.fileIds, result.response.id]);
-      toast.success("Image Uploaded Successfully");
-    } catch (error) {
-      console.error("Upload error:", error);
-    }
-  };
-  const handlePdfSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setPdfFile(file);
-
-    const base64 = await toBase64(file);
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/file/pdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file.name, base64 }),
-      });
-
-      const data = await res.json();
-
-      if (data?.response?.id) {
-        updateField("fileIds", [...product.fileIds, data.response.id]);
-        toast.success("PDF uploaded successfully!");
-      }
-    } catch (err) {
-      toast.error("PDF upload failed");
-    }
-  };
-  const saveProduct = async () => {
+    const body = {
+      categoryId: category.id,
+      modelName: productModel,
+      description: description,
+      information: information,
+      fileIds: fileIds,
+    };
     const res = await fetch(`${import.meta.env.VITE_API_URL}/product`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(product),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
     });
-
-    const data = await res.json();
-    if (res.ok) {
-      toast.success("Product saved successfully!");
-      setProduct({
-        type: "",
-        categoryId: "",
-        description: "",
-        modelName: "",
-        powerOutputKva: "",
-        powerOutputKw: "",
-        frequencyHz: "",
-        voltageMin: "",
-        voltageMax: "",
-        voltageUnit: "V",
-        fuelTankCapacityLiters: "",
-        fuelConsumptionLPerHr: "",
-        noiseLevelDb: "",
-        engineMode: "",
-        cylinders: "",
-        displacementCc: "",
-        aspiration: "",
-        alternatorBrand: "",
-        alternatorModel: "",
-        alternatorInsulationClass: "",
-        length: "",
-        width: "",
-        height: "",
-        weightKg: "",
-        fileIds: [],
+    if (!res.ok) {
+      const error = await res.json();
+      toast.error(error.message, {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
       });
-      // Clear uploaded files
-      setImageFile(null);
-      setPdfFile(null);
-    } else {
-      toast.error(data.message || "Failed to save");
-      setProduct({
-        type: "",
-        categoryId: "",
-        description: "",
-        modelName: "",
-        powerOutputKva: "",
-        powerOutputKw: "",
-        frequencyHz: "",
-        voltageMin: "",
-        voltageMax: "",
-        voltageUnit: "V",
-        fuelTankCapacityLiters: "",
-        fuelConsumptionLPerHr: "",
-        noiseLevelDb: "",
-        engineMode: "",
-        cylinders: "",
-        displacementCc: "",
-        aspiration: "",
-        alternatorBrand: "",
-        alternatorModel: "",
-        alternatorInsulationClass: "",
-        length: "",
-        width: "",
-        height: "",
-        weightKg: "",
-        fileIds: [],
-      });
-      // Clear uploaded files
-      setImageFile(null);
-      setPdfFile(null);
+      return;
     }
+    setProductName("");
+    setProductModel("");
+    setDescription("");
+    setGroupValues({});
+    setMediaFiles([]);
+    setDocFiles([]);
+    toast.success("Product created successfully.", {
+      style: {
+        background: "#326e12", // your custom red
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+    });
   };
 
+  const handleCancel = () => {
+    setProductName("");
+    setProductModel("");
+    setDescription("");
+    setGroupValues({});
+    setMediaFiles([]);
+    setDocFiles([]);
+    toast.error("Form Cleared!", {
+      style: {
+        background: "#ff0000", // your custom red
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+    });
+  };
+
+  const categoryLabel = activeCategory || "";
+
+  const mappedGroups = apiGroups.map((group) => ({
+    id: group.id,
+    label: group.groupName, // map groupName → label
+    fields: group.fields.map((field: any) => ({
+      id: field.id,
+      fieldName: field.fieldName,
+    })),
+  }));
+  const removeFile = (id: string) => {
+    const file = mediaFiles.find((f) => f.id === id);
+
+    if (file?.backendId) {
+      setFileIds((prev) => prev.filter((fid) => fid !== file.backendId));
+    }
+
+    setMediaFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+  console.log(categoryLabel);
   return (
-    <div>
-      <h1 className="text-3xl">Add Product</h1>
-      <div className="flex min-w-full flex-col gap-1">
-        <Tabs
-          defaultValue={activeTab ? activeTab : "DieselGenerator"}
-          value={activeTab}
-          onValueChange={setActiveTab}
-        >
-          <TabsList className="w-full justify-between">
-            <TabsTrigger value="DieselGenerator">Diesel Generator</TabsTrigger>
-            <TabsTrigger value="Compressor">Compressor</TabsTrigger>
-            <TabsTrigger value="TowerLight">Tower Light</TabsTrigger>
-            <TabsTrigger value="AutomaticTransferSwitch">
-              Automatic Transfer Switch
-            </TabsTrigger>
-            <TabsTrigger value="DistributorPanel">
-              Distributor Panel
-            </TabsTrigger>
-            <TabsTrigger value="Forklift">Forklift</TabsTrigger>
-            <TabsTrigger value="UPS">UPS</TabsTrigger>
-          </TabsList>
-          <TabsContent value="DieselGenerator">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-full">
-              {/* LEFT FORM CARD */}
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>Diesel Generator Details</CardTitle>
-                    <CardDescription>
-                      Fill out all product specifications
-                    </CardDescription>
-                  </CardHeader>
+    <div className="min-h-screen bg-background py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <header className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Add Product
+          </h1>
+          <p className="text-muted-foreground">
+            Create a new inventory item by selecting the appropriate category.
+          </p>
+        </header>
 
-                  <CardContent className="grid grid-cols-2 gap-4">
-                    {/* Model Name */}
-                    <InputField
-                      label="Model Name"
-                      value={product.modelName}
-                      onChange={(v: string) => updateField("modelName", v)}
-                    />
+        {/* Category Tabs */}
+        <div className="mb-8">
+          <CategoryTabs
+            categories={categories}
+            activeCategory={activeCategory}
+            onCategoryChange={handleCategoryChange}
+            disableOthers={disableOthers}
+          />
+        </div>
 
-                    {/* Power Output kVA (integer) */}
-                    <InputField
-                      label="Power Output (kVA)"
-                      value={product.powerOutputKva}
-                      onChange={(v: string) =>
-                        updateField("powerOutputKva", parseInt(v) || 0)
-                      }
-                    />
+        {/* Main Form Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+          {/* Product Information - Left Column */}
+          <div className="lg:col-span-4">
+            <ProductInformation
+              productName={productName}
+              productModel={productModel}
+              description={description}
+              onProductNameChange={setProductName}
+              onProductModelChange={setProductModel}
+              onDescriptionChange={setDescription}
+            />
+          </div>
 
-                    {/* Power Output kW */}
-                    <InputField
-                      label="Power Output (kW)"
-                      value={product.powerOutputKw}
-                      onChange={(v: string) =>
-                        updateField("powerOutputKw", parseInt(v) || 0)
-                      }
-                    />
+          {/* Product Group Details - Right Column */}
+          <div className="lg:col-span-8">
+            <ProductGroupDetails
+              groups={mappedGroups}
+              currentGroup={currentGroup}
+              onGroupChange={setCurrentGroup}
+              values={groupValues}
+              onValueChange={handleGroupValueChange}
+              categoryLabel={categoryLabel}
+            />
+          </div>
+        </div>
 
-                    {/* Frequency */}
-                    <InputField
-                      label="Frequency (Hz)"
-                      value={product.frequencyHz}
-                      onChange={(v: string) =>
-                        updateField("frequencyHz", parseInt(v) || 0)
-                      }
-                    />
+        {/* Upload Sections - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ProductMediaUpload
+            files={mediaFiles}
+            onFilesChange={setMediaFiles}
+            onUpload={uploadImage}
+            onRemove={removeFile}
+          />
 
-                    {/* Voltage Min */}
-                    <InputField
-                      label="Voltage Min"
-                      value={product.voltageMin}
-                      onChange={(v: string) =>
-                        updateField("voltageMin", parseInt(v) || 0)
-                      }
-                    />
+          <DocumentsUpload files={docFiles} onFilesChange={setDocFiles} />
+        </div>
 
-                    {/* Voltage Max */}
-                    <InputField
-                      label="Voltage Max"
-                      value={product.voltageMax}
-                      onChange={(v: string) =>
-                        updateField("voltageMax", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Fuel Tank Capacity */}
-                    <InputField
-                      label="Fuel Tank Capacity (Liters)"
-                      value={product.fuelTankCapacityLiters}
-                      onChange={(v: string) =>
-                        updateField("fuelTankCapacityLiters", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Fuel Consumption */}
-                    <InputField
-                      label="Fuel Consumption (L/hr)"
-                      value={product.fuelConsumptionLPerHr}
-                      onChange={(v: string) =>
-                        updateField("fuelConsumptionLPerHr", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Noise Level */}
-                    <InputField
-                      label="Noise Level (dB)"
-                      value={product.noiseLevelDb}
-                      onChange={(v: string) =>
-                        updateField("noiseLevelDb", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Engine Mode */}
-                    <InputField
-                      label="Engine Mode"
-                      value={product.engineMode}
-                      onChange={(v: string) => updateField("engineMode", v)}
-                    />
-
-                    {/* Cylinders */}
-                    <InputField
-                      label="Cylinders"
-                      value={product.cylinders}
-                      onChange={(v: string) =>
-                        updateField("cylinders", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Displacement */}
-                    <InputField
-                      label="Displacement (cc)"
-                      value={product.displacementCc}
-                      onChange={(v: string) =>
-                        updateField("displacementCc", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Aspiration */}
-                    <InputField
-                      label="Aspiration"
-                      value={product.aspiration}
-                      onChange={(v: string) => updateField("aspiration", v)}
-                    />
-
-                    {/* Alternator Brand */}
-                    <InputField
-                      label="Alternator Brand"
-                      value={product.alternatorBrand}
-                      onChange={(v: string) =>
-                        updateField("alternatorBrand", v)
-                      }
-                    />
-
-                    {/* Alternator Model */}
-                    <InputField
-                      label="Alternator Model"
-                      value={product.alternatorModel}
-                      onChange={(v: string) =>
-                        updateField("alternatorModel", v)
-                      }
-                    />
-
-                    {/* Insulation Class */}
-                    <InputField
-                      label="Alternator Insulation Class"
-                      value={product.alternatorInsulationClass}
-                      onChange={(v: string) =>
-                        updateField("alternatorInsulationClass", v)
-                      }
-                    />
-
-                    {/* Length */}
-                    <InputField
-                      label="Length (mm)"
-                      value={product.length}
-                      onChange={(v: string) =>
-                        updateField("length", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Width */}
-                    <InputField
-                      label="Width (mm)"
-                      value={product.width}
-                      onChange={(v: string) =>
-                        updateField("width", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Height */}
-                    <InputField
-                      label="Height (mm)"
-                      value={product.height}
-                      onChange={(v: string) =>
-                        updateField("height", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Weight */}
-                    <InputField
-                      label="Weight (kg)"
-                      value={product.weightKg}
-                      onChange={(v: string) =>
-                        updateField("weightKg", parseInt(v) || 0)
-                      }
-                    />
-
-                    {/* Description - Full Width */}
-                    <div className="col-span-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        className="mt-1"
-                        value={product.description}
-                        onChange={(e) =>
-                          updateField("description", e.target.value)
-                        }
-                      />
-                    </div>
-                  </CardContent>
-
-                  <CardFooter>
-                    <Button
-                      onClick={saveProduct}
-                      className="bg-accent hover:bg-accent"
-                    >
-                      Save Product
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-
-              {/* RIGHT SIDE UPLOADS */}
-              <div className="space-y-6">
-                <div className="bg-background rounded-xl border border-border p-4 space-y-4">
-                  <Label>Category Image</Label>
-
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/png, image/jpeg, image/jpg"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center space-y-4">
-                    <div className="flex justify-center">
-                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-foreground font-medium">
-                        Drag & drop your image here
-                      </p>
-                      <p className="text-sm text-muted-foreground">or</p>
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      onClick={() => imageInputRef.current?.click()}
-                    >
-                      Browse Image
-                    </Button>
-                  </div>
-
-                  {imageFile && (
-                    <div className="bg-muted rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-accent rounded flex items-center justify-center">
-                          <ImageIcon className="w-5 h-5 text-accent-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {imageFile.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(imageFile.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setImageFile(null)}
-                        className="text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="bg-background rounded-xl border border-border p-4 space-y-4 mt-2">
-                  <Label>Product PDF (Brochure / Specs)</Label>
-
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={handlePdfSelect}
-                  />
-
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center space-y-4">
-                    <div className="flex justify-center">
-                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-                        <FileText className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-foreground font-medium">
-                        Upload product PDF
-                      </p>
-                      <p className="text-sm text-muted-foreground">or</p>
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      onClick={() => pdfInputRef.current?.click()}
-                    >
-                      Browse PDF
-                    </Button>
-                  </div>
-
-                  {pdfFile && (
-                    <div className="bg-muted rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-accent rounded flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-accent-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {pdfFile.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(pdfFile.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPdfFile(null)}
-                        className="text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="Compressor">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="TowerLight">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="AutomaticTransferSwitch">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="DistributorPanel">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="Forklift">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="UPS">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password</CardTitle>
-                <CardDescription>
-                  Change your password here. After saving, you&apos;ll be logged
-                  out.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-current">Current password</Label>
-                  <Input id="tabs-demo-current" type="password" />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="tabs-demo-new">New password</Label>
-                  <Input id="tabs-demo-new" type="password" />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button>Save password</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4">
+          <Button size="lg" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button size="lg" onClick={handleSave}>
+            <Save className="w-4 h-4" />
+            Save Product
+          </Button>
+        </div>
       </div>
     </div>
   );
-};
-
-export default AddProducts;
+}

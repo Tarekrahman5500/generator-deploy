@@ -1,3 +1,4 @@
 export * from './category.dto';
-export * from './category.info.dto';
 export * from './product.dto';
+export * from './group.dto';
+export * from './field.dto';

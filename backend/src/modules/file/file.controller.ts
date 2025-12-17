@@ -8,7 +8,6 @@ import {
   NotFoundException,
   HttpStatus,
   Delete,
-  HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
@@ -73,9 +72,12 @@ export class FileController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   async deleteFile(@Param() params: FileIdParamDto) {
     await this.fileService.deleteFileById(params.id);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { message: 'File deleted successfully' },
+    });
   }
 
   @Get()

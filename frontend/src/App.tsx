@@ -17,25 +17,54 @@ import ProtectedRoute from "./security/SecureRoute";
 import AddCategory from "./pages/AddCategory";
 import ViewCategory from "./pages/ViewCategory";
 import AddProducts from "./pages/AddProducts";
-
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import ViewProducts from "./pages/ViewProducts";
+import ContactForm from "./pages/ContactForm";
+import ProductsAdd from "./pages/ProductsAdd";
+import Compare from "./pages/Compare";
+import FloatingCompareButton from "./components/FloatingCompareButton";
+import InfoRequestsTable from "./pages/GetQuote";
 const queryClient = new QueryClient();
+function ScrollToTop() {
+  const { pathname } = useLocation();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [pathname]);
+
+  return null;
+}
+const App = () => {
+  const location = useLocation();
+
+  // Hide UI for dashboard routes
+  const hideNavbar = location.pathname.startsWith("/dashboard");
+  const hideLogin = location.pathname.startsWith("/dashboard");
+  //const hideFloatingCompare = location.pathname.startsWith("/dashboard");
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <ScrollToTop />
+
+        {/* Navbar */}
+        {!hideNavbar && !hideLogin && <Navbar />}
+
+        {/* Routes */}
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/products/:id" element={<Products />} />
+          <Route path="/products" element={<Products />} />
           <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/compare" element={<Compare />} />
           <Route path="/services" element={<Services />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/quote" element={<Quote />} />
           <Route path="/login" element={<Login />} />
-
           <Route
             path="/dashboard"
             element={
@@ -44,25 +73,24 @@ const App = () => (
               </ProtectedRoute>
             }
           >
-            {/* DEFAULT ROUTE = AddCategory */}
             <Route index element={<AddCategory />} />
-
-            {/* CHILD ROUTES */}
             <Route path="add-category" element={<AddCategory />} />
             <Route path="view-category" element={<ViewCategory />} />
             <Route path="add-product" element={<AddProducts />} />
-            {/* } 
-           
+            <Route path="add-groups" element={<ProductsAdd />} />
             <Route path="view-products" element={<ViewProducts />} />
-            <Route path="backgrounds" element={<Backgrounds />} /> */}
+            <Route path="contact-form" element={<ContactForm />} />
+            <Route path="get-quote" element={<InfoRequestsTable />} />
           </Route>
 
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+
+        {/* 🌍 GLOBAL FLOATING COMPARE BUTTON */}
+        {/* {!hideFloatingCompare && <FloatingCompareButton />} */}
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

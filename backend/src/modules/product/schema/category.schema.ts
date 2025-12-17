@@ -1,17 +1,13 @@
-// src/schemas/category.schema.ts
 import { z } from 'zod';
-import { categoryInfoSchema } from './category.info.schema';
-import { Categories } from 'src/common/enums';
 import { noCodeDescription } from 'src/common/schema';
 
 export const categorySchema = z.object({
   id: z.uuidv4(),
-  categoryName: z.enum(Object.values(Categories)),
+  categoryName: z.string(),
   description: noCodeDescription,
   fileIds: z.array(z.uuidv4()).min(1),
   createdAt: z.date(),
   updatedAt: z.date(),
-  infos: z.array(categoryInfoSchema).optional(),
 });
 
 // Create
@@ -25,11 +21,13 @@ export const categoryCreateSchema = categorySchema.pick({
 export const categoryUpdateSchema = z
   .object({
     id: z.uuidv4(),
-    description: z.string().min(100).optional(),
-    fileIds: z.array(z.string().uuid()).min(1).optional(),
+    categoryName: z.string().optional(),
+    description: noCodeDescription.optional(),
+    fileIds: z.array(z.uuidv4()).min(1).optional(),
   })
   .refine((data) => data.description || data.fileIds, {
-    message: 'At least one field (description or fileIds) is required',
+    message:
+      'At least one field (category or description or fileIds) is required',
     path: ['description'],
   });
 

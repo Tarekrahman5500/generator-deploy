@@ -1,11 +1,62 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/meraxis.png";
-import { useState } from "react";
-import { Menu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GitCompare, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import FloatingCompareButton from "./FloatingCompareButton";
+import { Link, useNavigate } from "react-router-dom";
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [hovered, setHovered] = useState(false);
+  const navigate = useNavigate();
+  const updateProducts = () => {
+    const compareData = JSON.parse(
+      localStorage.getItem("compare") || '{"products": []}'
+    );
+    setProducts(compareData.products || []);
+  };
+
+  useEffect(() => {
+    updateProducts();
+    window.addEventListener("compareUpdated", updateProducts);
+    return () => window.removeEventListener("compareUpdated", updateProducts);
+  }, []);
+
+  const handleRemove = (id: string) => {
+    const compareData = JSON.parse(
+      localStorage.getItem("compare") || '{"products": [], "productIds": []}'
+    );
+
+    const updatedProducts = compareData.products.filter(
+      (p: any) => p.id !== id
+    );
+
+    const updatedProductIds = compareData.productIds.filter(
+      (pid: string) => pid !== id
+    );
+
+    // 🔥 If nothing left → remove storage completely
+    if (updatedProducts.length === 0) {
+      localStorage.removeItem("compare");
+      setProducts([]); // optional but good UX
+      return;
+    }
+
+    // Otherwise update normally
+    localStorage.setItem(
+      "compare",
+      JSON.stringify({
+        ...compareData,
+        products: updatedProducts,
+        productIds: updatedProductIds,
+      })
+    );
+
+    updateProducts();
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
@@ -26,13 +77,13 @@ const Navbar = () => {
             >
               Home
             </NavLink>
-            {/* <NavLink
+            <NavLink
               to="/products"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-foreground font-semibold"
             >
               Products
-            </NavLink> */}
+            </NavLink>
             <NavLink
               to="/services"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -47,6 +98,7 @@ const Navbar = () => {
             >
               About Us
             </NavLink>
+
             <NavLink
               to="/contact"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -57,19 +109,29 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              asChild
-              size="sm"
-              className="hidden md:inline-flex bg-accent"
-            >
-              <NavLink to="/quote">Request a Quote</NavLink>
+            <Button asChild size="sm" className="hidden md:inline-flex">
+              <Link to={"/compare"}>
+                <>
+                  <GitCompare />
+                </>{" "}
+                Compare
+                {products.length > 0 && (
+                  <span className=" w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs">
+                    {products.length}
+                  </span>
+                )}
+              </Link>
             </Button>
             <Button
               asChild
               variant="outline"
               size="sm"
               className="hidden md:inline-flex"
-            ></Button>
+            >
+              <NavLink to="/login" className="bg-inherit">
+                Login
+              </NavLink>
+            </Button>
 
             {/* Mobile Menu */}
             <Sheet open={open} onOpenChange={setOpen}>
@@ -123,8 +185,28 @@ const Navbar = () => {
                   </NavLink>
 
                   <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
-                    <Button asChild size="sm" onClick={() => setOpen(false)}>
-                      <NavLink to="/quote">Request a Quote</NavLink>
+                    <Button asChild size="sm" className="md:inline-flex">
+                      <Link to={products.length > 0 ? "/compare" : "#"}>
+                        <>
+                          <GitCompare />
+                        </>{" "}
+                        Compare
+                        {products.length > 0 && (
+                          <span className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs">
+                            {products.length}
+                          </span>
+                        )}
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="md:inline-flex"
+                    >
+                      <NavLink to="/login" className="bg-inherit">
+                        Login
+                      </NavLink>
                     </Button>
                   </div>
                 </nav>

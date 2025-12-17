@@ -2,8 +2,6 @@
 
 import { secureStorage } from "@/security/SecureStorage";
 import {
-  Bell,
-  Settings,
   Package,
   Image as ImageIcon,
   Trash2,
@@ -15,6 +13,9 @@ import {
   Edit,
   Menu,
   X,
+  Clipboard,
+  Boxes,
+  BookText,
 } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
@@ -46,7 +47,14 @@ const Dashboard = () => {
   const formattedName = userName.charAt(0).toUpperCase();
   const handleLogout = async () => {
     if (!accessToken) {
-      toast.error("No user logged in");
+      toast.error("No user logged in", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       return;
     }
 
@@ -64,16 +72,37 @@ const Dashboard = () => {
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.message || "Logout failed");
+        toast.error(data.message || "Logout failed", {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
         return;
       }
 
       secureStorage.clear();
-      toast.success("Logged out successfully!");
+      toast.success("Logged out successfully!", {
+        style: {
+          background: "#326e12", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       navigate("/login");
     } catch (error) {
       console.error(error);
-      toast.error("Something went wrong!");
+      toast.error("Something went wrong!", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
     }
   };
   return (
@@ -83,20 +112,22 @@ const Dashboard = () => {
         <div className="p-2 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-accent rounded-xl flex items-center justify-center">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="w-4 h-4 text-primary-foreground"
-              >
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
+              <NavLink to="/" className="block">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="w-4 h-4 text-primary-foreground"
+                >
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+              </NavLink>
             </div>
             <div>
-              <NavLink to="/" className="block">
+              <NavLink to="/dashboard" className="block">
                 <h2 className="font-xl font-bold text-foreground">Marexis</h2>
                 <p className="text-sm text-muted-foreground">Admin Panel</p>
               </NavLink>
@@ -120,12 +151,12 @@ const Dashboard = () => {
           })}
 
           <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
-            PRODUCTS
+            ADD PRODUCTS
           </p>
           {navItem({
-            to: "/dashboard/add-product",
-            icon: Package,
-            label: "Add Product",
+            to: "/dashboard/add-groups",
+            icon: Boxes,
+            label: "Add Groups",
           })}
           {navItem({
             to: "/dashboard/view-products",
@@ -140,6 +171,20 @@ const Dashboard = () => {
             to: "/dashboard/backgrounds",
             icon: ImageIcon,
             label: "Backgrounds",
+          })}
+          <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+            Contact Form
+          </p>
+          {navItem({
+            to: "/dashboard/contact-form",
+            icon: Clipboard,
+            label: "Contact",
+          })}
+
+          {navItem({
+            to: "/dashboard/get-quote",
+            icon: BookText,
+            label: "Get Quote",
           })}
         </nav>
 

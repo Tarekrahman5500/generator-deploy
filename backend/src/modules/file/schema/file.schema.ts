@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Response schema (what we return to client after upload)
 export const uploadFileResponseSchema = z.object({
-  id: z.uuid(),
+  id: z.uuidv4(),
   fileName: z.string(),
   originalName: z.string(),
   url: z.string(),
