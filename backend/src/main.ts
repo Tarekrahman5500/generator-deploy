@@ -18,6 +18,7 @@ async function bootstrap() {
       'http://localhost:5000',
       'https://frankfurt-equivalent-constraints-guide.trycloudflare.com',
       'https://funny-cook-framed-adapters.trycloudflare.com',
+      'https://marexisitaly.com',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [

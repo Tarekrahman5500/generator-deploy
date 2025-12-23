@@ -71,8 +71,9 @@ const About = () => {
             Engineering the Future of Industry Since 1985
           </h1>
           <p className="text-xl text-white/90 max-w-3xl mx-auto">
-            Discover our commitment to quality, innovation, and customer
-            satisfaction that has driven us for over three decades.
+            Marexis Italy S.r.l. operates in the field of energy and technical
+            infrastructure solutions, supporting industrial and infrastructure
+            applications in both domestic and international markets.
           </p>
         </div>
       </section>
@@ -93,9 +94,10 @@ const About = () => {
                 Our Mission
               </h3>
               <p className="text-muted-foreground">
-                To provide the most reliable and efficient industrial equipment,
-                empowering our clients to achieve their production goals with
-                confidence.
+                We focus on the development, configuration and supply of
+                engineered systems for power generation, energy management and
+                power continuity, designed to meet specific operational,
+                environmental and regulatory requirements.
               </p>
             </Card>
 
@@ -107,9 +109,11 @@ const About = () => {
                 Our Vision
               </h3>
               <p className="text-muted-foreground">
-                To be the global leader in industrial innovation, pioneering new
-                technologies that redefine the standards of manufacturing and
-                engineering.
+                Marexis manages the technical, commercial and industrial
+                coordination of each project, working with a network of
+                qualified partners and local references. This approach allows us
+                to ensure technical consistency, operational reliability and
+                long-term continuity across different applications and markets.
               </p>
             </Card>
           </div>
@@ -136,31 +140,6 @@ const About = () => {
                   {value.title}
                 </h3>
                 <p className="text-muted-foreground">{value.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Leadership Team */}
-      <section className="py-20">
-        <div className="container px-6">
-          <h2 className="text-4xl font-heading font-bold text-center mb-16">
-            Meet the Leadership Team
-          </h2>
-
-          <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            {team.map((member, index) => (
-              <Card key={index} className="overflow-hidden">
-                <img
-                  src={member.img}
-                  alt={member.name}
-                  className="w-full h-64 object-cover"
-                />
-                <div className="p-6 text-center">
-                  <h3 className="font-heading font-bold mb-1">{member.name}</h3>
-                  <p className="text-sm text-primary">{member.role}</p>
-                </div>
               </Card>
             ))}
           </div>

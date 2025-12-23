@@ -14,8 +14,9 @@ const Footer = () => {
               <span className="font-heading font-bold text-xl">Marexis</span>
             </div>
             <p className="text-sm text-navy-foreground/80">
-              Providing innovative industrial solutions to power the world's
-              leading industries.
+              Marexis Italy S.r.l. operates in the field of energy and technical
+              infrastructure solutions, supporting industrial and infrastructure
+              applications in both domestic and international markets.
             </p>
           </div>
 
