@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { CategoryEntity } from './category.entity';
+import { SubCategoryEntity } from './sub.category.entity';
 import { ProductFileRelationEntity } from 'src/entities/product/product.file.relation.entity';
 import { ProductValueEntity } from 'src/entities/product/product.value.entity';
 import { InfoRequestFormEntity } from '../contact-form';
@@ -16,6 +17,9 @@ export class ProductEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // ======================
+  // CATEGORY (REQUIRED)
+  // ======================
   @ManyToOne(() => CategoryEntity, {
     nullable: false,
     onDelete: 'CASCADE',
@@ -23,10 +27,25 @@ export class ProductEntity {
   @JoinColumn({ name: 'category_id' })
   category: CategoryEntity;
 
+  // ======================
+  // SUB CATEGORY (OPTIONAL)
+  // ======================
+  @ManyToOne(() => SubCategoryEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'sub_category_id' })
+  subCategory: SubCategoryEntity | null;
+
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'varchar', length: 150, name: 'model_name', unique: true })
+  @Column({
+    type: 'varchar',
+    length: 150,
+    name: 'model_name',
+    unique: true,
+  })
   modelName: string;
 
   @Column({
@@ -51,13 +70,15 @@ export class ProductEntity {
   })
   updatedAt: Date;
 
+  // ======================
+  // RELATIONS
+  // ======================
   @OneToMany(() => ProductFileRelationEntity, (pf) => pf.product)
-  productFiles: ProductFileRelationEntity[]; // <-- THIS IS REQUIRED
+  productFiles: ProductFileRelationEntity[];
 
   @OneToMany(() => ProductValueEntity, (pv) => pv.product)
-  productValues: ProductValueEntity[]; // <-- THIS IS REQUIRED
+  productValues: ProductValueEntity[];
 
-  // ✅ NEW RELATION
   @OneToMany(() => InfoRequestFormEntity, (info) => info.product)
   infoRequestForms: InfoRequestFormEntity[];
 }

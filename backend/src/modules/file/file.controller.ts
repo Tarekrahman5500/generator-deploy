@@ -8,13 +8,16 @@ import {
   NotFoundException,
   HttpStatus,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
 import { FileIdParamDto } from './dto';
 import { createFileValidator, createDiskStorage } from 'src/common/functions';
 import { apiResponse } from 'src/common/apiResponse/api.response';
+import { AuthGuard } from 'src/auth/guard';
 
+@UseGuards(AuthGuard)
 @Controller('file')
 export class FileController {
   constructor(private readonly fileService: FileService) {}
@@ -87,6 +90,27 @@ export class FileController {
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { files },
+    });
+  }
+
+  @Post('excel')
+  @UseInterceptors(
+    FileInterceptor('file', { storage: createDiskStorage('excel') }),
+  )
+  async execlUpload(
+    @UploadedFile(
+      createFileValidator(5, [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ]),
+    )
+    file: Express.Multer.File,
+  ) {
+    const response = await this.fileService.saveFileInfo(file);
+
+    return apiResponse({
+      statusCode: HttpStatus.ACCEPTED,
+      payload: { response },
     });
   }
 }

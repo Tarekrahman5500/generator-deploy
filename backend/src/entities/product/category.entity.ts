@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { CategoryFileRelationEntity } from './category.file.reation.entity';
 import { GroupEntity } from 'src/entities/product/group.entity';
+import { SubCategoryEntity } from './sub.category.entity';
 
 @Entity('category')
 export class CategoryEntity {
@@ -42,4 +43,7 @@ export class CategoryEntity {
 
   @OneToMany(() => GroupEntity, (group) => group.category)
   groups: GroupEntity[]; // Add this
+
+  @OneToMany(() => SubCategoryEntity, (sub) => sub.category)
+  subCategories: SubCategoryEntity[];
 }

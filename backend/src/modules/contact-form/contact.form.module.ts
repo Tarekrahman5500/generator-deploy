@@ -7,6 +7,7 @@ import {
 } from 'src/entities/contact-form';
 import { ContactFromController } from './contact.from.controller';
 import { ProductEntity } from 'src/entities/product';
+import { jwtProviders } from 'src/auth/provider';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { ProductEntity } from 'src/entities/product';
     ]),
   ],
   controllers: [ContactFromController],
-  providers: [ContactFormService],
+  providers: [ContactFormService, ...jwtProviders],
 })
 export class ContactFormModule {}

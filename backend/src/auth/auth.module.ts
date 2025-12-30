@@ -5,17 +5,11 @@ import { AuthController } from './auth.controller';
 import { Administrator, AdministratorToken } from 'src/entities/administrator';
 import { jwtProviders } from './provider';
 import { AuthGuard } from './guard';
-// import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Administrator, AdministratorToken])],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    ...jwtProviders,
-    // { provide: APP_GUARD, useClass: AuthGuard },
-    AuthGuard,
-  ],
+  providers: [AuthService, ...jwtProviders, AuthGuard],
   exports: [AuthService, ...jwtProviders],
 })
 export class AuthModule {}

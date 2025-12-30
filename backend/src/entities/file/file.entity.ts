@@ -4,7 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { BackgroundEntity } from '../background';
 
 @Entity('files')
 export class FileEntity {
@@ -34,4 +36,7 @@ export class FileEntity {
 
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
+
+  @OneToMany(() => BackgroundEntity, (background) => background.file)
+  backgrounds: BackgroundEntity[];
 }

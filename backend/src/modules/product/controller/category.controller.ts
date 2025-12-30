@@ -15,7 +15,9 @@ import { CategoryCreateDto, CategoryUpdateDto, ProductFilterDto } from '../dto';
 import { CategoryService, ProductService } from '../service';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 import { AuthGuard } from 'src/auth/guard';
+import { isPublic } from 'src/decorator';
 
+@UseGuards(AuthGuard)
 @Controller('category')
 export class CategoryController {
   constructor(
@@ -23,7 +25,6 @@ export class CategoryController {
     private readonly productService: ProductService,
   ) {}
 
-  @UseGuards(AuthGuard)
   @Post()
   async createCategory(@Body() dto: CategoryCreateDto) {
     const category = await this.categoryService.createCategory(dto);
@@ -33,7 +34,6 @@ export class CategoryController {
     });
   }
 
-  // @UseGuards(AuthGuard)
   @Patch()
   async updateCategory(@Body() categoryUpdateDto: CategoryUpdateDto) {
     const category =
@@ -45,6 +45,7 @@ export class CategoryController {
     });
   }
 
+  @isPublic()
   @Get()
   async getAllCategories(@Query('page') page = 1, @Query('limit') limit = 10) {
     const pageNumber = Math.max(Number(page), 1);
@@ -78,7 +79,7 @@ export class CategoryController {
   //     payload: products,
   //   });
   // }
-
+  @isPublic()
   @Get('/list')
   async getAllCategoryList() {
     const categories =
@@ -90,6 +91,7 @@ export class CategoryController {
     });
   }
 
+  @isPublic()
   @Get('/products')
   async getCategoryProducts(@Query() dto: ProductFilterDto) {
     // console.log(dto);
@@ -100,6 +102,7 @@ export class CategoryController {
     });
   }
 
+  @isPublic()
   @Get(':id')
   async getCategory(@Param('id') id: string) {
     const category = await this.categoryService.findCategoryById(id);

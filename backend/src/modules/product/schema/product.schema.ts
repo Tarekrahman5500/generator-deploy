@@ -1,13 +1,14 @@
 import z from 'zod';
 
 const productValueSchema = z.object({
-  fieldId: z.uuidv4(),
+  fieldId: z.uuid(),
   value: z.string().min(1),
 });
 
 export const productSchema = z.object({
   id: z.uuidv4(),
   categoryId: z.uuidv4(),
+  subCategoryId: z.uuidv4().optional(),
   modelName: z.string().min(5).max(100),
   description: z.string().min(100),
   information: z.array(productValueSchema),

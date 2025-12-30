@@ -14,6 +14,8 @@ import { AllExceptionsFilter } from './error/allExceptionsFilter';
 import { AuthModule } from './auth/auth.module';
 import { FileModule } from './modules/file/file.module';
 import { SearchModule } from './modules/search/search.module';
+import { EmailModule } from './modules/email/email.module';
+import { BackgroundModule } from './modules/background/background.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { SearchModule } from './modules/search/search.module';
     AuthModule,
     FileModule,
     SearchModule,
+    EmailModule,
+    BackgroundModule,
   ],
   controllers: [AppController],
   providers: [

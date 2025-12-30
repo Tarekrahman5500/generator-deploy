@@ -3,15 +3,46 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import * as morgan from 'morgan';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+// import * as xss from 'xss-clean';
+// import * as hpp from 'hpp';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // 📝 Logging
   app.use(morgan('combined'));
-  // Serve uploaded files statically
+
+  // 🔐 Security headers
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    }),
+  );
+
+  // 🚦 Global rate limit (no Redis)
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // 100 requests per IP
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+
+  // 🧼 XSS protection
+  // app.use(xss());
+
+  // 🧯 HTTP Parameter Pollution protection
+  // app.use(hpp());
+
+  // 📂 Static uploads
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
   });
+
+  // 🌍 CORS
   app.enableCors({
     origin: [
       'http://localhost:8080',
@@ -20,18 +51,9 @@ async function bootstrap() {
       'https://funny-cook-framed-adapters.trycloudflare.com',
       'https://marexisitaly.com',
     ],
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Origin',
-      'Access-Control-Allow-Origin',
-    ],
     credentials: true,
-    exposedHeaders: ['set-cookie', 'Authorization'],
   });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

@@ -41,6 +41,9 @@ export const environmentSchema = z.object({
   SMTP_PASSWORD: z.string().min(1, 'SMTP password is required'),
   SMTP_MAIL: z.email('Invalid email address'),
 
+  RESEND_API_KEY: nonEmptyString,
+  RESEND_FROM_EMAIL: z.email('Invalid from email'),
+
   // opt
   OTP_EXPIRE_TIME: durationString.transform(Number),
 });

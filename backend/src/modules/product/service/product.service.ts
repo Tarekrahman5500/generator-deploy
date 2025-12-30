@@ -23,6 +23,7 @@ import {
 } from '../dto';
 import { GroupService } from 'src/modules/product/service/group.service';
 import { GroupEntity } from 'src/entities/product/group.entity';
+import { SubCategoryService } from './sub.category.service';
 
 @Injectable()
 export class ProductService {
@@ -42,11 +43,19 @@ export class ProductService {
 
     private readonly dataSource: DataSource,
     private readonly groupService: GroupService,
+
+    private readonly subCategoryService: SubCategoryService,
   ) {}
 
   async createProduct(createProductDto: CreateProductDto) {
-    const { categoryId, modelName, description, information, fileIds } =
-      createProductDto;
+    const {
+      categoryId,
+      subCategoryId,
+      modelName,
+      description,
+      information,
+      fileIds,
+    } = createProductDto;
 
     // 1️⃣ CATEGORY VALIDATION
     const category = await this.categoryService.findCategoryById(categoryId);
@@ -68,6 +77,15 @@ export class ProductService {
       );
     }
 
+    // check this sub-category exists
+    if (subCategoryId) {
+      const subCategory =
+        await this.subCategoryService.getSubCategoryById(subCategoryId);
+
+      if (!subCategory || subCategory.category.id !== categoryId) {
+        throw new NotFoundException(`Sub-category not found`);
+      }
+    }
     // 4️⃣ TRANSACTION
     return await this.dataSource.transaction(async (manager) => {
       // A. Create product
@@ -76,6 +94,7 @@ export class ProductService {
         modelName,
         description,
         category: { id: categoryId },
+        subCategory: subCategoryId ? { id: subCategoryId } : null,
       });
       const savedProduct = await manager.save(ProductEntity, newProduct);
 
@@ -397,6 +416,7 @@ export class ProductService {
       modelName: product?.modelName,
       description: product?.description,
       category: product?.category,
+      subCategory: product?.subCategory,
       group: groupedFields,
       files,
     };
@@ -534,6 +554,7 @@ export class ProductService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.productValues', 'productValue')
       .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.subCategory', 'subCategory')
       .leftJoinAndSelect('productValue.field', 'field')
       .leftJoinAndSelect('field.group', 'group')
       .leftJoinAndSelect('product.productFiles', 'productFile')
@@ -591,6 +612,7 @@ export class ProductService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.productValues', 'productValue')
       .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.subCategory', 'subCategory')
       .leftJoinAndSelect('productValue.field', 'field')
       .leftJoinAndSelect('field.group', 'group')
       .leftJoinAndSelect('product.productFiles', 'productFile')
@@ -614,9 +636,20 @@ export class ProductService {
         `All products must belong to the same category for comparison`,
       );
     }
+
+    // Check that all products have the same sub-category (if subCategory is set)
+    const subCategoryIds = new Set(
+      products.map((p) => p.subCategory?.id ?? null),
+    );
+
+    // If any products have subCategory, all must have the same one
+    if (subCategoryIds.size > 1) {
+      throw new BadRequestException(
+        `All products must belong to the same sub-category for comparison`,
+      );
+    }
     // return products;
     return products.map((p) => this.transformProductDetailsFromRaw(p));
-    // return this.formatAmazonStyleCompare(products);
   }
 
   async compareProducts(productCompareDto: ProductCompareDto) {
@@ -709,5 +742,122 @@ export class ProductService {
       productId: productValue.product.id,
       message: 'Product value deleted successfully',
     };
+  }
+
+  // async productCreateByExecl(categoryId: string, fileId: string) {
+  //   // Get this category all groups with fields Name
+  //   // From the file I have to send this file buffer into this fileService.execlExtractData(buffer)
+  //   // which will return me the array of objects with key as field name and value as field value
+  //   // Then I have to map the field names with field ids from the category groups fields
+  //   // make this payload to crateProductDto and call createProduct method here in loop
+  //   // Finally return the response
+  // }
+
+  async productCreateByExecl(categoryId: string, fileId: string) {
+    // 1️⃣ Load groups & fields
+    const groups = await this.groupService.findGroupsByCategoryId(categoryId);
+    if (!groups.length) throw new NotFoundException('Category has no groups');
+
+    // 2️⃣ Build fieldMap: fieldName -> fieldId (exact match)
+    const fieldMap = new Map<string, string>();
+    groups.forEach((group) => {
+      group.fields.forEach((field) => {
+        fieldMap.set(field.fieldName, field.id);
+      });
+    });
+    if (!fieldMap.size) throw new BadRequestException('Category has no fields');
+
+    // 3️⃣ Load file & get buffer
+    const [file] = await this.fileService.getFileByIds([fileId]);
+    if (!file) throw new NotFoundException('Excel file not found');
+    const buffer = await this.fileService.getFileBuffer(file);
+
+    // 4️⃣ Extract Excel rows
+    const rows = this.fileService.execlExtractData(buffer);
+    if (!rows.length) throw new BadRequestException('Excel file is empty');
+
+    // 5️⃣ Process rows
+    const payloads: CreateProductDto[] = [];
+    const rowErrors: { row: number; message: string }[] = [];
+    const missingFieldsPerRow: { row: number; missingFields: string[] }[] = [];
+
+    rows.forEach((row, i) => {
+      try {
+        const modelName = row['Modello MXS'];
+        if (!modelName || typeof modelName !== 'string') {
+          throw new BadRequestException('modelName is required');
+        }
+
+        // 5.1 Map Excel columns to database fields (exact match)
+        const information = Object.entries(row)
+          .filter(([key, value]) => fieldMap.has(key) && value != null)
+          .map(([key, value]) => ({
+            fieldId: fieldMap.get(key)!,
+            value: String(value),
+          }));
+
+        // 5.2 Collect missing fields (exist in Excel but not in DB)
+        const missingFields = Object.keys(row).filter(
+          (key) => !fieldMap.has(key) && key !== 'Modello MXS',
+        );
+
+        if (missingFields.length > 0) {
+          missingFieldsPerRow.push({ row: i + 2, missingFields }); // Excel row number
+        }
+
+        if (!information.length) {
+          throw new BadRequestException('No valid fields found in row');
+        }
+
+        // 5.3 Build payload
+        const payload: CreateProductDto = {
+          categoryId,
+          modelName,
+          description: row['description'] ? row['description'] : 'unknown',
+          information,
+          fileIds: [],
+        };
+
+        payloads.push(payload);
+      } catch (err) {
+        rowErrors.push({
+          row: i + 2,
+          message:
+            err instanceof Error ? err.message : 'Unknown error occurred',
+        });
+      }
+    });
+
+    return {
+      payloads,
+      totalRows: rows.length,
+      success: payloads.length,
+      failed: rowErrors.length,
+      errors: rowErrors,
+      missingFields: missingFieldsPerRow,
+    };
+    // // 6️⃣ Bulk create products
+    // const createdProducts: ProductEntity[] = [];
+    // for (const payload of payloads) {
+    //   try {
+    //     const product = await this.createProduct(payload);
+    //     createdProducts.push(product!);
+    //   } catch (err) {
+    //     rowErrors.push({
+    //       row: 0,
+    //       message: err instanceof Error ? err.message : 'Create product failed',
+    //     });
+    //   }
+    // }
+
+    // // 7️⃣ Return response
+    // return {
+    //   totalRows: rows.length,
+    //   success: createdProducts.length,
+    //   failed: rowErrors.length,
+    //   errors: rowErrors,
+    //   missingFields: missingFieldsPerRow,
+    //   createdProducts,
+    // };
   }
 }

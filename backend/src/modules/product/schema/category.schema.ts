@@ -4,6 +4,12 @@ import { noCodeDescription } from 'src/common/schema';
 export const categorySchema = z.object({
   id: z.uuidv4(),
   categoryName: z.string(),
+  subCategoryNames: z
+    .array(z.string().min(1))
+    .min(1)
+    .refine((arr) => new Set(arr).size === arr.length, {
+      message: 'Sub-category names must be unique',
+    }),
   description: noCodeDescription,
   fileIds: z.array(z.uuidv4()).min(1),
   createdAt: z.date(),
@@ -11,11 +17,16 @@ export const categorySchema = z.object({
 });
 
 // Create
-export const categoryCreateSchema = categorySchema.pick({
-  categoryName: true,
-  description: true,
-  fileIds: true,
-});
+export const categoryCreateSchema = categorySchema
+  .pick({
+    categoryName: true,
+    subCategoryNames: true,
+    description: true,
+    fileIds: true,
+  })
+  .partial({
+    subCategoryNames: true,
+  });
 
 // Update
 export const categoryUpdateSchema = z

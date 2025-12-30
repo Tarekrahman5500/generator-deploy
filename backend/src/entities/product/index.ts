@@ -5,3 +5,4 @@ export * from './field.entity';
 export * from './product.entity';
 export * from './product.value.entity';
 export * from './product.file.relation.entity';
+export * from './sub.category.entity';

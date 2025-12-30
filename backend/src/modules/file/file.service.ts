@@ -4,7 +4,9 @@ import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { FileEntity } from 'src/entities/file';
 import { UploadFileResponseDto } from './dto';
 import { join } from 'path';
-import { promises as fs } from 'fs';
+import * as fs from 'node:fs/promises';
+import * as xlsx from 'xlsx';
+import * as path from 'node:path';
 
 @Injectable()
 export class FileService {
@@ -80,9 +82,7 @@ export class FileService {
       try {
         await fs.unlink(filePath);
       } catch {
-        console.warn(
-          `⚠ Warning: Failed to delete file from disk: ${filePath}`,
-        );
+        console.warn(`⚠ Warning: Failed to delete file from disk: ${filePath}`);
       }
     }
   }
@@ -91,5 +91,29 @@ export class FileService {
     const ids: string[] = [];
     ids.push(id);
     return await this.deleteFilesByIds(ids);
+  }
+
+  execlExtractData(buffer: Buffer) {
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const rows = xlsx.utils.sheet_to_json<Record<string, any>>(sheet, {
+      defval: null,
+      raw: false,
+    });
+
+    // 🔹 Skip first 5 data rows (not header)
+    return rows.slice(0, 3);
+  }
+
+  async getFileBuffer(file: { url: string }): Promise<Buffer> {
+    if (!file?.url) {
+      throw new Error('File URL not found');
+    }
+
+    const filePath = path.resolve(process.cwd(), file.url);
+    return fs.readFile(filePath);
   }
 }

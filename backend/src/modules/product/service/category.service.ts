@@ -6,6 +6,7 @@ import { CategoryCreateDto, CategoryUpdateDto } from '../dto';
 import { Categories } from 'src/common/enums';
 import { FileService } from 'src/modules/file/file.service';
 import { CategoryFileRelationEntity } from 'src/entities/product/category.file.reation.entity';
+import { SubCategoryService } from './sub.category.service';
 
 @Injectable()
 export class CategoryService {
@@ -14,6 +15,7 @@ export class CategoryService {
     private readonly categoryRepository: Repository<CategoryEntity>,
     private readonly fileService: FileService,
     private readonly dataSource: DataSource,
+    private readonly subCategoryService: SubCategoryService,
   ) {}
 
   // ------------------------------------------------------------
@@ -22,35 +24,41 @@ export class CategoryService {
   async createCategory(
     createCategoryDto: CategoryCreateDto,
   ): Promise<CategoryEntity> {
-    const { fileIds, ...categoryData } = createCategoryDto;
+    const { fileIds, subCategoryNames, ...categoryData } = createCategoryDto;
 
-    // 2️⃣ Check existing files
+    // 1️⃣ Validate files before transaction
     const files = await this.fileService.getFileByIds(fileIds);
 
     if (!files || files.length !== fileIds.length) {
       throw new NotFoundException('Files are not found');
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      // 1️⃣ Create category
+    return this.dataSource.transaction(async (manager) => {
+      // 2️⃣ Create category
       const category = await manager.save(CategoryEntity, categoryData);
 
       // 3️⃣ Update usedAt for files
       await this.fileService.usedAtUpdate(fileIds, manager);
 
-      // 4️⃣ Create category-file relations
+      // 4️⃣ Create category-file relations (payload first)
       const relationsPayload = fileIds.map((fileId) => ({
         categoryId: category.id,
         fileId,
       }));
 
-      // Create entity objects
-      const relations = manager.create(
+      await manager.save(
         CategoryFileRelationEntity,
-        relationsPayload,
+        manager.create(CategoryFileRelationEntity, relationsPayload),
       );
 
-      await manager.save(CategoryFileRelationEntity, relations);
+      // 5️⃣ Optional: bulk create sub-categories
+      if (subCategoryNames?.length) {
+        await this.subCategoryService.bulkSubCategoryCreate(
+          category.id,
+          subCategoryNames,
+          manager,
+        );
+      }
 
       return category;
     });
@@ -71,6 +79,7 @@ export class CategoryService {
       .createQueryBuilder('category')
       .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
       .leftJoinAndSelect('categoryFile.file', 'file')
+      .leftJoinAndSelect('category.subCategories', 'subCategory')
       .select([
         'category.id',
         'category.categoryName',
@@ -81,6 +90,9 @@ export class CategoryService {
         'file.id',
         'file.url',
         'file.mimeType',
+
+        'subCategory.id',
+        'subCategory.subCategoryName',
       ])
       .where('category.isDeleted = false')
       .skip(skip)

@@ -1,7 +1,16 @@
-import { Body, Controller, Get, HttpStatus, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ContactFormService } from './contact.from.service';
 import { ContactFormDto, InfoRequestFormDto } from './dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
+import { AuthGuard } from 'src/auth/guard';
 
 @Controller('contact-form')
 export class ContactFromController {
@@ -29,6 +38,7 @@ export class ContactFromController {
     });
   }
 
+  @UseGuards(AuthGuard)
   @Get()
   async getAllContactForms(
     @Query('page') page = 1,
@@ -46,6 +56,7 @@ export class ContactFromController {
     });
   }
 
+  @UseGuards(AuthGuard)
   @Get('info-request')
   async getAllInfoRequestForms(
     @Query('page') page = 1,

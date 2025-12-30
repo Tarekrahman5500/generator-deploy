@@ -7,15 +7,15 @@ import {
   Body,
   Param,
   HttpStatus,
-  // UseGuards,
+  UseGuards,
 } from '@nestjs/common';
 import { GroupService } from '../service';
 import { GroupCreateDto, GroupUpdateDto } from '../dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
-// import { AuthGuard } from 'src/auth/guard';
+import { AuthGuard } from 'src/auth/guard';
 
+@UseGuards(AuthGuard)
 @Controller('group')
-// @UseGuards(AuthGuard)
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 

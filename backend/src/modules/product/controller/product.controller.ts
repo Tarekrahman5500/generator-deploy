@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   CreateProductDto,
@@ -16,7 +17,10 @@ import {
 } from '../dto';
 import { ProductService } from '../service';
 import { apiResponse } from 'src/common/apiResponse/api.response';
+import { AuthGuard } from 'src/auth/guard';
+import { isPublic } from 'src/decorator';
 
+@UseGuards(AuthGuard)
 @Controller('product')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
@@ -61,6 +65,7 @@ export class ProductController {
     });
   }
 
+  @isPublic()
   @Get(':id')
   async getProductDetails(@Param('id') productId: string) {
     const productDetails =
@@ -71,6 +76,7 @@ export class ProductController {
     });
   }
 
+  @isPublic()
   @Post('compare')
   async compareProducts(@Body() productCompareDto: ProductCompareDto) {
     const comparedProducts =
@@ -96,6 +102,20 @@ export class ProductController {
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: {},
+    });
+  }
+
+  @Post('execl-genset-add')
+  async execlGensetAdd(@Body() body: { categoryId: string; fileId: string }) {
+    const { categoryId, fileId } = body;
+    const result = await this.productService.productCreateByExecl(
+      categoryId,
+      fileId,
+    );
+
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { result },
     });
   }
 }
