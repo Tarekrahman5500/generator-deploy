@@ -47,9 +47,14 @@ async function bootstrap() {
     origin: [
       'http://localhost:8080',
       'http://localhost:5000',
-      'https://frankfurt-equivalent-constraints-guide.trycloudflare.com',
-      'https://funny-cook-framed-adapters.trycloudflare.com',
       'https://marexisitaly.com',
+      'https://www.marexisitaly.com',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: [
+      'Content-Type',
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Headers',
     ],
     credentials: true,
   });
