@@ -18,8 +18,11 @@ async function bootstrap() {
   app.use(
     helmet({
       contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     }),
   );
+
 
   // // 🚦 Global rate limit (no Redis)
   // app.use(
@@ -50,18 +53,12 @@ async function bootstrap() {
       'https://marexisitaly.com',
       'https://www.marexisitaly.com',
     ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: [
       'Content-Type',
       'Access-Control-Allow-Origin',
       'Access-Control-Allow-Headers',
-      'Authorization',
-      'Content-Type',
-      'Accept',
-      'Origin',
-      'X-Requested-With',
     ],
-    exposedHeaders: ['Authorization'],
     credentials: true,
   });
 
