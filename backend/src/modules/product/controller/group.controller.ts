@@ -13,6 +13,7 @@ import { GroupService } from '../service';
 import { GroupCreateDto, GroupUpdateDto } from '../dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 import { AuthGuard } from 'src/auth/guard';
+import { isPublic } from 'src/decorator';
 
 @UseGuards(AuthGuard)
 @Controller('group')
@@ -46,6 +47,7 @@ export class GroupController {
   // ------------------------------------------------------------
   // Get All Groups
   // ------------------------------------------------------------
+  @isPublic()
   @Get()
   async getAllGroups() {
     const groups = await this.groupService.findAllGroups();
@@ -70,6 +72,7 @@ export class GroupController {
   // ------------------------------------------------------------
   // Get Groups by Category ID
   // ------------------------------------------------------------
+  @isPublic()
   @Get('category/:categoryId')
   async getGroupsByCategory(@Param('categoryId') categoryId: string) {
     const groups = await this.groupService.findGroupsByCategoryId(categoryId);

@@ -36,6 +36,17 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('verify-token')
+  async verifyToken(@Request() req) {
+    const isValid = req.user ? true : false;
+
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { isValid },
+    });
+  }
+
+  @UseGuards(AuthGuard)
   @Post('logout')
   async logout(@Request() req) {
     const userId: string = req.user.id;

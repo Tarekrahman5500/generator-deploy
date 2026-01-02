@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { ContactFormEmailReplyEntity } from './contact.form.email.reply.entity';
 
 @Entity('contact_forms')
 export class ContactFormEntity {
@@ -23,10 +24,16 @@ export class ContactFormEntity {
   @Column({ type: 'text' })
   message: string;
 
+  @Column({ type: 'boolean', default: false })
+  isReplied: boolean;
+
   @Column({
     type: 'datetime',
     default: () => 'CURRENT_TIMESTAMP',
     name: 'created_at',
   })
   createdAt: Date;
+
+  @OneToMany(() => ContactFormEmailReplyEntity, (reply) => reply.contactForm)
+  emailReplies: ContactFormEmailReplyEntity[];
 }

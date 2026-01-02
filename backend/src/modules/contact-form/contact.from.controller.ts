@@ -5,17 +5,21 @@ import {
   HttpStatus,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ContactFormService } from './contact.from.service';
-import { ContactFormDto, InfoRequestFormDto } from './dto';
+import { ContactFormDto, EmailReplyDto, InfoRequestFormDto } from './dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 import { AuthGuard } from 'src/auth/guard';
+import { isPublic } from 'src/decorator';
 
+@UseGuards(AuthGuard)
 @Controller('contact-form')
 export class ContactFromController {
   constructor(private readonly contactFormService: ContactFormService) {}
 
+  @isPublic()
   @Post()
   async createContactForm(@Body() contactFormDto: ContactFormDto) {
     const contactFrom =
@@ -27,6 +31,7 @@ export class ContactFromController {
     });
   }
 
+  @isPublic()
   @Post('info-request')
   async createInfoRequestForm(@Body() infoRequestFormDto: InfoRequestFormDto) {
     const infoRequest =
@@ -38,7 +43,6 @@ export class ContactFromController {
     });
   }
 
-  @UseGuards(AuthGuard)
   @Get()
   async getAllContactForms(
     @Query('page') page = 1,
@@ -56,7 +60,6 @@ export class ContactFromController {
     });
   }
 
-  @UseGuards(AuthGuard)
   @Get('info-request')
   async getAllInfoRequestForms(
     @Query('page') page = 1,
@@ -71,6 +74,69 @@ export class ContactFromController {
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { ...allInfoRequests },
+    });
+  }
+
+  // ---------------- Email Replies ----------------
+  @Post('reply/contact')
+  async replyContactForm(@Body() dto: EmailReplyDto, @Req() req) {
+    const repliedByAdminId = req.user.id;
+    const reply = await this.contactFormService.contactFormEmailReply(
+      dto,
+      repliedByAdminId,
+    );
+    return apiResponse({
+      statusCode: HttpStatus.CREATED,
+      payload: { reply },
+    });
+  }
+
+  @Post('reply/info-request')
+  async replyInfoRequestForm(@Body() dto: EmailReplyDto, @Req() req) {
+    const repliedByAdminId = req.user.id;
+    const reply = await this.contactFormService.infoRequestFormEmailReply(
+      dto,
+      repliedByAdminId,
+    );
+    return apiResponse({
+      statusCode: HttpStatus.CREATED,
+      payload: { reply },
+    });
+  }
+
+  // ---------------- List Replies ----------------
+  @Get('reply/contact')
+  async getAllContactFormEmailReply(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const pageNumber = Math.max(Number(page), 1);
+    const pageSize = Math.min(Math.max(Number(limit), 1), 100);
+    const replies = await this.contactFormService.getAllContactFormEmailReply(
+      pageNumber,
+      pageSize,
+    );
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: replies,
+    });
+  }
+
+  @Get('reply/info-request')
+  async getAllInfoRequestFormEmailReply(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const pageNumber = Math.max(Number(page), 1);
+    const pageSize = Math.min(Math.max(Number(limit), 1), 100);
+    const replies =
+      await this.contactFormService.getAllInfoRequestFormEmailReply(
+        pageNumber,
+        pageSize,
+      );
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: replies,
     });
   }
 }

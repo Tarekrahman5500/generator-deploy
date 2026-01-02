@@ -4,36 +4,24 @@ import {
   Get,
   HttpStatus,
   Patch,
-  // UseGuards,
+  UseGuards,
 } from '@nestjs/common';
-// import { AuthGuard, RolesGuard } from 'src/auth/guard';
-// import { AdministratorRole } from 'src/common/enums';
-// import { Roles } from 'src/decorator';
+import { AuthGuard, RolesGuard } from 'src/auth/guard';
+import { AdministratorRole } from 'src/common/enums';
+import { Roles } from 'src/decorator';
 import { AdminUpdateDto } from './dto';
 import { AdministratorService } from './administrator.service';
 import { apiResponse } from 'src/common/apiResponse/api.response';
-// import { EmailService } from '../email/email.service';
 
-//@UseGuards(AuthGuard, RolesGuard)
-//@Roles(AdministratorRole.SUPER_ADMIN)
-
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(AdministratorRole.SUPER_ADMIN)
 @Controller('administrator')
 export class AdmnistratorController {
-  constructor(
-    private readonly administratorService: AdministratorService,
-    // private readonly emailService: EmailService,
-  ) {}
+  constructor(private readonly administratorService: AdministratorService) {}
   @Get()
   async getAllAdmins() {
     const admins = await this.administratorService.getAllAdmins();
 
-    // const data = await this.emailService.sendEmail({
-    //   to: 'sourovsarker005@gmail.com',
-    //   subject: 'Test Email from Maresix',
-    //   html: '<h1>This is a test email sent from Maresix application.</h1><p>If you received this email, the email service is working correctly.</p>',
-    // });
-
-    // console.log('Email sent response:', data);
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { admins },

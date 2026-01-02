@@ -4,8 +4,10 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { ProductEntity } from '../product';
+import { InfoRequestEmailReplyEntity } from './info.request.email.reply.entity';
 
 @Entity('info_request_forms')
 export class InfoRequestFormEntity {
@@ -24,6 +26,9 @@ export class InfoRequestFormEntity {
   @Column({ type: 'varchar' })
   country: string;
 
+  @Column({ type: 'boolean', default: false })
+  isReplied: boolean;
+
   // ✅ PROPER FOREIGN KEY RELATION
   @ManyToOne(() => ProductEntity, (product) => product.infoRequestForms, {
     nullable: false,
@@ -38,4 +43,10 @@ export class InfoRequestFormEntity {
     name: 'created_at',
   })
   createdAt: Date;
+
+  @OneToMany(
+    () => InfoRequestEmailReplyEntity,
+    (reply) => reply.infoRequestForm,
+  )
+  emailReplies: InfoRequestEmailReplyEntity[];
 }

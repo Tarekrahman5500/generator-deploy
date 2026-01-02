@@ -1,7 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { AdministratorToken } from './administrator.token.entity';
 import { AdministratorRole } from '../../common/enums';
-
+import {
+  ContactFormEmailReplyEntity,
+  InfoRequestEmailReplyEntity,
+} from '../contact-form';
 @Entity('administrators')
 export class Administrator {
   @PrimaryGeneratedColumn('uuid')
@@ -39,4 +42,10 @@ export class Administrator {
 
   @OneToMany(() => AdministratorToken, (token) => token.user)
   tokens: AdministratorToken[];
+
+  @OneToMany(() => ContactFormEmailReplyEntity, (reply) => reply.repliedBy)
+  emailReplies: ContactFormEmailReplyEntity[];
+
+  @OneToMany(() => InfoRequestEmailReplyEntity, (reply) => reply.repliedBy)
+  infoRequestEmailReplies: InfoRequestEmailReplyEntity[];
 }
