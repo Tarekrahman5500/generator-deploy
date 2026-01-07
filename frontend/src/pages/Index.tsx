@@ -169,11 +169,11 @@ const Index = ({ data }) => {
         <div className="container relative z-10 px-6">
           <div className="max-w-2xl text-white">
             <h1 className="text-5xl md:text-6xl font-heading font-bold mb-6 leading-tight">
-              Precision Engineering for a Modern World
+              {cmsContent.title}
             </h1>
             <p className="text-lg md:text-xl mb-8 text-white/90">
-              Discover our cutting-edge solutions designed for reliability,
-              performance, and unparalleled industrial efficiency.
+              {cmsContent.description}
+              
             </p>
             <Button
               asChild

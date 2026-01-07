@@ -5,8 +5,6 @@ import { toast } from "sonner";
 export const handleLogout = async () => {
   const accessToken = secureStorage.get("accessToken");
 
-  console.log(accessToken)
-
   if (!accessToken) {
     toast.error("No user logged in");
     return;

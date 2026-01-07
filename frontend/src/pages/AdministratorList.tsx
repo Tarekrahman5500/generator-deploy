@@ -219,6 +219,7 @@ export const AdministratorsTable = () => {
                             />
                         </div>
                         <div className="grid gap-2">
+                            <Label htmlFor="phone">Password</Label>
                             <p className="text-[10px] text-muted-foreground leading-tight">
                                 (Must have: 1 Upper, 1 Lower, 1 Special Char, 8+ Chars. Leave blank to keep current)
                             </p>

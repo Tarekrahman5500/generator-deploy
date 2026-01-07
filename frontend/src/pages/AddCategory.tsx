@@ -145,14 +145,20 @@ const AddCategory = () => {
       });
       return;
     }
+const payload: any = {
+  categoryName,
+  description
+};
 
-    const payload = {
-      categoryName,
-      description,
-      subCategoryNames: [subCategoryNames],
-      fileIds: [fileIds],
-    };
+if (subCategoryNames && subCategoryNames.length > 0) {
+  payload.subCategoryNames = [subCategoryNames];
+}
 
+if (fileIds && fileIds.length > 0) {
+  payload.fileIds = [fileIds];
+}
+
+    
     try {
       const url = `${import.meta.env.VITE_API_URL}/category`;
       const options = {
@@ -174,8 +180,8 @@ const AddCategory = () => {
             padding: "12px 16px",
           },
         });
-        handleLogout();
-        navigate("/logout");
+        await handleLogout();
+        navigate("/login");
         return;
       }
       if (!res.ok) {
@@ -202,7 +208,7 @@ const AddCategory = () => {
           padding: "12px 16px",
         },
       });
-      fetchCategories();
+     fetchCategories();
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong!", {

@@ -101,7 +101,7 @@ const App = () => {
             element={
               <Services
                 data={cmsData?.["Services"] || []}
-                serviceHero={cmsData?.["Service Main"]}
+                serviceHero={cmsData?.["Service Main"]||[]}
               />
             }
           />
