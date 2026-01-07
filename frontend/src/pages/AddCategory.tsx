@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,11 +41,28 @@ import { handleLogout } from "@/Util/LogOut";
 import { Category, CategoryResponse } from "./Products";
 const AddCategory = () => {
   const navigate = useNavigate();
-  const accessToken = secureStorage.get("accessToken");
+
   const [categoryName, setCategory] = useState("");
   const [description, setDescription] = useState("");
 
   const [fileIds, setFileIds] = useState<string[]>([]);
+  const [subCategoryNames, setSubCategoryNames] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      e.preventDefault();
+      // Prevent duplicates
+      if (!subCategoryNames.includes(inputValue.trim())) {
+        setSubCategoryNames([...subCategoryNames, inputValue.trim()]);
+      }
+      setInputValue("");
+    }
+  };
+
+  const removeTag = (indexToRemove: number) => {
+    setSubCategoryNames(subCategoryNames.filter((_, index) => index !== indexToRemove));
+  };
   // Product state
   const userName = secureStorage.get("userInfo") || "";
   const formattedName = userName.charAt(0).toUpperCase();
@@ -66,12 +83,17 @@ const AddCategory = () => {
   const uploadImage = async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-
+    const accessToken = await secureStorage.getValidToken();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/file/image`, {
+      const url = `${import.meta.env.VITE_API_URL}/file/image`;
+      const options = {
         method: "POST",
         body: formData,
-      });
+        headers: {
+          "Authorization": `Bearer ${accessToken}`
+        }
+      }
+      const res = await fetch(url, options);
 
       const result = await res.json();
       setFileIds(result?.response?.id);
@@ -86,6 +108,14 @@ const AddCategory = () => {
       });
     } catch (error) {
       console.error("Upload error:", error);
+      toast.error("Please fill in all required fields", {
+        style: {
+          background: "#ff0000", // your custom red
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
     }
   };
   // File selection handler
@@ -99,11 +129,11 @@ const AddCategory = () => {
       alert("Only JPG, JPEG & PNG files are allowed!");
       return;
     }
-
     setUploadedFile(file);
     uploadImage(file); // Upload automatically
   };
   const handleSaveCategory = async () => {
+    const accessToken = await secureStorage.getValidToken();
     if (!categoryName || !description) {
       toast.error("Please fill in all required fields", {
         style: {
@@ -119,18 +149,22 @@ const AddCategory = () => {
     const payload = {
       categoryName,
       description,
+      subCategoryNames: [subCategoryNames],
       fileIds: [fileIds],
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/category`, {
+      const url = `${import.meta.env.VITE_API_URL}/category`;
+      const options = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
-      });
+      }
+      const res = await fetch(url, options)
+
       if (res.status === 401) {
         toast.error("Session expired. Please login again.", {
           style: {
@@ -141,7 +175,7 @@ const AddCategory = () => {
           },
         });
         handleLogout();
-        navigate("/login");
+        navigate("/logout");
         return;
       }
       if (!res.ok) {
@@ -191,6 +225,7 @@ const AddCategory = () => {
         id: category.id || "",
         categoryName: category.categoryName || "",
         description: category.description || "",
+        subCategoryNames
       }));
 
       setCategories({
@@ -211,18 +246,20 @@ const AddCategory = () => {
     fetchCategories();
   }, []);
   const removeFile = async (id: string) => {
+    const accessToken = await secureStorage.getValidToken();
     try {
       console.log("Removing file:", id);
-
-      // Call API to delete file
-      await fetch(`${import.meta.env.VITE_API_URL}/file/${id}`, {
+      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const options = {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           // If you need authorization:
           Authorization: `Bearer ${accessToken}`,
         },
-      });
+      }
+      // Call API to delete file
+      await fetch(url, options);
 
       // Update local state
       setFileIds([]);
@@ -267,7 +304,41 @@ const AddCategory = () => {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="subcategories">
+                  Sub Categories <span className="text-destructive">(Optional)</span>
+                </Label>
 
+                <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background focus-within:ring-2 ring-ring ring-offset-2">
+                  {/* Render the Tags/Chips */}
+                  {subCategoryNames.map((name, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-1 px-3 py-1 text-white bg-[#001f3f] rounded-full text-sm"
+                    >
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(index)}
+                        className="hover:text-red-400 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* The actual input field */}
+                  <input
+                    id="subcategories"
+                    className="flex-1 bg-transparent outline-none min-w-[120px] text-sm py-1"
+                    placeholder={subCategoryNames.length === 0 ? "Type and press Enter..." : ""}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Press Enter to add a sub-category.</p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="description">
                   Category Description{" "}
@@ -352,7 +423,7 @@ const AddCategory = () => {
           </div>
         </div>
       </div>
-      <Button onClick={handleSaveCategory} className="mt-5 ml-5 sm:mt-20">
+      <Button onClick={handleSaveCategory} className="mt-28 ml-5 sm:mt-25 bg-[#163859] hover:bg-[#163859]">
         Save Category
       </Button>
     </div>

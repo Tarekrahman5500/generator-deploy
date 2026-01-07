@@ -1,4 +1,4 @@
 import { createZodDto } from 'nestjs-zod';
-import { emailReplySchema } from '../schema';
+import { emailReplyCreateSchema } from '../schema';
 
-export class EmailReplyDto extends createZodDto(emailReplySchema) {}
+export class EmailReplyDto extends createZodDto(emailReplyCreateSchema) {}

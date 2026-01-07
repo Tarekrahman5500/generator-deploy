@@ -26,14 +26,13 @@ const Login = () => {
     }
     try {
       setLoading(true);
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const url = `${import.meta.env.VITE_API_URL}/auth/login`;
+      const options = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      };
+      const response = await fetch(url, options);
 
       const data = await response.json();
 
@@ -177,7 +176,7 @@ const Login = () => {
             </div>
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold bg-accent hover:bg-accent flex items-center justify-center gap-2"
+              className="w-full h-12 text-base font-semibold bg-[#163859] hover:bg-[#163859] flex items-center justify-center gap-2"
               disabled={loading}
             >
               {loading ? (

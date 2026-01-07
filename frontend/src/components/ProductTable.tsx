@@ -161,17 +161,17 @@ const ProductTable = ({
       setMatchedId(null); // optional fallback
     }
     try {
+      const url = `${import.meta.env.VITE_API_URL
+        }/product/delete-field-value/${matchedId}`
+      const options = {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${secureStorage.get("accessToken")}`,
+          "Content-Type": "application/json",
+        },
+      }
       const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL
-        }/product/delete-field-value/${matchedId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${secureStorage.get("accessToken")}`,
-            "Content-Type": "application/json",
-          },
-        }
+        url, options
       );
 
       if (!response.ok) {
@@ -213,14 +213,16 @@ const ProductTable = ({
     };
     // console.log(updatedProduct);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/product`, {
+      const url = `${import.meta.env.VITE_API_URL}/product`;
+      const options = {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${secureStorage.get("accessToken")}`,
+          "Authorization": `Bearer ${secureStorage.get("accessToken")}`,
         },
         body: JSON.stringify(updatedProduct),
-      });
+      }
+      const res = await fetch(url, options);
 
       if (!res.ok) {
         throw new Error("Failed to update product");
@@ -253,17 +255,18 @@ const ProductTable = ({
     //  console.log("Deleting product:", deleteProduct);
 
     try {
+      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${deleteProduct?.id
+        }`;
+      const options = {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${secureStorage.get("accessToken")}`,
+        },
+      }
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/product/soft-delete/${
-          deleteProduct?.id
-        }`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${secureStorage.get("accessToken")}`,
-          },
-        }
+        url,
+        options
       );
 
       if (!res.ok) {
@@ -293,7 +296,7 @@ const ProductTable = ({
       console.error(error);
     }
   };
-
+  const accessToken = secureStorage.get('accessToken')
   const startIndex = (meta.page - 1) * meta.limit + 1;
   const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const getImageUrl = (path?: string) =>
@@ -304,16 +307,16 @@ const ProductTable = ({
   const removeFile = async (id: string) => {
     try {
       console.log("Removing file:", id);
-
-      // Call API to delete file
-      await fetch(`${import.meta.env.VITE_API_URL}/file/${id}`, {
+      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const options = {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          // If you need authorization:
-          // "Authorization": `Bearer ${accessToken}`,
+          "Authorization": `Bearer ${accessToken}`,
         },
-      });
+      }
+      // Call API to delete file
+      await fetch(url, options);
 
       // Update local state
       const file = mediaFiles.find((f) => f.id === id);
@@ -335,7 +338,7 @@ const ProductTable = ({
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/image`);
-
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percent = Math.round((event.loaded / event.total) * 100);
@@ -575,10 +578,6 @@ const ProductTable = ({
                           src={`${import.meta.env.VITE_API_URL}/${file.url}`}
                           alt={file.originalName}
                           className="object-cover h-full w-full"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "/placeholder.png";
-                          }}
                         />
                       </div>
                     ))}
@@ -767,10 +766,7 @@ const ProductTable = ({
                             src={`${import.meta.env.VITE_API_URL}/${file.url}`}
                             alt={file.originalName}
                             className="object-cover h-full w-full"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                "/placeholder.png";
-                            }}
+
                           />
                           {/* Delete Button */}
                           <button

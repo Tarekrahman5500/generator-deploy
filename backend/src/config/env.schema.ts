@@ -29,23 +29,6 @@ export const environmentSchema = z.object({
 
   JWT_ACCESS_EXPIRES_IN: durationString.default(900), // 15 min
   JWT_REFRESH_EXPIRES_IN: durationString.default(10080), // 7 d
-
-  // email
-  SMTP_SERVICE: z.string().min(1, 'SMTP service is required'),
-  SMTP_HOST: z.string().min(1, 'SMTP host is required'),
-  SMTP_PORT: z.coerce
-    .number()
-    .int()
-    .positive()
-    .lte(65535, 'Port must be between 1 and 65535'),
-  SMTP_PASSWORD: z.string().min(1, 'SMTP password is required'),
-  SMTP_MAIL: z.email('Invalid email address'),
-
-  RESEND_API_KEY: nonEmptyString,
-  RESEND_FROM_EMAIL: z.email('Invalid from email'),
-
-  // opt
-  OTP_EXPIRE_TIME: durationString.transform(Number),
 });
 
 // Parse and validate environment variables

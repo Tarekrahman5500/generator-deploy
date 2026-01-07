@@ -44,6 +44,13 @@ export class InfoRequestFormEntity {
   })
   createdAt: Date;
 
+  @Column({
+    type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+    name: 'updated_at',
+  })
+  updatedAt: Date;
+
   @OneToMany(
     () => InfoRequestEmailReplyEntity,
     (reply) => reply.infoRequestForm,

@@ -97,11 +97,10 @@ export function ProductMediaUpload({
       <CardContent>
         {/* Upload Area */}
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
-            isDragging
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${isDragging
               ? "border-primary bg-primary/5"
               : "border-border hover:border-primary/50 hover:bg-muted/50"
-          }`}
+            }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -160,7 +159,7 @@ export function ProductMediaUpload({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name}</p>
+                    <p className="text-sm font-medium truncate">{file.name.slice(0, 6)}</p>
                     <p className="text-xs text-muted-foreground">{file.size}</p>
 
                     {file.status === "uploading" && (

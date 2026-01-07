@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CategoryEntity } from 'src/entities/product';
 import { CategoryCreateDto, CategoryUpdateDto } from '../dto';
-import { Categories } from 'src/common/enums';
 import { FileService } from 'src/modules/file/file.service';
 import { CategoryFileRelationEntity } from 'src/entities/product/category.file.reation.entity';
 import { SubCategoryService } from './sub.category.service';
@@ -64,13 +63,6 @@ export class CategoryService {
     });
   }
 
-  // ------------------------------------------------------------
-  // Find All
-  // ------------------------------------------------------------
-  // async findAllCategories(): Promise<CategoryEntity[]> {
-  //   return this.categoryRepository.find();
-  // }
-
   async findAllCategories(page = 1, limit = 10) {
     const take = Math.min(Math.max(limit, 1), 100); // safety cap
     const skip = (Math.max(page, 1) - 1) * take;
@@ -109,15 +101,6 @@ export class CategoryService {
       },
       categories,
     };
-  }
-
-  // ------------------------------------------------------------
-  // Find by Name
-  // ------------------------------------------------------------
-  async findByName(name: Categories): Promise<CategoryEntity | null> {
-    return await this.categoryRepository.findOne({
-      where: { categoryName: name },
-    });
   }
 
   // ------------------------------------------------------------

@@ -16,6 +16,8 @@ import {
   Clipboard,
   Boxes,
   BookText,
+  ShieldPlus,
+  Mails
 } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
@@ -29,10 +31,9 @@ const Dashboard = () => {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${
-          isActive
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-muted"
+        `w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${isActive
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted"
         }`
       }
       onClick={() => setMobileMenuOpen(false)}
@@ -59,16 +60,18 @@ const Dashboard = () => {
     }
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/logout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+
+      const url = `${import.meta.env.VITE_API_URL}/auth/logout`;
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+
+      }
+
+      const response = await fetch(url, options);
 
       if (!response.ok) {
         const data = await response.json();
@@ -80,6 +83,8 @@ const Dashboard = () => {
             padding: "12px 16px",
           },
         });
+        secureStorage.clear();
+        navigate("/login");
         return;
       }
 
@@ -111,8 +116,8 @@ const Dashboard = () => {
       <div className="hidden md:flex w-64 bg-background border-r border-border flex-col h-screen sticky top-0">
         <div className="p-2 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-accent rounded-xl flex items-center justify-center">
-              <NavLink to="/" className="block">
+            <div className="w-8 h-8 bg-[#163859] rounded-xl flex items-center justify-center">
+              <NavLink to="/home" className="block">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -164,14 +169,19 @@ const Dashboard = () => {
             label: "View Products",
           })}
 
-          {/* <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+          <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
             MEDIA
           </p>
-          {navItem({
+          {/* {navItem({
             to: "/dashboard/backgrounds",
             icon: ImageIcon,
             label: "Backgrounds",
           })} */}
+          {navItem({
+            to: "/dashboard/cms-management",
+            icon: ImageIcon,
+            label: "CMS Management",
+          })}
           <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
             Contact Form
           </p>
@@ -185,6 +195,19 @@ const Dashboard = () => {
             to: "/dashboard/get-quote",
             icon: BookText,
             label: "Get Quote",
+          })}
+          <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+            Administrator
+          </p>
+          {navItem({
+            to: "/dashboard/get-admin-list",
+            icon: ShieldPlus,
+            label: "Admin Info Update",
+          })}
+          {navItem({
+            to: "/dashboard/email-config ",
+            icon: Mails,
+            label: "Email Config",
           })}
         </nav>
 
@@ -201,17 +224,15 @@ const Dashboard = () => {
 
       {/* Mobile Drawer */}
       <div
-        className={`fixed inset-0 z-50 md:hidden transition-opacity duration-300 ${
-          mobileMenuOpen
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 z-50 md:hidden transition-opacity duration-300 ${mobileMenuOpen
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none"
+          }`}
       >
         {/* OVERLAY */}
         <div
-          className={`fixed inset-0 bg-black transition-opacity duration-300 ${
-            mobileMenuOpen ? "opacity-50" : "opacity-0"
-          }`}
+          className={`fixed inset-0 bg-black transition-opacity duration-300 ${mobileMenuOpen ? "opacity-50" : "opacity-0"
+            }`}
           onClick={() => setMobileMenuOpen(false)}
         />
 
@@ -225,7 +246,7 @@ const Dashboard = () => {
           {/* TOP HEADER */}
           <div className="p-2 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#163859] rounded-lg flex items-center justify-center">
                 <svg
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -280,14 +301,19 @@ const Dashboard = () => {
               label: "View Products",
             })}
 
-            {/* <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
               MEDIA
-            </p> */}
+            </p>
             {/* {navItem({
               to: "/dashboard/backgrounds",
               icon: ImageIcon,
               label: "Backgrounds",
             })} */}
+            {navItem({
+              to: "/dashboard/cms-management",
+              icon: ImageIcon,
+              label: "CMS Management",
+            })}
             <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
               Contact Form
             </p>
@@ -301,6 +327,19 @@ const Dashboard = () => {
               to: "/dashboard/get-quote",
               icon: BookText,
               label: "Get Quote",
+            })}
+            <p className="text-xs font-semibold text-muted-foreground px-4 py-2 pt-4">
+              Administrator
+            </p>
+            {navItem({
+              to: "/dashboard/get-admin-list",
+              icon: ShieldPlus,
+              label: "Admin Info Update",
+            })}
+            {navItem({
+              to: "/dashboard/email-config ",
+              icon: Mails,
+              label: "Email Config",
             })}
           </nav>
 
@@ -325,7 +364,7 @@ const Dashboard = () => {
             </button>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="w-6 h-6 md:w-8 md:h-8 bg-accent rounded-full flex items-center justify-center">
+            <div className="w-6 h-6 md:w-8 md:h-8 bg-[#163859] hover:bg-[#163859] rounded-full flex items-center justify-center">
               <span className="text-primary-foreground font-semibold text-sm p-2">
                 {formattedName}
               </span>

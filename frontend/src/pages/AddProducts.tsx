@@ -34,7 +34,7 @@ interface MediaFile {
   preview?: string;
 }
 
-interface DocFile {
+export interface DocFile {
   id: string;
   name: string;
   size: string;
@@ -123,7 +123,7 @@ export default function AddProducts() {
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/image`);
-
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percent = Math.round((event.loaded / event.total) * 100);
@@ -188,14 +188,16 @@ export default function AddProducts() {
       information: information,
       fileIds: fileIds,
     };
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/product`, {
+    const url = `${import.meta.env.VITE_API_URL}/product`;
+    const options = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
-    });
+    }
+    const res = await fetch(url, options);
     if (!res.ok) {
       const error = await res.json();
       toast.error(error.message, {
@@ -260,7 +262,7 @@ export default function AddProducts() {
 
     setMediaFiles((prev) => prev.filter((f) => f.id !== id));
   };
-  console.log(categoryLabel);
+
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-6xl mx-auto">

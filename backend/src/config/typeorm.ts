@@ -6,7 +6,6 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 // TypeORM DataSource configuration
 
-//console.log(envVariables);
 const dataSourceConfig: DataSourceOptions = {
   type: envVariables.DATABASE_DIALECT,
   host: envVariables.DATABASE_HOST,

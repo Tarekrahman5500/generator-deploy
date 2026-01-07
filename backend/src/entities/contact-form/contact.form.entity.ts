@@ -34,6 +34,13 @@ export class ContactFormEntity {
   })
   createdAt: Date;
 
+  @Column({
+    type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+    name: 'updated_at',
+  })
+  updatedAt: Date;
+
   @OneToMany(() => ContactFormEmailReplyEntity, (reply) => reply.contactForm)
   emailReplies: ContactFormEmailReplyEntity[];
 }

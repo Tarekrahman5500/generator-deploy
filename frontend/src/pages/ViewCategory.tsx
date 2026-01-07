@@ -11,7 +11,7 @@ import {
 import { secureStorage } from "@/security/SecureStorage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Check, X, ImagePlus } from "lucide-react";
+import { Plus, Edit, Trash2, Check, X, ImagePlus, Pencil } from "lucide-react";
 import { Category, CategoryResponse } from "./Products";
 import { useNavigate, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ const ViewCategory = () => {
     description: "",
     imageFile: null as File | null,
     imagePreview: "",
+    subCategories: [],
     filesId: "",
   });
 
@@ -64,6 +65,7 @@ const ViewCategory = () => {
             url: fileObj.file?.url || "",
           },
         })),
+        subCategories: category.subCategories
       }));
 
       setCategories({
@@ -86,12 +88,14 @@ const ViewCategory = () => {
   }, []);
 
   const handleEditClick = (category: Category) => {
+    console.log(category)
     setEditingCategory(category);
     setEditForm({
       categoryName: category?.categoryName,
       description: category?.description || "",
       imageFile: null,
       imagePreview: category.categoryFiles[0]?.file?.url || "",
+      subCategories: category?.subCategories || [],
       filesId: category?.categoryFiles[0]?.file?.id || "",
     });
     setIsEditModalOpen(true);
@@ -108,15 +112,16 @@ const ViewCategory = () => {
       // 2️⃣ Prepare form data
       const formData = new FormData();
       formData.append("file", file);
-
-      // 3️⃣ Upload image
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/file/image`, {
+      const url = `${import.meta.env.VITE_API_URL}/file/image`;
+      const options = {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
         body: formData,
-      });
+      }
+      // 3️⃣ Upload image
+      const res = await fetch(url, options);
 
       if (!res.ok) throw new Error("Upload failed");
 
@@ -157,8 +162,8 @@ const ViewCategory = () => {
     if (!editingCategory) return;
 
     try {
-      // If you need to upload image, handle it here with FormData
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/category`, {
+      const url = `${import.meta.env.VITE_API_URL}/category`;
+      const options = {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -170,7 +175,9 @@ const ViewCategory = () => {
           description: editForm.description,
           fileIds: [editForm.filesId],
         }),
-      });
+      }
+      // If you need to upload image, handle it here with FormData
+      const res = await fetch(url, options);
 
       if (!res.ok) throw new Error("Failed to update");
 
@@ -181,10 +188,10 @@ const ViewCategory = () => {
         categories: prev.categories.map((cat) =>
           cat.id === editingCategory.id
             ? {
-                ...cat,
-                categoryName: editForm.categoryName,
-                description: editForm.description,
-              }
+              ...cat,
+              categoryName: editForm.categoryName,
+              description: editForm.description,
+            }
             : cat
         ),
       }));
@@ -203,9 +210,9 @@ const ViewCategory = () => {
     setLoading(true);
 
     try {
-      const url = `${
-        import.meta.env.VITE_API_URL
-      }/category/soft-delete/${categoryId}`;
+
+      const url = `${import.meta.env.VITE_API_URL
+        }/category/soft-delete/${categoryId}`;
 
       const response = await fetch(url, {
         method: "DELETE",
@@ -235,16 +242,17 @@ const ViewCategory = () => {
   const removeFile = async (id: string) => {
     try {
       console.log("Removing file:", id);
-
-      // Call API to delete file
-      await fetch(`${import.meta.env.VITE_API_URL}/file/${id}`, {
+      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const options = {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           // If you need authorization:
           Authorization: `Bearer ${accessToken}`,
         },
-      });
+      }
+      // Call API to delete file
+      await fetch(url, options);
 
       // Update local state
       const file = mediaFiles.find((f) => f.id === id);
@@ -260,7 +268,63 @@ const ViewCategory = () => {
       toast.error(`${error.message}`);
     }
   };
-  console.log(categories);
+  // console.log(categories);
+  const [editingId, setEditingId] = useState(null);
+  const [tempValue, setTempValue] = useState("");
+
+  const handleEditClickSub = (item: any) => {
+    setEditingId(item.id);
+    setTempValue(item.subCategoryName);
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setTempValue("");
+  };
+  const [isUpdating, setIsUpdating] = useState(false);
+  const handleSave = async (id: string) => {
+    // 1. Prevent empty submissions
+    if (!tempValue.trim()) {
+      toast.error("Sub-category name cannot be empty");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // 2. Get the authenticated token (will refresh if expired)
+      const token = await secureStorage.getValidToken();
+      if (!token) return; // refreshAccessToken handles the redirect to /login
+
+      // 3. Call the API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/sub-category/${id}`, {
+        method: "PATCH", // Using PATCH for partial updates
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          subCategoryName: tempValue,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update sub-category");
+      }
+
+      // 4. Update the local UI state (Optional: replace with a global fetch)
+      // setItems(prev => prev.map(item => item.id === id ? { ...item, subCategoryName: tempValue } : item));
+      fetchCategories();
+      toast.success("Updated successfully!");
+      setEditingId(null); // Close the edit mode
+    } catch (error: any) {
+      console.error("Update error:", error);
+      toast.error(error.message || "Something went wrong while updating");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
@@ -297,9 +361,8 @@ const ViewCategory = () => {
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
                         {category.categoryFiles[0]?.file?.url ? (
                           <img
-                            src={`${import.meta.env.VITE_API_URL}/${
-                              category?.categoryFiles[0]?.file?.url
-                            }`}
+                            src={`${import.meta.env.VITE_API_URL}/${category?.categoryFiles[0]?.file?.url
+                              }`}
                             alt={category.categoryName}
                             className="w-full h-full object-cover"
                           />
@@ -313,10 +376,11 @@ const ViewCategory = () => {
                     <TableCell className="font-medium">
                       {category.categoryName}
                     </TableCell>
-                    <TableCell>
-                      <p className="text-muted-foreground line-clamp-2">
-                        {category.description || "-"}
-                      </p>
+                    <TableCell className="max-w-[300px] truncate text-muted-foreground mr-6"
+                      title={category.description}>
+
+                      {category.description || "-"}
+
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex items-center gap-2">
@@ -376,9 +440,8 @@ const ViewCategory = () => {
                     {editForm.imagePreview ? (
                       <>
                         <img
-                          src={`${import.meta.env.VITE_API_URL}/${
-                            editForm.imagePreview
-                          }`}
+                          src={`${import.meta.env.VITE_API_URL}/${editForm.imagePreview
+                            }`}
                           alt="Preview"
                           className="w-full h-full object-cover"
                         />
@@ -428,7 +491,57 @@ const ViewCategory = () => {
                 placeholder="Enter category name"
               />
             </div>
+            {editForm.subCategories.length > 0 ? <div className="space-y-4 w-full max-w-md">
+              <Label>Sub Categories</Label>
+              {editForm.subCategories.map((item) => (
+                <div key={item.id} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    {editingId === item.id ? (
+                      <Input
+                        value={tempValue}
+                        onChange={(e) => setTempValue(e.target.value)}
+                        className="h-9"
+                      />
+                    ) : (
+                      <div className="px-3 py-2 border border-solid rounded-md">
+                        {item.subCategoryName}
+                      </div>
+                    )}
+                  </div>
 
+                  <div className="flex items-center gap-1">
+                    {editingId === item.id ? (
+                      <>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave(item.id)}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={handleCancel}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEditClickSub(item)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div> : ""}
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>

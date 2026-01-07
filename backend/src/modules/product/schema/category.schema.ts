@@ -41,8 +41,3 @@ export const categoryUpdateSchema = z
       'At least one field (category or description or fileIds) is required',
     path: ['description'],
   });
-
-// Types
-export type Category = z.infer<typeof categorySchema>;
-export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
-export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;

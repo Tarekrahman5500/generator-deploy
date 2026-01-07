@@ -146,8 +146,6 @@ export class ProductService {
     });
   }
 
-  // async upsertProduct(productUpsertDto: ProductUpsertDto) {
-
   async upsertProduct(productUpsertDto: ProductUpsertDto) {
     const {
       id: productId,
@@ -279,7 +277,6 @@ export class ProductService {
     return this.getProductDetails(productId);
   }
 
-  //   const {
   //     id: productId,
   //     description,
   //     modelName,
@@ -743,15 +740,6 @@ export class ProductService {
       message: 'Product value deleted successfully',
     };
   }
-
-  // async productCreateByExecl(categoryId: string, fileId: string) {
-  //   // Get this category all groups with fields Name
-  //   // From the file I have to send this file buffer into this fileService.execlExtractData(buffer)
-  //   // which will return me the array of objects with key as field name and value as field value
-  //   // Then I have to map the field names with field ids from the category groups fields
-  //   // make this payload to crateProductDto and call createProduct method here in loop
-  //   // Finally return the response
-  // }
 
   async productCreateByExecl(categoryId: string, fileId: string) {
     // 1️⃣ Load groups & fields

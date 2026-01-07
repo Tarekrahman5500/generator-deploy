@@ -7,11 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { SubCategoryService } from '../service';
 import { SubCategoryBulkCreateDto, SubCategoryUpdateDto } from '../dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
+import { AuthGuard } from 'src/auth/guard';
+import { isPublic } from 'src/decorator';
 
+@UseGuards(AuthGuard)
 @Controller('sub-category')
 export class SubCategoryController {
   constructor(private readonly subCategoryService: SubCategoryService) {}
@@ -35,6 +39,7 @@ export class SubCategoryController {
   // =========================
   // 2️⃣ SINGLE GET
   // =========================
+  @isPublic()
   @Get(':id')
   async getOne(@Param('id') id: string) {
     const subCategory = await this.subCategoryService.getSubCategoryById(id);

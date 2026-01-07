@@ -114,6 +114,6 @@ export class FileService {
     }
 
     const filePath = path.resolve(process.cwd(), file.url);
-    return fs.readFile(filePath);
+    return await fs.readFile(filePath);
   }
 }

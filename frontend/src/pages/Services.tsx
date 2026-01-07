@@ -8,40 +8,7 @@ import servicesHeroImg from "@/assets/services-hero.jpg";
 import installationImg from "@/assets/service-installation.jpg";
 import maintenanceImg from "@/assets/service-maintenance.jpg";
 
-const Services = () => {
-  const services = [
-    {
-      title: "Equipment Installation & Commissioning",
-      description:
-        "Our certified experts ensure your equipment is set up correctly and safely for optimal performance and longevity.",
-      image: installationImg,
-    },
-    {
-      title: "Preventative Maintenance Plans",
-      description:
-        "Scheduled maintenance that maximizes uptime and extends the life of your valuable assets.",
-      image: maintenanceImg,
-    },
-    {
-      title: "Emergency Repair Services",
-      description:
-        "Rapid, reliable 24/7 emergency response to get your operations back online as quickly as possible.",
-      image: installationImg,
-    },
-    {
-      title: "Technical Consultation & Training",
-      description:
-        "Empower your team with expert advice and hands-on training to maximize operational efficiency.",
-      image: maintenanceImg,
-    },
-    {
-      title: "Genuine Parts & Upgrades",
-      description:
-        "Modernize your systems and ensure reliability with our inventory of authentic, high-performance parts.",
-      image: installationImg,
-    },
-  ];
-
+const Services = ({ data: services, serviceHero }) => {
   const promises = [
     {
       icon: Shield,
@@ -69,13 +36,19 @@ const Services = () => {
     },
   ];
 
+  const heroSection = {
+    backgroundImage: serviceHero[0]?.file?.url,
+    title: serviceHero[0]?.title,
+    description: serviceHero[0]?.description
+  }
   return (
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={servicesHeroImg}
+            src={`${import.meta.env.VITE_API_URL}/${heroSection.backgroundImage
+              }`}
             alt="Industrial services"
             className="w-full h-full object-cover"
           />
@@ -84,12 +57,10 @@ const Services = () => {
 
         <div className="container relative z-10 px-6 text-center">
           <h1 className="text-5xl font-heading font-bold text-white mb-4">
-            Comprehensive Industrial Equipment Services
+            {heroSection.title}
           </h1>
           <p className="text-xl text-white/90 max-w-3xl mx-auto">
-            Delivering expert installation, maintenance, and support to keep
-            your operations running at peak efficiency. Our commitment is to
-            quality, safety, and reliability.
+            {heroSection.description}
           </p>
         </div>
       </section>
@@ -105,16 +76,17 @@ const Services = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((service, index) => (
+            {services.map((service: any, index: number) => (
               <Card
                 key={index}
                 className="overflow-hidden group hover:shadow-xl transition-all duration-300"
               >
                 <div className="aspect-video overflow-hidden">
                   <img
-                    src={service.image}
+                    src={`${import.meta.env.VITE_API_URL}/${service.file.url
+                      }`}
                     alt={service.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover"
                   />
                 </div>
                 <CardContent className="p-6">
@@ -127,7 +99,7 @@ const Services = () => {
                   <Button
                     asChild
                     variant="link"
-                    className="p-0 h-auto text-accent"
+                    className="p-0 h-auto text-[#163859]/90 font-semibold"
                   >
                     <NavLink to="/contact">Learn More →</NavLink>
                   </Button>
@@ -158,7 +130,7 @@ const Services = () => {
                 key={index}
                 className="p-6 text-center hover:shadow-lg transition-shadow"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-accent mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#163859]/90 text-white mb-4">
                   <promise.icon className="h-8 w-8" />
                 </div>
                 <h3 className="text-xl font-heading font-bold mb-3">
@@ -174,25 +146,6 @@ const Services = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-navy text-navy-foreground">
-        <div className="container px-6 text-center">
-          <h2 className="text-4xl font-heading font-bold mb-4">
-            Ready to Optimize Your Operations?
-          </h2>
-          <p className="text-lg text-navy-foreground/90 mb-8 max-w-2xl mx-auto">
-            Contact our experts today for a personalized consultation and learn
-            how our tailored service plans can enhance your productivity and
-            reduce downtime.
-          </p>
-          <Button
-            asChild
-            size="lg"
-            className="bg-accent hover:bg-accent/90 text-accent-foreground"
-          >
-            <NavLink to="/contact">Schedule a Consultation</NavLink>
-          </Button>
-        </div>
-      </section>
 
       <Footer />
     </div>

@@ -25,8 +25,3 @@ export const fieldUpdateSchema = z
     message: 'At least one field (fieldName or groupId) is required',
     path: ['fieldName'],
   });
-
-// Types
-export type Field = z.infer<typeof fieldSchema>;
-export type FieldCreateInput = z.infer<typeof fieldCreateSchema>;
-export type FieldUpdateInput = z.infer<typeof fieldUpdateSchema>;

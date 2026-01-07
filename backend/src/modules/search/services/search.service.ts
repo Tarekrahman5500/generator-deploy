@@ -6,6 +6,7 @@ import {
   FieldEntity,
   ProductEntity,
   ProductValueEntity,
+  SubCategoryEntity,
 } from 'src/entities/product';
 
 export interface SearchResult {
@@ -17,6 +18,7 @@ export interface SearchResult {
   metadata: {
     categoryId?: string;
     categoryName?: string;
+    subCategoryName?: string;
     productId?: string;
     productModel?: string;
     fieldId?: string;
@@ -32,6 +34,8 @@ export class SearchService {
     private productRepo: Repository<ProductEntity>,
     @InjectRepository(CategoryEntity)
     private categoryRepo: Repository<CategoryEntity>,
+    @InjectRepository(SubCategoryEntity)
+    private subCategoryRepo: Repository<SubCategoryEntity>,
     @InjectRepository(FieldEntity)
     private fieldRepo: Repository<FieldEntity>,
     @InjectRepository(ProductValueEntity)
@@ -47,42 +51,50 @@ export class SearchService {
     const results: SearchResult[] = [];
 
     // 1. Search Categories by name
-    const [categories, products, fields, values] = await Promise.all([
-      this.categoryRepo.find({
-        where: {
-          categoryName: ILike(`%${searchTerm}%`),
-        },
-        take: 10,
-      }),
-      this.productRepo.find({
-        where: {
-          modelName: ILike(`%${searchTerm}%`),
-          isDeleted: false,
-        },
-        relations: ['category'],
-        take: 20,
-      }),
-      this.fieldRepo
-        .createQueryBuilder('field')
-        .leftJoinAndSelect('field.productValues', 'productValues')
-        .leftJoinAndSelect('productValues.product', 'product')
-        .leftJoinAndSelect('product.category', 'category')
-        .where('LOWER(field.field_name) LIKE :searchTerm', {
-          searchTerm: `%${searchTerm}%`,
-        })
-        .andWhere('product.is_deleted = :isDeleted OR product.id IS NULL', {
-          isDeleted: false,
-        })
-        .take(15)
-        .getMany(),
-      this.productValueRepo.find({
-        where: {
-          value: ILike(`%${searchTerm}%`),
-        },
-        relations: ['product', 'field', 'product.category'],
-        take: 20,
-      }),
-    ]);
+    const [categories, products, subCategories, fields, values] =
+      await Promise.all([
+        this.categoryRepo.find({
+          where: {
+            categoryName: ILike(`%${searchTerm}%`),
+          },
+          take: 10,
+        }),
+        this.productRepo.find({
+          where: {
+            modelName: ILike(`%${searchTerm}%`),
+            isDeleted: false,
+          },
+          relations: ['category'],
+          take: 20,
+        }),
+
+        this.subCategoryRepo.find({
+          where: {
+            subCategoryName: ILike(`%${searchTerm}%`),
+          },
+          take: 10,
+        }),
+        this.fieldRepo
+          .createQueryBuilder('field')
+          .leftJoinAndSelect('field.productValues', 'productValues')
+          .leftJoinAndSelect('productValues.product', 'product')
+          .leftJoinAndSelect('product.category', 'category')
+          .where('LOWER(field.field_name) LIKE :searchTerm', {
+            searchTerm: `%${searchTerm}%`,
+          })
+          .andWhere('product.is_deleted = :isDeleted OR product.id IS NULL', {
+            isDeleted: false,
+          })
+          .take(15)
+          .getMany(),
+        this.productValueRepo.find({
+          where: {
+            value: ILike(`%${searchTerm}%`),
+          },
+          relations: ['product', 'field', 'product.category'],
+          take: 20,
+        }),
+      ]);
 
     categories.forEach((cat) => {
       results.push({
@@ -116,9 +128,20 @@ export class SearchService {
       });
     });
 
-    // 3. Search Field names - find related PRODUCTS
+    subCategories.forEach((sub) => {
+      results.push({
+        type: 'category',
+        id: sub.id,
+        name: sub.subCategoryName,
+        field: 'subCategoryName',
+        match: sub.subCategoryName,
+        metadata: {
+          subCategoryName: sub.subCategoryName,
+        },
+      });
+    });
 
-    //console.log(JSON.stringify(fields, null, 2));
+    // 3. Search Field names - find related PRODUCTS
 
     fields.forEach((field) => {
       // Get unique products (active only)
@@ -141,12 +164,7 @@ export class SearchService {
 
       const relatedProducts = Array.from(uniqueProducts.values());
 
-      //console.log(JSON.stringify(relatedProducts, null, 2));
-
-      //  console.log(relatedProducts.length);
-
       if (relatedProducts.length > 0) {
-        // Create one result per product for this field
         relatedProducts.forEach((productInfo) => {
           results.push({
             type: 'field',
@@ -165,20 +183,7 @@ export class SearchService {
             },
           });
         });
-      } /*else {
-        // Field without products (or only deleted products)
-        results.push({
-          type: 'field',
-          id: field.id,
-          name: field.fieldName,
-          field: 'fieldName',
-          match: field.fieldName,
-          metadata: {
-            fieldId: field.id,
-            fieldName: field.fieldName,
-          },
-        });
-      }*/
+      }
     });
 
     // 4. Search Product Values (field values)
@@ -205,18 +210,6 @@ export class SearchService {
 
     // Remove duplicates and return
     return results;
-  }
-
-  private removeDuplicates(results: SearchResult[]): SearchResult[] {
-    const seen = new Set();
-    return results.filter((result) => {
-      const key = `${result.type}-${result.id}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
   }
 
   // Simple autocomplete/suggestions

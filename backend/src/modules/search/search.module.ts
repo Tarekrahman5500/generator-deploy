@@ -7,6 +7,7 @@ import {
   FieldEntity,
   ProductEntity,
   ProductValueEntity,
+  SubCategoryEntity,
 } from 'src/entities/product';
 
 @Module({
@@ -16,6 +17,7 @@ import {
       CategoryEntity,
       FieldEntity,
       ProductValueEntity,
+      SubCategoryEntity,
     ]),
   ],
   controllers: [SearchController],

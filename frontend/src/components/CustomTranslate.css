@@ -1,0 +1,36 @@
+/* 1. Prevent the page from shifting down (Crucial) */
+body {
+  top: 0 !important;
+  position: static !important;
+}
+
+/* 2. Hide the Google Translate banner at the top */
+.goog-te-banner-frame,
+.goog-te-banner,
+.skiptranslate {
+  display: none !important;
+}
+
+.google_translate_element {
+  display: none !important;
+}
+/* 3. Hide the hover tooltip (original text popup) */
+#goog-gt-tt,
+.goog-te-balloon-frame,
+#goog-gt- {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* 4. Remove the blue text highlighting on translated items */
+.goog-text-highlight {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+/* 5. Clean up the cursor for translated text */
+font {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}

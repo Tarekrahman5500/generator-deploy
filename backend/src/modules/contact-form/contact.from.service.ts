@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ContactFormDto, EmailReplyDto, InfoRequestFormDto } from './dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -19,6 +23,7 @@ import {
 import { ProductEntity } from 'src/entities/product';
 import { FileService } from '../file/file.service';
 import { EmailService } from '../email/email.service';
+import { Administrator } from 'src/entities/administrator';
 
 @Injectable()
 export class ContactFormService {
@@ -44,15 +49,16 @@ export class ContactFormService {
     private readonly infoEmailReplyRepo: Repository<InfoRequestEmailReplyEntity>,
 
     @InjectRepository(InfoRequestEmailReplyFileRelationEntity)
-    private readonly infoEmailReplyFileRepo: Repository<InfoRequestEmailReplyFileRelationEntity>,
+    private readonly inforRequestEmailReplyFileRepo: Repository<InfoRequestEmailReplyFileRelationEntity>,
+
+    @InjectRepository(Administrator)
+    private readonly administratorRepo: Repository<Administrator>,
 
     private readonly fileService: FileService,
 
     private readonly emailService: EmailService,
   ) {}
 
-  // FIX 1: Add <T extends ObjectLiteral>
-  // FIX 2: Change Partial<T> to DeepPartial<T>
   private create<T extends ObjectLiteral>(
     repo: Repository<T>,
     dto: DeepPartial<T>,
@@ -86,15 +92,6 @@ export class ContactFormService {
       },
       data,
     };
-  }
-
-  // FIX 1: Add <T extends ObjectLiteral>
-  private getAll<T extends ObjectLiteral>(repo: Repository<T>) {
-    // FIX 3: Cast the order object to 'any'.
-    // Since T is generic, TypeScript cannot verify 'createdAt' exists on FindOptionsOrder<T>
-    // without extremely complex type guards. Casting is safe here since you know your entities have this field.
-    // return repo.find({ order: { createdAt: 'DESC' } as any });
-    return repo.find();
   }
 
   async createContactFrom(contactFormDto: ContactFormDto) {
@@ -138,6 +135,7 @@ export class ContactFormService {
         email: true,
         telephone: true,
         country: true,
+        isReplied: true,
         createdAt: true,
         product: {
           id: true,
@@ -148,175 +146,88 @@ export class ContactFormService {
     });
   }
 
-  // async contactFormEmailReply(dto: EmailReplyDto, repliedByAdminId: string) {
-  //   return this.dataSource.transaction(async (manager) => {
-  //     const contactForm = await manager.findOne(ContactFormEntity, {
-  //       where: { id: dto.parentId },
-  //     });
-  //     if (!contactForm) throw new NotFoundException('Contact form not found');
-
-  //     // create reply
-  //     const reply = manager.create(ContactFormEmailReplyEntity, {
-  //       subject: dto.subject,
-  //       body: dto.body,
-  //       contactForm,
-  //       repliedByAdminId: repliedByAdminId,
-  //     });
-  //     await manager.save(reply);
-
-  //     // handle files
-  //     if (dto.fileIds?.length) {
-  //       const files = await this.fileService.getFileByIds(dto.fileIds, manager);
-  //       if (files.length !== dto.fileIds.length) {
-  //         throw new NotFoundException('Some files not found');
-  //       }
-
-  //       const relations = files.map((file) =>
-  //         manager.create(ContactFormEmailReplyFileRelationEntity, {
-  //           reply,
-  //           file,
-  //         }),
-  //       );
-  //       await manager.save(relations);
-
-  //       await this.fileService.usedAtUpdate(dto.fileIds, manager);
-  //     }
-
-  //     // mark parent replied
-  //     contactForm.isReplied = true;
-  //     await manager.save(contactForm);
-
-  //     // send email
-  //     try {
-  //       await this.emailService.sendEmail({
-  //         to: contactForm.email,
-  //         subject: dto.subject,
-  //         html: dto.body,
-  //       });
-  //     } catch (error) {
-  //       throw new Error(`Failed to send email: ${error.message || error}`);
-  //     }
-
-  //     return reply;
-  //   });
-  // }
-
-  // async infoRequestFormEmailReply(
-  //   dto: EmailReplyDto,
-  //   repliedByAdminId: string,
-  // ) {
-  //   return this.dataSource.transaction(async (manager) => {
-  //     const infoForm = await manager.findOne(InfoRequestFormEntity, {
-  //       where: { id: dto.parentId },
-  //     });
-  //     if (!infoForm) throw new NotFoundException('Info request form not found');
-
-  //     const reply = manager.create(InfoRequestEmailReplyEntity, {
-  //       subject: dto.subject,
-  //       body: dto.body,
-  //       infoRequestForm: infoForm,
-  //       repliedByAdminId: repliedByAdminId,
-  //     });
-  //     await manager.save(reply);
-
-  //     // handle files
-  //     if (dto.fileIds?.length) {
-  //       const files = await this.fileService.getFileByIds(dto.fileIds, manager);
-  //       if (files.length !== dto.fileIds.length) {
-  //         throw new NotFoundException('Some files not found');
-  //       }
-
-  //       const relations = files.map((file) =>
-  //         manager.create(InfoRequestEmailReplyFileRelationEntity, {
-  //           reply,
-  //           file,
-  //         }),
-  //       );
-  //       await manager.save(relations);
-
-  //       await this.fileService.usedAtUpdate(dto.fileIds, manager);
-  //     }
-
-  //     // mark parent replied
-  //     infoForm.isReplied = true;
-  //     await manager.save(infoForm);
-
-  //     // send email
-  //     try {
-  //       await this.emailService.sendEmail({
-  //         to: infoForm.email,
-  //         subject: dto.subject,
-  //         html: dto.body,
-  //       });
-  //     } catch (error) {
-  //       throw new Error(`Failed to send email: ${error.message || error}`);
-  //     }
-
-  //     return reply;
-  //   });
-  // }
-
   async contactFormEmailReply(dto: EmailReplyDto, repliedByAdminId: string) {
-    // Step 1: Fetch contact form
-    const contactForm = await this.dataSource.manager.findOne(
-      ContactFormEntity,
-      {
-        where: { id: dto.parentId },
-      },
-    );
+    // 1️⃣ READ contact form
+    const contactForm = await this.contactRepo.findOne({
+      where: { id: dto.parentId, isReplied: false },
+    });
     if (!contactForm) throw new NotFoundException('Contact form not found');
 
-    // Step 2: Prepare reply entity
-    const reply = this.dataSource.manager.create(ContactFormEmailReplyEntity, {
+    // 2️⃣ READ admin
+    const admin = await this.administratorRepo.findOne({
+      where: { id: repliedByAdminId },
+    });
+    if (!admin) throw new NotFoundException('Administrator not found');
+
+    // 3️⃣ Prepare reply entity (NO DB WRITE yet)
+    const reply = this.contactEmailReplyRepo.create({
       subject: dto.subject,
       body: dto.body,
       contactForm,
-      repliedByAdminId,
+      repliedBy: admin,
     });
 
-    // Step 3: Handle files
+    // 4️⃣ Handle files
     let relations: ContactFormEmailReplyFileRelationEntity[] = [];
+    let attachments: { filename: string; content: Buffer }[] | undefined;
+
     if (dto.fileIds?.length) {
       const files = await this.fileService.getFileByIds(dto.fileIds);
+
       if (files.length !== dto.fileIds.length) {
         throw new NotFoundException('Some files not found');
       }
 
-      relations = files.map((file) =>
-        this.dataSource.manager.create(
-          ContactFormEmailReplyFileRelationEntity,
-          {
-            reply,
-            file,
-          },
-        ),
+      // Prepare DB relations
+      relations = files.map((file) => {
+        const relation = new ContactFormEmailReplyFileRelationEntity();
+        relation.reply = reply;
+        relation.file = file;
+        return relation;
+      });
+
+      // Prepare email attachments
+      attachments = await Promise.all(
+        files.map(async (file) => ({
+          filename: file.originalName,
+          content: await this.fileService.getFileBuffer(file), // returns Buffer
+        })),
       );
     }
 
-    // Step 4: Send email first
+    // 5️⃣ Send email first (outside transaction)
     try {
       await this.emailService.sendEmail({
         to: contactForm.email,
         subject: dto.subject,
         html: dto.body,
+        attachments,
       });
     } catch (error) {
-      throw new Error(`Failed to send email: ${error.message || error}`);
+      throw new InternalServerErrorException(
+        `Failed to send email: ${error?.message || error}`,
+      );
     }
-
-    // Step 5: Transaction to save all data
+    // 6️⃣ Transaction → WRITES ONLY
     return this.dataSource.transaction(async (manager) => {
+      // Save reply
       await manager.save(reply);
-
       if (relations.length) {
         await manager.save(relations);
-        await this.fileService.usedAtUpdate(dto.fileIds ?? [], manager);
+        // Safe usedAtUpdate
+        if (dto.fileIds?.length) {
+          await this.fileService.usedAtUpdate(dto.fileIds, manager);
+        }
       }
+      // Mark contact form as replied
+      const contactFormToUpdate = manager.create(ContactFormEntity, {
+        ...contactForm,
+        isReplied: true,
+      });
 
-      contactForm.isReplied = true;
-      await manager.save(contactForm);
+      await manager.save(contactFormToUpdate);
 
-      return reply;
+      return contactFormToUpdate;
     });
   }
 
@@ -324,66 +235,81 @@ export class ContactFormService {
     dto: EmailReplyDto,
     repliedByAdminId: string,
   ) {
-    // Step 1: Fetch info request form
-    const infoForm = await this.dataSource.manager.findOne(
-      InfoRequestFormEntity,
-      {
-        where: { id: dto.parentId },
-      },
-    );
+    const infoForm = await this.infoRepo.findOne({
+      where: { id: dto.parentId, isReplied: false },
+    });
     if (!infoForm) throw new NotFoundException('Info request form not found');
 
-    // Step 2: Prepare reply entity
-    const reply = this.dataSource.manager.create(InfoRequestEmailReplyEntity, {
+    const admin = await this.administratorRepo.findOne({
+      where: { id: repliedByAdminId },
+    });
+    if (!admin) throw new NotFoundException('Administrator not found');
+
+    const reply = this.infoEmailReplyRepo.create({
       subject: dto.subject,
       body: dto.body,
       infoRequestForm: infoForm,
-      repliedByAdminId,
+      repliedBy: admin,
     });
 
-    // Step 3: Handle files
     let relations: InfoRequestEmailReplyFileRelationEntity[] = [];
+    let attachments: { filename: string; content: Buffer }[] | undefined;
+
     if (dto.fileIds?.length) {
       const files = await this.fileService.getFileByIds(dto.fileIds);
+
       if (files.length !== dto.fileIds.length) {
         throw new NotFoundException('Some files not found');
       }
 
-      relations = files.map((file) =>
-        this.dataSource.manager.create(
-          InfoRequestEmailReplyFileRelationEntity,
-          {
-            reply,
-            file,
-          },
-        ),
+      // Prepare DB relations
+      relations = files.map((file) => {
+        const relation = new InfoRequestEmailReplyFileRelationEntity();
+        relation.reply = reply;
+        relation.file = file;
+        return relation;
+      });
+
+      attachments = await Promise.all(
+        files.map(async (file) => ({
+          filename: file.originalName,
+          content: await this.fileService.getFileBuffer(file),
+        })),
       );
     }
 
-    // Step 4: Send email first
     try {
       await this.emailService.sendEmail({
         to: infoForm.email,
         subject: dto.subject,
         html: dto.body,
+        attachments,
       });
     } catch (error) {
-      throw new Error(`Failed to send email: ${error.message || error}`);
+      throw new InternalServerErrorException(
+        `Failed to send email: ${error.message || error}`,
+      );
     }
 
-    // Step 5: Transaction to save all data
     return this.dataSource.transaction(async (manager) => {
       await manager.save(reply);
 
       if (relations.length) {
         await manager.save(relations);
-        await this.fileService.usedAtUpdate(dto.fileIds ?? [], manager);
+        if (dto.fileIds?.length) {
+          await this.fileService.usedAtUpdate(dto.fileIds, manager);
+        }
       }
 
-      infoForm.isReplied = true;
-      await manager.save(infoForm);
+      // Mark contact form as replied
+      const infoRequestFormToUpdate = manager.create(InfoRequestFormEntity, {
+        ...infoForm,
+        isReplied: true,
+      });
 
-      return reply;
+      await manager.save(infoRequestFormToUpdate);
+
+      return infoRequestFormToUpdate;
     });
   }
 

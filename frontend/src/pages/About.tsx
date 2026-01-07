@@ -8,7 +8,7 @@ import CEO from "@/assets/ceo.jpg";
 import CE from "@/assets/CE.jpg";
 import COO from "@/assets/coo.jpg";
 import SM from "@/assets/sm.jpg";
-const About = () => {
+const About = ({ data }) => {
   const values = [
     {
       icon: Settings,
@@ -29,7 +29,11 @@ const About = () => {
         "Your success is our success. We work closely with our clients to understand their needs and provide unparalleled support.",
     },
   ];
-
+  const heroSection = {
+    backgroundImage: data[0]?.file?.url,
+    title: data[0]?.title,
+    description: data[0]?.description
+  }
   const team = [
     {
       img: CEO,
@@ -59,7 +63,8 @@ const About = () => {
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={aboutHeroImg}
+            src={`${import.meta.env.VITE_API_URL}/${heroSection.backgroundImage
+              }`}
             alt="About IndusTech"
             className="w-full h-full object-cover"
           />
@@ -68,12 +73,10 @@ const About = () => {
 
         <div className="container relative z-10 px-6 text-center">
           <h1 className="text-5xl font-heading font-bold text-white mb-4">
-            Engineering the Future of Industry Since 1985
+            {heroSection.title}
           </h1>
           <p className="text-xl text-white/90 max-w-3xl mx-auto">
-            Marexis Italy S.r.l. operates in the field of energy and technical
-            infrastructure solutions, supporting industrial and infrastructure
-            applications in both domestic and international markets.
+            {heroSection.description}
           </p>
         </div>
       </section>
@@ -87,8 +90,8 @@ const About = () => {
 
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             <Card className="p-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 text-primary mb-6">
-                <Target className="h-7 w-7" style={{ color: "#fa7238" }} />
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#163859] text-white mb-6">
+                <Target className="h-7 w-7" style={{ color: "#fffff" }} />
               </div>
               <h3 className="text-2xl font-heading font-bold mb-4">
                 Our Mission
@@ -102,8 +105,8 @@ const About = () => {
             </Card>
 
             <Card className="p-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 text-primary mb-6">
-                <Eye className="h-7 w-7 " style={{ color: "#fa7238" }} />
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#163859] text-white mb-6">
+                <Eye className="h-7 w-7 " style={{ color: "#fffff" }} />
               </div>
               <h3 className="text-2xl font-heading font-bold mb-4">
                 Our Vision
@@ -130,11 +133,8 @@ const About = () => {
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {values.map((value, index) => (
               <Card key={index} className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-primary mb-6">
-                  <value.icon
-                    className="h-8 w-8"
-                    style={{ color: "#fa7238" }}
-                  />
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#163859] text-white mb-6">
+                  <value.icon className="h-8 w-8" style={{ color: "#fffff" }} />
                 </div>
                 <h3 className="text-xl font-heading font-bold mb-4">
                   {value.title}
@@ -147,9 +147,9 @@ const About = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-navy text-navy-foreground">
+      <section className="py-20 bg-[#163859] text-navy-foreground">
         <div className="container px-6">
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="max-w-4xl mx-auto text-center bg-white/10 backdrop-blur-md p-12 rounded-xl shadow-lg">
             <h2 className="text-4xl font-heading font-bold mb-4">
               Ready to Elevate Your Operations?
             </h2>
@@ -159,7 +159,11 @@ const About = () => {
               quote.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button asChild size="lg" className="bg-accent hover:bg-accent">
+              <Button
+                asChild
+                size="lg"
+                className="bg-[#163859] hover:bg-[#163859]"
+              >
                 <NavLink to="/products">View Products</NavLink>
               </Button>
               <Button

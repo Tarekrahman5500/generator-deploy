@@ -14,6 +14,7 @@ import { ProductEntity } from 'src/entities/product';
 import { jwtProviders } from 'src/auth/provider';
 import { FileModule } from '../file/file.module';
 import { EmailModule } from '../email/email.module';
+import { Administrator } from 'src/entities/administrator';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EmailModule } from '../email/email.module';
       ContactFormEmailReplyFileRelationEntity,
       InfoRequestEmailReplyEntity,
       InfoRequestEmailReplyFileRelationEntity,
+      Administrator,
     ]),
     FileModule,
     EmailModule,

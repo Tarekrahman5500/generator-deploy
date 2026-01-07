@@ -91,7 +91,7 @@ export function ProductGroupDetails({
                   <DropdownMenuItem
                     key={group.id}
                     onClick={() => onGroupChange(group.id)}
-                    className={currentGroup === group?.id ? "bg-accent" : ""}
+                    className={currentGroup === group?.id ? "bg-[#163859]" : ""}
                   >
                     {group?.label}
                   </DropdownMenuItem>

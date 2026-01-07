@@ -157,7 +157,7 @@ export default function ProductsAdd() {
               </div>
               <Button
                 onClick={handleAddNew}
-                className="shrink-0 bg-accent hover:bg-accent"
+                className="shrink-0 bg-[#163859] hover:bg-[#163859]"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Group

@@ -17,6 +17,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { secureStorage } from "@/security/SecureStorage";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ProductMediaUpload } from "@/components/ProductMediaUpload";
+import { Badge } from "@/components/ui/badge";
 const ContactForm = () => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,14 +40,30 @@ const ContactForm = () => {
     perPage: number;
     totalPages: number;
   } | null>(null);
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedReq, setSelectedReq] = useState(null);
+  const [formData, setFormData] = useState({
+    subject: "Your Subject",
+    body: "The message you want to send!"
+  });
+  const handleOpenModal = (req: any) => {
+    setSelectedReq(req);
+    setIsModalOpen(true);
+  };
   const fetchData = async () => {
+    const accessToken = await secureStorage.getValidToken();
     setLoading(true);
     try {
       const res = await fetch(
-        `${
-          import.meta.env.VITE_API_URL
-        }/contact-form?page=${page}&limit=${limit}`
+        `${import.meta.env.VITE_API_URL
+        }/contact-form?page=${page}&limit=${limit}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      }
       );
 
       if (!res.ok) throw new Error("Failed to load data");
@@ -55,9 +80,48 @@ const ContactForm = () => {
     }
   };
 
+  const handleReplySubmit = async () => {
+    if (!selectedReq) return;
+    const accessToken = await secureStorage.getValidToken();
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact-form/reply`, { // Adjust base URL as needed
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          ...formData,
+          parentId: selectedReq.id
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Reply sent successfully!");
+        setIsModalOpen(false);
+        fetchData()
+      } else {
+        throw new Error("Failed to send reply");
+      }
+    } catch (error) {
+      toast.error("Error sending reply");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [page]);
+  const handleCancel = () => {
+    setIsModalOpen(false)
+    toast.error("Form Cleared!", {
+      style: {
+        background: "#ff0000", // your custom red
+        color: "#fff",
+        borderRadius: "10px",
+        padding: "12px 16px",
+      },
+    });
+  };
 
   return (
     <div className="p-8">
@@ -66,17 +130,19 @@ const ContactForm = () => {
         View and manage all customer inquiries from the contact form.
       </p>
 
-      <Card className="rounded-2xl shadow-sm">
+      <Card className="shadow-sm">
         <CardContent className="p-0 overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-100">
+              <TableRow className="bg-gray-100  hover:bg-gray-100 rounded-tl-2xl rounded-tr-2xl">
                 <TableHead>Full Name</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Telephone</TableHead>
                 <TableHead>Country</TableHead>
                 <TableHead>Message</TableHead>
+                <TableHead>Replied</TableHead>
+                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -86,7 +152,7 @@ const ContactForm = () => {
               ) : data.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center text-muted-foreground"
                   >
                     No contact submissions found
@@ -103,21 +169,78 @@ const ContactForm = () => {
                     <TableCell>{row.telephone}</TableCell>
                     <TableCell>{row.country}</TableCell>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger >
                         <TableCell className="max-w-xs truncate">
                           {row.message}
                         </TableCell>
                       </TooltipTrigger>
                       <TooltipContent>{row.message}</TooltipContent>
                     </Tooltip>
+                    <TableCell>
+                      {row.isReplied ? (
+                        <Badge className="bg-green-500 hover:bg-green-600 text-white border-none">
+                          Replied
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Pending
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenModal(row)}
+                        // Simply pass the boolean directly
+                        disabled={row.isReplied}
+                      >
+                        {row.isReplied ? "Replied" : "Reply"}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
 
+      </Card>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="min-w-max">
+          <AlertDialogHeader>
+            <DialogTitle>Reply to {selectedReq?.fullName}</DialogTitle>
+          </AlertDialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="body">Message Body</Label>
+              <Textarea
+                id="body"
+                rows={5}
+                value={formData.body}
+                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <Button onClick={() => handleCancel()} className="bg-inherit hover:bg-transparent text-black">
+              Cancel
+            </Button>
+            <Button onClick={handleReplySubmit} disabled={submitting} className="bg-[#163859] hover:bg-[#163859]">
+              {submitting ? "Sending..." : "Send Reply"}
+            </Button>
+          </AlertDialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* ✅ PAGINATION */}
       {meta && meta.totalPages >= 1 && (
         <div className="flex items-center justify-between mt-4">

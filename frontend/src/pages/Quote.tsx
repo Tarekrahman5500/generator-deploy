@@ -83,16 +83,17 @@ const Quote = () => {
         country: "United States", // or add a country field in form
         productId: product.id,
       };
-
+      const url = `${import.meta.env.VITE_API_URL}/contact-form/info-request`;
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/contact-form/info-request`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        }
+        url, options
+
       );
 
       if (!res.ok) {
@@ -262,7 +263,7 @@ const Quote = () => {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full bg-accent hover:bg-accent"
+                  className="w-full bg-[#163859] hover:bg-[#163859]"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Submitting..." : "Submit Quote Request"}

@@ -2,49 +2,117 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+# Marexis Backend API
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+<p align="center">
+  A robust and scalable backend application for Marexis, built with the <a href="http://nestjs.com/" target="blank">NestJS</a> framework.
 </p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+<p align="center">
+  <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+  <a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+</p>
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📖 Introduction
 
-## Project setup
+The Marexis Backend API is designed to power the Marexis platform, providing comprehensive services for product management, user authentication, file handling, and administrative tasks. It leverages modern web technologies to ensure performance, security, and scalability.
+
+## ✨ Key Features
+
+- **🔐 Robust Authentication**: Secure user authentication using JWT (Access & Refresh Tokens) and Argon2 for password hashing.
+- **👥 Administrator Module**: Specialized management capabilities for system administrators.
+- **📦 Product Management**: Full-featured module for managing products, categories, and inventory.
+- **📁 File Management**: Secure file upload and management capabilities for product images and assets.
+- **📧 Email Services**: Integrated email notifications using Resend.
+- **📝 Contact Forms**: Handling and processing of user contact form submissions.
+- **🔍 Search Functionality**: Advanced search capabilities to easily find content.
+- **🛡️ Enhanced Security**: Implements `Helmet` for HTTP headers, `hpp` for parameter pollution protection, and strict CORS policies.
+- **✅ Strict Validation**: Utilizes `Zod` for robust schema validation and type safety.
+- **🗄️ Database**: Powered by MySQL with TypeORM for ORM and database management.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [NestJS](https://nestjs.com/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: MySQL
+- **ORM**: [TypeORM](https://typeorm.io/)
+- **Validation**: [Zod](https://zod.dev/) & `nestjs-zod`
+- **Authentication**: `passport-jwt`, `argon2`
+- **Email**: [Resend](https://resend.com/)
+- **Logging**: Morgan
+- **Testing**: Jest
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Ensure you have the following installed on your local machine:
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [Yarn](https://yarnpkg.com/)
+- [MySQL](https://www.mysql.com/)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd marexis
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   yarn install
+   ```
+
+3. **Environment Configuration:**
+   Create a `.env` file in the root directory based on the following template (defaults are shown):
+
+   ```env
+   NODE_ENV=development
+   PORT=5000
+
+   # Database Configuration
+   DATABASE_HOST=localhost
+   DATABASE_PORT=3306
+   DATABASE_USERNAME=root
+   DATABASE_PASSWORD=your_password
+   DATABASE_NAME=marexis_db
+   DATABASE_DIALECT=mysql
+
+   # JWT Configuration
+   JWT_ACCESS_SECRET=your_super_secret_access_key
+   JWT_REFRESH_SECRET=your_super_secret_refresh_key
+   JWT_ACCESS_EXPIRES_IN=900
+   JWT_REFRESH_EXPIRES_IN=10080
+   ```
+
+### 🏃‍♂️ Running the Application
 
 ```bash
-$ yarn install
-```
-
-## Compile and run the project
-
-```bash
-# development
+# development mode
 $ yarn run start
 
-# watch mode
+# watch mode (recommended for dev)
 $ yarn run start:dev
 
 # production mode
 $ yarn run start:prod
 ```
 
-## Run tests
+### 🗄️ Database Migrations
+
+This project uses TypeORM for database migrations.
+
+```bash
+# Generate a new migration (replace "MigrationName" with your description)
+$ yarn migration:generate --name=MigrationName
+
+# Run pending migrations
+$ yarn migration:run
+```
+
+## 🧪 Testing
 
 ```bash
 # unit tests
@@ -57,42 +125,27 @@ $ yarn run test:e2e
 $ yarn run test:cov
 ```
 
-## Deployment
+## 📂 Project Structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+```
+src/
+├── app.module.ts       # Root module of the application
+├── main.ts             # Application entry point
+├── config/             # Configuration and environment validation
+├── common/             # Shared utilities, decorators, and constants
+├── entities/           # Global or shared database entities
+├── auth/               # Authentication logic (Guards, Strategies)
+└── modules/            # Feature modules
+    ├── administrator/  # Admin management
+    ├── background/     # Background tasks
+    ├── contact-form/   # Contact form handling
+    ├── email/          # Email service integration
+    ├── file/           # File upload logic
+    ├── product/        # Product catalog management
+    └── search/         # Search operations
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+<p align="center">
+  Built with ❤️ by the Marexis Team
+</p>

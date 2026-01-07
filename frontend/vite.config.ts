@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    allowedHosts: ["funny-cook-framed-adapters.trycloudflare.com"],
+    allowedHosts: ["enzyme-architectural-guarantee-slowly.trycloudflare.com"],
     host: "::",
     port: 8080,
   },

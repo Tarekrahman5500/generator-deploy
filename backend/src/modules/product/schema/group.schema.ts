@@ -34,8 +34,3 @@ export const groupUpdateSchema = z
     message: 'At least one field (groupName or categoryId) is required',
     path: ['groupName'],
   });
-
-// Types
-export type Group = z.infer<typeof groupSchema>;
-export type GroupCreateInput = z.infer<typeof groupCreateSchema>;
-export type GroupUpdateInput = z.infer<typeof groupUpdateSchema>;

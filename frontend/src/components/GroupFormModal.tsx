@@ -112,14 +112,16 @@ export function GroupFormModal({
     };
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/field`, {
+      const url = `${import.meta.env.VITE_API_URL}/field`;
+      const options = {
         method: `${upsert ? "POST" : "PATCH"}`,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(body),
-      });
+        body: JSON.stringify(body)
+      }
+      const res = await fetch(url, options);
 
       if (!res.ok) {
         throw new Error("Failed to update field name");

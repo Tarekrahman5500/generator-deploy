@@ -17,7 +17,7 @@ import FloatingCompareButton from "@/components/FloatingCompareButton";
 import { Category } from "./Products";
 import ImageLoader from "@/components/Skeleton/ImageLoader";
 
-const Index = () => {
+const Index = ({ data }) => {
   const testimonials = [
     {
       text: "IndusTech's machinery revolutionized our production line. The reliability is unmatched, and their support team is always responsive. A true partner in our success.",
@@ -36,6 +36,16 @@ const Index = () => {
     },
   ];
 
+  const cmsContent = {
+    "title": data[0]?.title,
+    "description": data[0]?.description,
+    "file": {
+      "id": data[0]?.file?.id,
+      "originalName": data[0]?.file?.url?.originalName,
+      "url": data[0]?.file?.url,
+    },
+    "isVisible": data[0]?.isVisible,
+  }
   const [loading, setLoading] = useState(true);
   const categoriesStatic = [
     {
@@ -148,7 +158,8 @@ const Index = () => {
       <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={heroImage}
+            src={`${import.meta.env.VITE_API_URL}/${cmsContent.file.url
+              }`}
             alt="Industrial manufacturing facility"
             className="w-full h-full object-cover"
           />
@@ -167,7 +178,7 @@ const Index = () => {
             <Button
               asChild
               size="lg"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="bg-[#163859] hover:bg-[#163859] text-accent-foreground"
             >
               <NavLink to="/products">Explore Our Solutions</NavLink>
             </Button>
@@ -198,9 +209,8 @@ const Index = () => {
                       <PageLoader />
                     ) : (
                       <ImageLoader
-                        src={`${import.meta.env.VITE_API_URL}/${
-                          category.categoryFiles[0].file.url
-                        }`}
+                        src={`${import.meta.env.VITE_API_URL}/${category.categoryFiles[0].file.url
+                          }`}
                         alt={category?.categoryName}
                       />
                     )}
@@ -216,7 +226,10 @@ const Index = () => {
                   </CardContent>
 
                   <CardFooter className="flex gap-2 mt-auto">
-                    <Button variant="link" className="p-0 h-auto text-primary">
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto text-[#163859] font-semibold"
+                    >
                       <Link to="/products" state={{ category: category }}>
                         View Products
                       </Link>
@@ -228,50 +241,17 @@ const Index = () => {
           </div>
         </div>
       </section>
-      {/* Testimonials */}
-      <section className="py-20">
-        <div className="container px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-heading font-bold mb-4">
-              Trusted by Industry Leaders
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Our commitment to quality has earned us the trust of partners
-              worldwide. Here's what they have to say.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="p-6">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-accent text-accent" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-6 italic">
-                  "{testimonial.text}"
-                </p>
-                <div>
-                  <p className="font-semibold">{testimonial.author}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {testimonial.role}
-                  </p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-navy text-navy-foreground">
+      <section className="py-20 bg-[#163859] text-white">
         <div className="container px-6">
-          <div className="max-w-4xl mx-auto rounded-2xl bg-navy-foreground/5 backdrop-blur p-12 text-center">
+          {/* backdrop-blur works best when the background is slightly transparent, 
+        using white/10 to make the box pop against the navy background */}
+          <div className="max-w-4xl mx-auto rounded-2xl bg-white/10 backdrop-blur-md p-12 text-center border border-white/10">
             <h2 className="text-4xl font-heading font-bold mb-4">
               25+ Years of Engineering Excellence
             </h2>
-            <p className="text-lg text-navy-foreground/90 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
               For over two decades, IndusTech has been at the forefront of
               industrial innovation. Our mission is to empower businesses with
               technology that drives progress and builds a better future.
@@ -280,7 +260,7 @@ const Index = () => {
             <Button
               asChild
               size="lg"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="bg-[#163859] text-white font-bold"
             >
               <NavLink to="/contact">Contact Our Experts</NavLink>
             </Button>

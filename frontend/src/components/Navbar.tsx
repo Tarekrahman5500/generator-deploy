@@ -10,6 +10,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { secureStorage } from "@/security/SecureStorage";
 import { Input } from "./ui/input";
 import { Card, CardContent } from "./ui/card";
+import CustomTranslate from "./GoogleTranslator";
 ///search?q=titan
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -129,7 +130,7 @@ const Navbar = () => {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <NavLink
-            to="/"
+            to="/home"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <img src={logo} className="h-22 w-32" />
@@ -137,7 +138,7 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-8">
             <NavLink
-              to="/"
+              to="/home"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-foreground font-semibold"
             >
@@ -176,7 +177,7 @@ const Navbar = () => {
 
           <div className="flex items-center gap-3">
             <form className="hidden md:flex items-center relative">
-              <div className="relative w-48 lg:w-64">
+              <div className="relative w-28 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
                 <Input
@@ -223,15 +224,22 @@ const Navbar = () => {
                 )}
               </div>
             </form>
+            <div className="hidden md:block">
+              <CustomTranslate />
+            </div>
 
-            <Button asChild size="sm" className="hidden md:inline-flex">
+            <Button
+              asChild
+              size="sm"
+              className="hidden md:inline-flex bg-[#163859] hover:bg-[#163859]"
+            >
               <Link to={"/compare"}>
                 <>
                   <GitCompare />
                 </>{" "}
                 Compare
                 {products.length > 0 && (
-                  <span className=" w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs">
+                  <span className=" w-6 h-6 rounded-full bg-[#ffffff] hover:bg-[#ffffff] text-black flex items-center justify-center text-xs">
                     {products.length}
                   </span>
                 )}
@@ -241,7 +249,7 @@ const Navbar = () => {
               asChild
               variant="outline"
               size="sm"
-              className="hidden md:inline-flex"
+              className="hidden md:inline-flex hover:bg-[#163859]"
             >
               <NavLink
                 to={accessToken ? "/dashboard" : "/login"}
@@ -251,12 +259,12 @@ const Navbar = () => {
               </NavLink>
             </Button>
             <form className="md:hidden flex items-center relative">
-              <div className="relative w-48 lg:w-64">
+              <div className="relative w-28 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
                 <Input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={handleInputChange}
                   className="pl-9 h-9"
@@ -307,7 +315,7 @@ const Navbar = () => {
               <SheetContent side="right" className="w-[300px] sm:w-[400px]">
                 <nav className="flex flex-col gap-6 mt-6">
                   <NavLink
-                    to="/"
+                    to="/home"
                     className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
                     activeClassName="text-foreground font-semibold"
                     onClick={() => setOpen(false)}
@@ -347,8 +355,11 @@ const Navbar = () => {
                     Contact
                   </NavLink>
 
+                  <CustomTranslate />
+
+
                   <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
-                    <Button asChild size="sm" className="md:inline-flex">
+                    <Button asChild size="sm" className="md:inline-flex bg-[#163859] hover:bg-[#163859]">
                       <Link to={products.length > 0 ? "/compare" : "#"}>
                         <>
                           <GitCompare />
@@ -365,11 +376,11 @@ const Navbar = () => {
                       asChild
                       variant="outline"
                       size="sm"
-                      className="md:inline-flex"
+                      className="md:inline-flex bg-[#163859] hover:bg-[#163859]"
                     >
                       <NavLink
                         to={accessToken ? "/dashboard" : "/login"}
-                        className="bg-inherit"
+                        className="bg-[#163859] hover:bg-[#163859] text-white"
                       >
                         Login
                       </NavLink>

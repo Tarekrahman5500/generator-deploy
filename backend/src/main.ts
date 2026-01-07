@@ -4,9 +4,6 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import * as morgan from 'morgan';
 import helmet from 'helmet';
-// import rateLimit from 'express-rate-limit';
-// import * as xss from 'xss-clean';
-// import * as hpp from 'hpp';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -22,23 +19,6 @@ async function bootstrap() {
       crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     }),
   );
-
-
-  // // 🚦 Global rate limit (no Redis)
-  // app.use(
-  //   rateLimit({
-  //     windowMs: 15 * 60 * 1000, // 15 minutes
-  //     max: 100, // 100 requests per IP
-  //     standardHeaders: true,
-  //     legacyHeaders: false,
-  //   }),
-  // );
-
-  // 🧼 XSS protection
-  // app.use(xss());
-
-  // 🧯 HTTP Parameter Pollution protection
-  // app.use(hpp());
 
   // 📂 Static uploads
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -56,6 +36,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: [
       'Content-Type',
+      'Authorization',
       'Access-Control-Allow-Origin',
       'Access-Control-Allow-Headers',
     ],
@@ -64,4 +45,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-void bootstrap();
+bootstrap().catch((error) => {
+  console.error('Error during app bootstrap:', error);
+  process.exit(1);
+});

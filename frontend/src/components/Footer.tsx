@@ -5,9 +5,9 @@ import { useNavigate } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <footer className="bg-navy text-navy-foreground ">
+    <footer className="bg-[#163859] text-white ">
       <div className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4  gap-8 mb-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Factory className="h-6 w-6" />
@@ -104,7 +104,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-navy-foreground/20 m-auto">
+        <div className="flex flex-col md:flex-row items-center justify-center pt-8 border-t border-navy-foreground/20 m-auto">
           <p className="text-sm text-navy-foreground/80 mb-4 md:mb-0">
             © 2025 Marexis All rights reserved.
           </p>

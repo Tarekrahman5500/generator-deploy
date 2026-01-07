@@ -16,28 +16,6 @@ export class GroupService {
     private readonly fieldRepository: Repository<FieldEntity>,
   ) {}
 
-  // ------------------------------------------------------------
-  // Create Group
-  // ------------------------------------------------------------
-  // async createGroup(createGroupDto: GroupCreateDto): Promise<GroupEntity> {
-  //   const { categoryId, ...groupData } = createGroupDto;
-
-  //   // Check if category exists
-  //   const category = await this.categoryRepository.findOne({
-  //     where: { id: categoryId },
-  //   });
-  //   if (!category) {
-  //     throw new NotFoundException('Category not found');
-  //   }
-
-  //   const group = this.groupRepository.create({
-  //     ...groupData,
-  //     category,
-  //   });
-
-  //   return this.groupRepository.save(group);
-  // }
-
   async createGroup(createGroupDto: GroupCreateDto): Promise<GroupEntity> {
     const { categoryId, fieldNames, groupName } = createGroupDto;
 

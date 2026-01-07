@@ -1,7 +1,7 @@
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const ROWS = 6;
+const ROWS = 8;
 
 const ContactTableSkeleton = () => {
   return (
@@ -19,6 +19,12 @@ const ContactTableSkeleton = () => {
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-24 rounded-md" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-20 rounded-md" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-20 rounded-md" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-4 w-20 rounded-md" />

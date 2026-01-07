@@ -287,7 +287,7 @@ const Compare = () => {
                   Add products to compare by visiting the product pages and
                   clicking the compare button.
                 </p>
-                <Button asChild>
+                <Button asChild className="bg-[#163859] hover:bg-[#163859]">
                   <NavLink to="/products">Browse Products</NavLink>
                 </Button>
               </div>

@@ -78,7 +78,7 @@ export class ContactFromController {
   }
 
   // ---------------- Email Replies ----------------
-  @Post('reply/contact')
+  @Post('reply')
   async replyContactForm(@Body() dto: EmailReplyDto, @Req() req) {
     const repliedByAdminId = req.user.id;
     const reply = await this.contactFormService.contactFormEmailReply(
@@ -105,7 +105,7 @@ export class ContactFromController {
   }
 
   // ---------------- List Replies ----------------
-  @Get('reply/contact')
+  @Get('reply')
   async getAllContactFormEmailReply(
     @Query('page') page = 1,
     @Query('limit') limit = 10,

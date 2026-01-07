@@ -55,7 +55,7 @@ const contactSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactSchema>;
 
-const Contact = () => {
+const Contact = ({ data: contactData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ContactFormValues>({
@@ -74,13 +74,15 @@ const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/contact-form`, {
+      const url = `${import.meta.env.VITE_API_URL}/contact-form`;
+      const options = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-      });
+      }
+      const res = await fetch(url, options);
 
       if (!res.ok) {
         toast.error("Failed to submit.", {
@@ -122,7 +124,18 @@ const Contact = () => {
   const filteredCountries = countries.filter((c) =>
     c.toLowerCase().includes(search.toLowerCase())
   );
-
+  const getIcon = (title: string) => {
+    switch (title.toLowerCase()) {
+      case "phone":
+        return <Phone className="h-5 w-5 text-white" />;
+      case "email":
+        return <Mail className="h-5 w-5 text-white" />;
+      case "address":
+        return <MapPin className="h-5 w-5 text-white" />;
+      default:
+        return <Phone className="h-5 w-5 text-white" />;
+    }
+  };
   return (
     <div className="min-h-screen">
       <section className="py-20">
@@ -141,48 +154,20 @@ const Contact = () => {
           <div className="grid lg:grid-cols-5 gap-12 max-w-7xl mx-auto">
             <div className="lg:col-span-2">
               <div className="space-y-6 mb-12">
-                <Card className="p-6 flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <Phone
-                      className="h-5 w-5 text-primary"
-                      style={{ color: "#fa7238" }}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium mb-1">Phone</p>
-                    <p className="text-muted-foreground">+1 (800) 555-0199</p>
-                  </div>
-                </Card>
-
-                <Card className="p-6 flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <Mail
-                      className="h-5 w-5 text-primary"
-                      style={{ color: "#fa7238" }}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium mb-1">Email </p>
-                    <p className="text-muted-foreground">sales@marexis.com</p>
-                  </div>
-                </Card>
-
-                <Card className="p-6 flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin
-                      className="h-5 w-5 text-primary"
-                      style={{ color: "#fa7238" }}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium mb-1">Address</p>
-                    <p className="text-muted-foreground">
-                      123 Industrial Park Way, Suite 456
-                      <br />
-                      Manufacturing City, ST 78901
-                    </p>
-                  </div>
-                </Card>
+                {contactData.map((item) => (
+                  <Card key={item.id} className="p-6 flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-[#163859] flex items-center justify-center flex-shrink-0">
+                      {getIcon(item.title)}
+                    </div>
+                    <div>
+                      <p className="font-medium mb-1">{item.title}</p>
+                      {/* Using white-space pre-line to handle any manual line breaks in address strings */}
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {item.description}
+                      </p>
+                    </div>
+                  </Card>
+                ))}
               </div>
 
               <div>
@@ -355,7 +340,7 @@ const Contact = () => {
                     <Button
                       type="submit"
                       size="lg"
-                      className="w-full bg-accent hover:bg-accent"
+                      className="w-full bg-[#163859] hover:bg-[#163859] text-white"
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? "Sending..." : "Submit Inquiry"}

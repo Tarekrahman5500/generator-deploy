@@ -117,7 +117,7 @@ const ProductDetail = () => {
                 <Button
                   asChild
                   size="lg"
-                  className="w-full mt-8 bg-accent hover:bg-accent"
+                  className="w-full mt-8 bg-[#163859] hover:bg-[#163859]"
                 >
                   <NavLink to="/quote" state={{ product: product }}>
                     Request a Quote

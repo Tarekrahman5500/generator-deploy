@@ -5,25 +5,30 @@ import { toast } from "sonner";
 export const handleLogout = async () => {
   const accessToken = secureStorage.get("accessToken");
 
+  console.log(accessToken)
+
   if (!accessToken) {
     toast.error("No user logged in");
     return;
   }
 
   try {
+    const url = `${import.meta.env.VITE_API_URL}/auth/logout`;
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/auth/logout`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
+      url, options
+
     );
 
     if (!response.ok) {
       const data = await response.json();
+      console.log(data)
       toast.error(data.message || "Logout failed", {
         style: {
           background: "#ff0000", // your custom red
@@ -47,6 +52,8 @@ export const handleLogout = async () => {
     window.location.replace("/login");
   } catch (error) {
     console.error(error);
+    secureStorage.clear()
+    window.location.replace("/login");
     toast.error("Something went wrong!", {
       style: {
         background: "#ff0000", // your custom red
