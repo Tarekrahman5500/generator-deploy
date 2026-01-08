@@ -1,3 +1,18 @@
+
+/* Hide the Google Translate Top Bar */
+.goog-te-banner-frame.skiptranslate {
+    display: none !important;
+}
+
+
+/* Prevent Google from showing 'Original Text' tooltips which crash React */
+#goog-gt-tt, .goog-te-balloon-frame {
+    display: none !important;
+}
+.goog-text-highlight {
+    background: none !important;
+    box-shadow: none !important;
+}
 /* 1. Prevent the page from shifting down (Crucial) */
 body {
   top: 0 !important;

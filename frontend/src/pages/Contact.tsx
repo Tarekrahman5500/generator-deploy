@@ -137,7 +137,7 @@ const Contact = ({ data: contactData }) => {
     }
   };
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen notranslate-safe-wrapper" key={window.location.pathname} suppressHydrationWarning>
       <section className="py-20">
         <div className="container px-6">
           <div className="text-center mb-16">

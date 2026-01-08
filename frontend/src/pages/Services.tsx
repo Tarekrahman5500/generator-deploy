@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import servicesHeroImg from "@/assets/services-hero.jpg";
 import installationImg from "@/assets/service-installation.jpg";
 import maintenanceImg from "@/assets/service-maintenance.jpg";
+import { useComponentTranslate } from "@/components/CustomTranslateHook";
 
 const Services = ({ data: services, serviceHero }) => {
   const promises = [
@@ -47,7 +48,7 @@ const Services = ({ data: services, serviceHero }) => {
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={`${import.meta.env.VITE_API_URL}/${heroSection.backgroundImage
+            src={`${import.meta.env.VITE_API_URL}/${heroSection?.backgroundImage
               }`}
             alt="Industrial services"
             className="w-full h-full object-cover"
@@ -55,7 +56,7 @@ const Services = ({ data: services, serviceHero }) => {
           <div className="absolute inset-0 bg-gradient-to-r from-navy/90 to-navy/70" />
         </div>
 
-        <div className="container relative z-10 px-6 text-center">
+        <div className="container relative z-10 px-6 text-center notranslate">
           <h1 className="text-5xl font-heading font-bold text-white mb-4">
             {heroSection.title}
           </h1>
@@ -83,7 +84,7 @@ const Services = ({ data: services, serviceHero }) => {
               >
                 <div className="aspect-video overflow-hidden">
                   <img
-                    src={`${import.meta.env.VITE_API_URL}/${service.file.url
+                    src={`${import.meta.env.VITE_API_URL}/${service?.file?.url
                       }`}
                     alt={service.title}
                     className="w-full h-full object-cover"

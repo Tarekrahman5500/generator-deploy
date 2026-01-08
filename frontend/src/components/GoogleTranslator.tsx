@@ -17,41 +17,82 @@ declare global {
 }
 const CustomTranslate = () => {
   const [currentLang, setCurrentLang] = useState("en");
-
   useEffect(() => {
-    // 1. Setup the Google Init Function
+    // Monkey patch Node.prototype.removeChild and insertBefore to fix Google Translate crash
+    const originalRemoveChild = Node.prototype.removeChild;
+    Node.prototype.removeChild = function (child) {
+      if (child.parentNode !== this) {
+        return child;
+      }
+      return originalRemoveChild.apply(this, arguments as any);
+    };
+
+    const originalInsertBefore = Node.prototype.insertBefore;
+    Node.prototype.insertBefore = function (newNode, referenceNode) {
+      if (referenceNode && referenceNode.parentNode !== this) {
+        return newNode;
+      }
+      return originalInsertBefore.apply(this, arguments as any);
+    };
+
+    // 1. Check for existing cookie on mount to set the Tick Mark
+    const googleCookie = document.cookie.split("; ").find(row => row.startsWith("googtrans="));
+    if (googleCookie) {
+      const lang = googleCookie.split("/").pop();
+      if (lang) setCurrentLang(lang);
+    }
+
     window.googleTranslateElementInit = () => {
       new window.google.translate.TranslateElement(
-        {
-          pageLanguage: "en",
-          includedLanguages: "en,fr,it",
-          autoDisplay: false,
-        },
+        { pageLanguage: "en", includedLanguages: "en,fr,it", autoDisplay: false },
         "google_translate_element"
       );
     };
 
-    // 2. Load the script
     const scriptId = "google-translate-script";
     if (!document.getElementById(scriptId)) {
       const script = document.createElement("script");
       script.id = scriptId;
-      script.src =
-        "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
       script.async = true;
       document.body.appendChild(script);
     }
+
+    // 2. IMPORTANT: Force Google to apply the language from the cookie after the script loads
+    const applyStoredLanguage = () => {
+      const googleCombo = document.querySelector(".goog-te-combo") as HTMLSelectElement;
+      if (googleCombo && googleCookie) {
+        const lang = googleCookie.split("/").pop();
+        if (lang && googleCombo.value !== lang) {
+          googleCombo.value = lang;
+          googleCombo.dispatchEvent(new Event("change"));
+        }
+      } else if (!googleCombo) {
+        // If script isn't ready, try again in 500ms
+        setTimeout(applyStoredLanguage, 500);
+      }
+    };
+
+    applyStoredLanguage();
   }, []);
 
   const changeLanguage = (langCode: string) => {
-    const googleCombo = document.querySelector(
-      ".goog-te-combo"
-    ) as HTMLSelectElement;
+    // Set cookie
+    const target = `/en/${langCode}`;
+    document.cookie = `googtrans=${target}; path=/;`;
+    document.cookie = `googtrans=${target}; path=/; domain=${window.location.hostname};`;
+
+    // update state immediately for the tick mark
+    setCurrentLang(langCode);
+
+    const googleCombo = document.querySelector(".goog-te-combo") as HTMLSelectElement;
     if (googleCombo) {
       googleCombo.value = langCode;
-      googleCombo.dispatchEvent(new Event("change")); // Trigger the translation
-      setCurrentLang(langCode);
+      googleCombo.dispatchEvent(new Event("change"));
     }
+
+    // Force reload to prevent the 'removeChild' crash on navigation
+    window.location.reload();
   };
 
   return (
