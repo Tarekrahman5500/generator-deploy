@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
@@ -40,16 +41,17 @@ const Services = ({ data: services, serviceHero }) => {
   const heroSection = {
     backgroundImage: serviceHero[0]?.file?.url,
     title: serviceHero[0]?.title,
-    description: serviceHero[0]?.description
-  }
+    description: serviceHero[0]?.description,
+  };
   return (
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={`${import.meta.env.VITE_API_URL}/${heroSection?.backgroundImage
-              }`}
+            src={`${import.meta.env.VITE_API_URL}/${
+              heroSection?.backgroundImage
+            }`}
             alt="Industrial services"
             className="w-full h-full object-cover"
           />
@@ -84,8 +86,9 @@ const Services = ({ data: services, serviceHero }) => {
               >
                 <div className="aspect-video overflow-hidden">
                   <img
-                    src={`${import.meta.env.VITE_API_URL}/${service?.file?.url
-                      }`}
+                    src={`${import.meta.env.VITE_API_URL}/${
+                      service?.file?.url
+                    }`}
                     alt={service.title}
                     className="w-full h-full object-cover"
                   />

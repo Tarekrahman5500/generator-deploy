@@ -108,7 +108,7 @@ const ProductTable = ({
   const [editedGroups, setEditedGroups] = useState<
     Record<string, GroupField[]>
   >({});
-
+  const [missingId, setMissingId] = useState("");
   const handleView = (product: Product) => {
     setViewProduct(product);
   };
@@ -118,6 +118,7 @@ const ProductTable = ({
     setEditedGroups({ ...product.group });
     setEditedProductName(product.modelName);
     setEditedDescription(product.description);
+    setMissingId(product.id);
   };
 
   const handleDelete = (product: Product) => {
@@ -128,8 +129,15 @@ const ProductTable = ({
   );
   const handleAddField = async (productId: string) => {
     try {
+      const accessToken = await secureStorage.getValidToken();
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/product/missing-field/${productId}`
+        `${import.meta.env.VITE_API_URL}/product/missing-field/${productId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
 
       if (!response.ok) {
@@ -139,6 +147,7 @@ const ProductTable = ({
       const result = await response.json();
 
       // Assuming API returns { data: { missingFields: [] } }
+
       setMissingFields(result.missingFields || []);
     } catch (error) {
       console.error("Error fetching missing fields:", error);
@@ -160,19 +169,19 @@ const ProductTable = ({
     } else {
       setMatchedId(null); // optional fallback
     }
+    const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${import.meta.env.VITE_API_URL
-        }/product/delete-field-value/${matchedId}`
+      const url = `${
+        import.meta.env.VITE_API_URL
+      }/product/delete-field-value/${matchedId}`;
       const options = {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${secureStorage.get("accessToken")}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-      }
-      const response = await fetch(
-        url, options
-      );
+      };
+      const response = await fetch(url, options);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -200,6 +209,33 @@ const ProductTable = ({
       ),
     }));
   };
+  const handleMissingFieldChange = (
+    groupId: string,
+    fieldIndex: number,
+    newValue: string
+  ) => {
+    setMissingFields((prev: any) => {
+      // 1. Deep clone or map to find the correct group
+      const updatedGroups = prev.category.groups.map((group: any) => {
+        if (group.id !== groupId) return group;
+
+        // 2. Map to update the specific field at the index
+        const updatedFields = group.fields.map((field: any, i: number) =>
+          i === fieldIndex ? { ...field, value: newValue } : field
+        );
+
+        return { ...group, fields: updatedFields };
+      });
+
+      return {
+        ...prev,
+        category: {
+          ...prev.category,
+          groups: updatedGroups,
+        },
+      };
+    });
+  };
   const handleSaveEdit = async () => {
     //  console.log(editedGroups);
     if (!editProduct) return;
@@ -211,6 +247,7 @@ const ProductTable = ({
       information: information,
       fileIds,
     };
+    const accessToken = await secureStorage.getValidToken();
     // console.log(updatedProduct);
     try {
       const url = `${import.meta.env.VITE_API_URL}/product`;
@@ -218,10 +255,10 @@ const ProductTable = ({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${secureStorage.get("accessToken")}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(updatedProduct),
-      }
+      };
       const res = await fetch(url, options);
 
       if (!res.ok) {
@@ -253,21 +290,19 @@ const ProductTable = ({
   };
   const handleConfirmDelete = async () => {
     //  console.log("Deleting product:", deleteProduct);
-
+    const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${deleteProduct?.id
-        }`;
+      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${
+        deleteProduct?.id
+      }`;
       const options = {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${secureStorage.get("accessToken")}`,
+          Authorization: `Bearer ${accessToken}`,
         },
-      }
-      const res = await fetch(
-        url,
-        options
-      );
+      };
+      const res = await fetch(url, options);
 
       if (!res.ok) {
         throw new Error("Failed to delete product");
@@ -296,7 +331,7 @@ const ProductTable = ({
       console.error(error);
     }
   };
-  const accessToken = secureStorage.get('accessToken')
+
   const startIndex = (meta.page - 1) * meta.limit + 1;
   const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const getImageUrl = (path?: string) =>
@@ -306,15 +341,16 @@ const ProductTable = ({
 
   const removeFile = async (id: string) => {
     try {
-      console.log("Removing file:", id);
+      const accessToken = await secureStorage.getValidToken();
+      //console.log("Removing file:", id);
       const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
       const options = {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
-      }
+      };
       // Call API to delete file
       await fetch(url, options);
 
@@ -330,12 +366,12 @@ const ProductTable = ({
     }
   };
 
-  const uploadImage = (fileObj: UploadedFile) => {
+  const uploadImage = async (fileObj: UploadedFile) => {
     setIsUploading(true);
 
     const formData = new FormData();
     formData.append("file", fileObj.file);
-
+    const accessToken = await secureStorage.getValidToken();
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/image`);
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
@@ -378,6 +414,46 @@ const ProductTable = ({
     };
 
     xhr.send(formData);
+  };
+  const saveProductInformation = async () => {
+    // Extract all fields that have a value entered
+    const information =
+      missingFields.category?.groups?.flatMap((group: any) =>
+        group.fields
+          .filter((field: any) => field.value && field.value.trim() !== "")
+          .map((field: any) => ({
+            fieldId: field.id, // The ID shown in your JSON
+            value: field.value, // The value typed by user
+          }))
+      ) || [];
+
+    if (information.length === 0) {
+      toast.error("Please enter at least one value.");
+      return;
+    }
+
+    const body = { id: missingFields.id, information };
+
+    try {
+      const accessToken = await secureStorage.getValidToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/product`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Product updated successfully");
+      } else {
+        toast.error(`${data.message}`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(`${error}`);
+    }
   };
   return (
     <div className="space-y-4">
@@ -682,76 +758,85 @@ const ProductTable = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full border-dashed"
+                          className="w-full border-dashed bg-[#163859] hover:bg-[#163859] text-white hover:text-white"
                           onClick={() => handleAddField(editProduct.id)}
                           disabled={loading}
                         >
-                          <Plus className="h-4 w-4 mr-2" />
-                          {loading ? "Loading..." : `Add Field to ${groupName}`}
+                          {`Add Field to ${groupName}`}
                         </Button>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
 
-                {/* {missingFields.category?.groups?.map((group: any) => (
-                  <AccordionItem
-                    key={group.id}
-                    value={group.groupName}
-                    className="border-border"
-                  >
-                    <h1>Missing Fields For Existing Group(Optional)</h1>
-                    <AccordionTrigger className="text-foreground hover:no-underline flex justify-between items-center">
-                      <span>{group.groupName}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {group.fields.length} fields
-                      </Badge>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3 pt-2 p-2 max-h-96 overflow-y-auto">
-                        {group.fields.map((field: any, index: number) => (
-                          <div
-                            key={field.id}
-                            className="flex items-start gap-2"
-                          >
-                            <div className="flex-1 grid grid-cols-2 gap-2">
-                              <Input
-                                placeholder="Field name"
-                                value={field.fieldName}
-                                disabled
-                                className="w-full"
-                              />
-                              <Input
-                                placeholder="Value"
-                                value={field.value || ""}
-                                onChange={(e) =>
-                                  handleFieldChange(
-                                    group.id,
-                                    index,
-                                    "value",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full"
-                              />
+                {missingFields.id === missingId
+                  ? missingFields.category?.groups?.map((group: any) => (
+                      <AccordionItem
+                        key={group.id}
+                        value={group.groupName}
+                        className="border-border"
+                      >
+                        <h1>Missing Fields For Existing Group(Optional)</h1>
+                        <AccordionTrigger className="text-foreground hover:no-underline flex justify-between items-center">
+                          <span>{group.groupName}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {group.fields.length} fields
+                          </Badge>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-3 pt-2 p-2 max-h-96 overflow-y-auto">
+                            {group.fields.map((field: any, index: number) => (
+                              <div
+                                key={field.id}
+                                className="flex items-start gap-2"
+                              >
+                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                  <Input
+                                    placeholder="Field name"
+                                    value={field.fieldName}
+                                    disabled
+                                    className="w-full"
+                                  />
+                                  <Input
+                                    placeholder="Value"
+                                    value={field.value || ""}
+                                    onChange={(e) =>
+                                      handleMissingFieldChange(
+                                        group.id,
+                                        index,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full"
+                                  />
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-10 w-10 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                  onClick={() =>
+                                    handleRemoveField(group.id, index, fileIds)
+                                  }
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex justify-end mt-4">
+                              <Button
+                                onClick={saveProductInformation}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Save Field Values
+                              </Button>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-10 w-10 text-muted-foreground hover:text-destructive flex-shrink-0"
-                              onClick={() =>
-                                handleRemoveField(group.id, index, fileIds)
-                              }
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))} */}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))
+                  : ""}
               </Accordion>
+
               <div>
                 {editProduct?.files && editProduct.files.length > 0 && (
                   <div>
@@ -766,7 +851,6 @@ const ProductTable = ({
                             src={`${import.meta.env.VITE_API_URL}/${file.url}`}
                             alt={file.originalName}
                             className="object-cover h-full w-full"
-
                           />
                           {/* Delete Button */}
                           <button

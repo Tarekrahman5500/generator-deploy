@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Pencil, Minus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ interface FieldRowProps {
   onEdit: () => void;
   onRemove: () => void;
   onUpdate: (field: Field) => void;
+  group: any;
 }
 
 export function FieldRow({
@@ -20,12 +22,21 @@ export function FieldRow({
   onEdit,
   onRemove,
   onUpdate,
+  group,
 }: FieldRowProps) {
+  const handleKeyDown = (e: any) => {
+    if (e.key === "Enter") handleConfirm();
+    if (e.key === "Escape") {
+      setValue(field.fieldName); // Reset to original
+      onEdit(); // Exit edit mode
+    }
+  };
+
   const [value, setValue] = useState(field.fieldName);
 
   // keep local state in sync when field changes
   useEffect(() => {
-    setValue(field.fieldName);
+    setValue((field.fieldName = value));
   }, [field.fieldName]);
 
   const handleConfirm = () => {
@@ -34,14 +45,20 @@ export function FieldRow({
       return;
     }
 
-    onUpdate({
-      ...field,
-      fieldName: value.trim(),
-    });
+    onUpdate(
+      group?.id && !group
+        ? {
+            id: group.id,
+            fieldName: value.trim(),
+          }
+        : {
+            id: field.id,
+            fieldName: value.trim(),
+          }
+    );
 
     onEdit(); // exit edit mode after update
   };
-
   return (
     <Card className="animate-fade-in border-border/60 shadow-soft">
       <CardContent className="p-4">
@@ -52,13 +69,14 @@ export function FieldRow({
                 htmlFor={`field-name-${field.id}`}
                 className="text-xs uppercase tracking-wide text-muted-foreground"
               >
-                Field Name
+                Field Names
               </Label>
 
               <Input
                 id={`field-name-${field.id}`}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
+                onKeyDown={handleKeyDown} // <--- Add this
                 disabled={!isEditing}
                 placeholder="Enter field name"
                 className="w-full"
@@ -71,7 +89,7 @@ export function FieldRow({
               <Button
                 size="icon"
                 onClick={onEdit}
-                className="shrink-0"
+                className="shrink-0 bg-[#163859] hover:bg-[#163859]"
                 aria-label="Edit field"
               >
                 <Pencil className="h-4 w-4" />
@@ -80,7 +98,7 @@ export function FieldRow({
               <Button
                 size="icon"
                 onClick={handleConfirm}
-                className="shrink-0"
+                className="shrink-0 bg-[#163859] hover:bg-[#163859]"
                 aria-label="Confirm field edit"
               >
                 <Check className="h-4 w-4 text-green-600" />
@@ -90,7 +108,7 @@ export function FieldRow({
             <Button
               size="icon"
               onClick={onRemove}
-              className="shrink-0"
+              className="shrink-0 bg-[#163859] hover:bg-[#163859]"
               aria-label="Remove field"
             >
               <Minus className="h-4 w-4" />

@@ -34,6 +34,7 @@ import {
 import { ProductGroupsTable } from "@/components/ProductGroupsTable";
 import { GroupFormModal } from "@/components/GroupFormModal";
 import { GroupDetailsModal } from "@/components/GroupDetailsModal";
+import { secureStorage } from "@/security/SecureStorage";
 
 // Sample data
 ///group/category/categoryId
@@ -83,12 +84,18 @@ export default function ProductsAdd() {
     fetchCategories();
   }, []);
   const fetchGroups = async () => {
+    const accessToken = secureStorage.getValidToken();
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/group/category/${selectedCategoryId}`
+        `${import.meta.env.VITE_API_URL}/group/category/${selectedCategoryId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const data = await res.json();
-      console.log(data);
+
       setGroups(data.groups || []);
     } catch (error) {
       console.error("Failed to fetch groups:", error);
@@ -122,17 +129,48 @@ export default function ProductsAdd() {
     fetchGroups();
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteId) {
-      const groupName = groups.find((g) => g.id === deleteId)?.groupName;
-      setGroups(groups.filter((g) => g.id !== deleteId));
+  const handleDeleteConfirm = async () => {
+    if (!deleteId) return;
+    const accessToken = await secureStorage.getValidToken();
+    try {
+      // 1. Send the DELETE request to the server
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/group/${deleteId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (res.ok) {
+        // 2. Find the name for the toast before removing from state
+        const groupName = groups.find((g) => g.id === deleteId)?.groupName;
+
+        // 3. Update local state to remove the item immediately
+        setGroups(groups.filter((g) => g.id !== deleteId));
+
+        toast({
+          title: "Group Deleted",
+          description: `"${groupName}" has been deleted successfully`,
+        });
+      } else {
+        throw new Error("Failed to delete the group on the server");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
       toast({
-        title: "Group Deleted",
-        description: `"${groupName}" has been deleted successfully`,
+        variant: "destructive",
+        title: "Error",
+        description: "Could not delete the group. Please try again.",
       });
+    } finally {
       setDeleteId(null);
+      // 4. Optionally re-fetch to ensure sync, though local filter is usually enough
+      fetchGroups();
     }
-    fetchGroups();
   };
 
   const handleAddNew = () => {

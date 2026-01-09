@@ -23,12 +23,8 @@ export const environmentSchema = z.object({
   DATABASE_HOST: nonEmptyString,
   DATABASE_PORT: numericString.transform(Number).default(5432),
   DATABASE_DIALECT: z.enum(['mysql']).default('mysql'),
-
   JWT_ACCESS_SECRET: nonEmptyString,
-  JWT_REFRESH_SECRET: nonEmptyString,
-
   JWT_ACCESS_EXPIRES_IN: durationString.default(900), // 15 min
-  JWT_REFRESH_EXPIRES_IN: durationString.default(10080), // 7 d
 });
 
 // Parse and validate environment variables

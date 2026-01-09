@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -61,6 +62,14 @@ export class ProductService {
     const category = await this.categoryService.findCategoryById(categoryId);
     if (!category) {
       throw new NotFoundException(`Category not found`);
+    }
+
+    const exists = await this.productRepository.exists({
+      where: { modelName },
+    });
+
+    if (exists) {
+      throw new ConflictException(`Product with model name already exists`);
     }
 
     // 2️⃣ FIELD VALIDATION

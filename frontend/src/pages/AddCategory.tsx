@@ -50,7 +50,7 @@ const AddCategory = () => {
   const [inputValue, setInputValue] = useState("");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputValue.trim()) {
+    if (e.key === "Enter" && inputValue.trim()) {
       e.preventDefault();
       // Prevent duplicates
       if (!subCategoryNames.includes(inputValue.trim())) {
@@ -61,7 +61,9 @@ const AddCategory = () => {
   };
 
   const removeTag = (indexToRemove: number) => {
-    setSubCategoryNames(subCategoryNames.filter((_, index) => index !== indexToRemove));
+    setSubCategoryNames(
+      subCategoryNames.filter((_, index) => index !== indexToRemove)
+    );
   };
   // Product state
   const userName = secureStorage.get("userInfo") || "";
@@ -90,9 +92,9 @@ const AddCategory = () => {
         method: "POST",
         body: formData,
         headers: {
-          "Authorization": `Bearer ${accessToken}`
-        }
-      }
+          Authorization: `Bearer ${accessToken}`,
+        },
+      };
       const res = await fetch(url, options);
 
       const result = await res.json();
@@ -145,20 +147,19 @@ const AddCategory = () => {
       });
       return;
     }
-const payload: any = {
-  categoryName,
-  description
-};
+    const payload: any = {
+      categoryName,
+      description,
+    };
 
-if (subCategoryNames && subCategoryNames.length > 0) {
-  payload.subCategoryNames = [subCategoryNames];
-}
+    if (subCategoryNames && subCategoryNames.length > 0) {
+      payload.subCategoryNames = subCategoryNames;
+    }
 
-if (fileIds && fileIds.length > 0) {
-  payload.fileIds = [fileIds];
-}
+    if (fileIds && fileIds.length > 0) {
+      payload.fileIds = [fileIds];
+    }
 
-    
     try {
       const url = `${import.meta.env.VITE_API_URL}/category`;
       const options = {
@@ -168,8 +169,8 @@ if (fileIds && fileIds.length > 0) {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(payload),
-      }
-      const res = await fetch(url, options)
+      };
+      const res = await fetch(url, options);
 
       if (res.status === 401) {
         toast.error("Session expired. Please login again.", {
@@ -208,7 +209,7 @@ if (fileIds && fileIds.length > 0) {
           padding: "12px 16px",
         },
       });
-     fetchCategories();
+      fetchCategories();
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong!", {
@@ -231,7 +232,7 @@ if (fileIds && fileIds.length > 0) {
         id: category.id || "",
         categoryName: category.categoryName || "",
         description: category.description || "",
-        subCategoryNames
+        subCategoryNames,
       }));
 
       setCategories({
@@ -263,13 +264,13 @@ if (fileIds && fileIds.length > 0) {
           // If you need authorization:
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      };
       // Call API to delete file
       await fetch(url, options);
 
       // Update local state
-      setFileIds([]);
-      setFileInfo({});
+      setFileIds(null);
+      setFileInfo(null);
       toast.success("File deleted successfully", {
         style: {
           background: "#326e12", // your custom red
@@ -312,7 +313,8 @@ if (fileIds && fileIds.length > 0) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="subcategories">
-                  Sub Categories <span className="text-destructive">(Optional)</span>
+                  Sub Categories{" "}
+                  <span className="text-destructive">(Optional)</span>
                 </Label>
 
                 <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background focus-within:ring-2 ring-ring ring-offset-2">
@@ -337,13 +339,19 @@ if (fileIds && fileIds.length > 0) {
                   <input
                     id="subcategories"
                     className="flex-1 bg-transparent outline-none min-w-[120px] text-sm py-1"
-                    placeholder={subCategoryNames.length === 0 ? "Type and press Enter..." : ""}
+                    placeholder={
+                      subCategoryNames.length === 0
+                        ? "Type and press Enter..."
+                        : ""
+                    }
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">Press Enter to add a sub-category.</p>
+                <p className="text-xs text-muted-foreground">
+                  Press Enter to add a sub-category.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">
@@ -400,7 +408,7 @@ if (fileIds && fileIds.length > 0) {
                 </Button>
               </div>
 
-              {uploadedFile && (
+              {uploadedFile && fileInfo && (
                 <div className="bg-muted rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded flex items-center justify-center">
@@ -410,7 +418,6 @@ if (fileIds && fileIds.length > 0) {
                             ? `${import.meta.env.VITE_API_URL}/${fileInfo.url}`
                             : ""
                         }
-                        alt="File"
                       />
                     </div>
                   </div>
@@ -429,7 +436,10 @@ if (fileIds && fileIds.length > 0) {
           </div>
         </div>
       </div>
-      <Button onClick={handleSaveCategory} className="mt-28 ml-5 sm:mt-25 bg-[#163859] hover:bg-[#163859]">
+      <Button
+        onClick={handleSaveCategory}
+        className="mt-28 ml-5 sm:mt-25 bg-[#163859] hover:bg-[#163859]"
+      >
         Save Category
       </Button>
     </div>

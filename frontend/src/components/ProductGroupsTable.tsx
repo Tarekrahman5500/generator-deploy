@@ -37,7 +37,7 @@ export function ProductGroupsTable({
           `${import.meta.env.VITE_API_URL}/group/category/${categoryId}`
         );
         const data = await res.json();
-        console.log(data);
+
         setGroups(data.groups || []);
       } catch (error) {
         console.error("Failed to fetch groups:", error);
@@ -75,7 +75,7 @@ export function ProductGroupsTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => onViewDetails(group)}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-white hover:text-white bg-[#163859] hover:bg-[#163859]"
                     >
                       <Eye className="h-4 w-4 mr-1.5" />
                       View Details

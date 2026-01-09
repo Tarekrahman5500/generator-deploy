@@ -7,10 +7,5 @@ export const loginSchema = z.object({
 });
 
 export const tokenSchema = z.object({
-  refreshToken: z.string().min(6, 'Refresh token'),
   accessToken: z.string().min(6, 'Access token'),
-});
-
-export const refreshToken = tokenSchema.pick({
-  refreshToken: true,
 });

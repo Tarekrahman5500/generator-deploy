@@ -258,4 +258,146 @@ export class SearchService {
 
     return Array.from(suggestions).slice(0, 10);
   }
+
+  async dynamicProductSearch(dto: {
+    categoryId?: string;
+    subCategoryId?: string;
+    fieldId?: string;
+    valueId?: string;
+  }) {
+    if (!dto.categoryId) return [];
+    let productIds: string[] = [];
+    // Base product query
+    let qb = this.productRepo
+      .createQueryBuilder('product')
+      .where('product.is_deleted = false');
+
+    qb = qb.andWhere('product.category_id = :categoryId', {
+      categoryId: dto.categoryId,
+    });
+
+    if (dto.subCategoryId)
+      qb = qb.andWhere('product.sub_category_id = :subCategoryId', {
+        subCategoryId: dto.subCategoryId,
+      });
+    if (dto.fieldId)
+      qb = qb
+        .innerJoin('product.productValues', 'pv')
+        .andWhere('pv.field_id = :fieldId', { fieldId: dto.fieldId });
+    if (dto.valueId)
+      qb = qb.andWhere('pv.id = :valueId', { valueId: dto.valueId });
+
+    const products = await qb
+      .leftJoinAndSelect('product.subCategory', 'subCategory')
+      .leftJoinAndSelect('product.productValues', 'productValues')
+      .leftJoinAndSelect('productValues.field', 'field')
+      .getMany();
+
+    productIds = products.map((p) => p.id);
+
+    // 1️⃣ categoryId only → subcategories OR fields
+    if (dto.categoryId && !dto.subCategoryId && !dto.fieldId && !dto.valueId) {
+      // Filter out products with null subCategory first
+      const subCategories = Array.from(
+        new Map(
+          products
+            .filter((p) => p.subCategory) // ignore null subCategory
+            .map((p) => [p.subCategory!.id, p.subCategory!]), // ! tells TS it's not null here
+        ).values(),
+      );
+
+      if (subCategories.length > 0) {
+        return {
+          subCategories: subCategories.map((s) => ({
+            subCategoryId: s!.id, // ! safe because we filtered null
+            subCategoryName: s!.subCategoryName,
+          })),
+          productIds,
+        };
+      } else {
+        // No subcategories → return fields
+        const fieldsMap = new Map();
+        products.forEach((p) => {
+          p.productValues?.forEach((pv) => {
+            fieldsMap.set(pv.field.id, pv.field.fieldName);
+          });
+        });
+        const fields = Array.from(fieldsMap.entries()).map(
+          ([fieldId, fieldName]) => ({
+            fieldId,
+            fieldName,
+          }),
+        );
+        return { fields, productIds };
+      }
+    }
+
+    // 2️⃣ categoryId + subCategoryId → fields
+    if (dto.categoryId && dto.subCategoryId && !dto.fieldId && !dto.valueId) {
+      const fieldsMap = new Map();
+      products.forEach((p) => {
+        p.productValues?.forEach((pv) => {
+          fieldsMap.set(pv.field.id, pv.field.fieldName);
+        });
+      });
+      const fields = Array.from(fieldsMap.entries()).map(
+        ([fieldId, fieldName]) => ({
+          fieldId,
+          fieldName,
+          productIds: products.map((p) => p.id),
+        }),
+      );
+      return fields;
+    }
+
+    // 3️⃣ categoryId + subCategoryId + fieldId → values
+    if (dto.categoryId && dto.subCategoryId && dto.fieldId && !dto.valueId) {
+      const valueMap = new Map();
+      products.forEach((p) => {
+        p.productValues?.forEach((pv) => {
+          if (pv.field.id === dto.fieldId) {
+            if (!valueMap.has(pv.id))
+              valueMap.set(pv.id, {
+                valueId: pv.id,
+                value: pv.value,
+                productIds: [],
+              });
+            valueMap.get(pv.id).productIds.push(p.id);
+          }
+        });
+      });
+      return Array.from(valueMap.values());
+    }
+
+    // 4️⃣ categoryId + subCategoryId + fieldId + valueId → product IDs only
+    if (dto.categoryId && dto.subCategoryId && dto.fieldId && dto.valueId) {
+      return productIds;
+    }
+
+    // 5️⃣ categoryId + fieldId → values
+    if (dto.categoryId && !dto.subCategoryId && dto.fieldId && !dto.valueId) {
+      const valueMap = new Map();
+      products.forEach((p) => {
+        p.productValues?.forEach((pv) => {
+          if (pv.field.id === dto.fieldId) {
+            if (!valueMap.has(pv.id))
+              valueMap.set(pv.id, {
+                valueId: pv.id,
+                value: pv.value,
+                productIds: [],
+              });
+            valueMap.get(pv.id).productIds.push(p.id);
+          }
+        });
+      });
+      return Array.from(valueMap.values());
+    }
+
+    // 6️⃣ categoryId + fieldId + valueId → product IDs
+    if (dto.categoryId && !dto.subCategoryId && dto.fieldId && dto.valueId) {
+      return productIds;
+    }
+
+    return [];
+  }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -16,11 +17,17 @@ import GetQuoteTableSkeleton from "@/components/Skeleton/GetQuoteTableSkeleton";
 import { secureStorage } from "@/security/SecureStorage";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
+import {
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ProductMediaUpload, UploadedFile } from "@/components/ProductMediaUpload";
+import {
+  ProductMediaUpload,
+  UploadedFile,
+} from "@/components/ProductMediaUpload";
 import { DocFile } from "./AddProducts";
 import { DocumentsUpload } from "@/components/DocumentsUpload";
 
@@ -60,14 +67,16 @@ export const InfoRequestsTable = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL
-        }/contact-form/info-request?page=${page}&limit=${limit}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      }
+        `${
+          import.meta.env.VITE_API_URL
+        }/contact-form/info-request?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       if (!res.ok) throw new Error("Failed to fetch info requests");
@@ -79,7 +88,7 @@ export const InfoRequestsTable = () => {
       setMeta(json.meta || null);
     } catch (err) {
       console.error(err);
-      toast.success('Something went wrong');
+      toast.success("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -93,7 +102,7 @@ export const InfoRequestsTable = () => {
   const [selectedReq, setSelectedReq] = useState(null);
   const [formData, setFormData] = useState({
     subject: "Your Subject",
-    body: "The message you want to send!"
+    body: "The message you want to send!",
   });
   const [docFiles, setDocFiles] = useState<DocFile[]>([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
@@ -108,14 +117,21 @@ export const InfoRequestsTable = () => {
     const accessToken = await secureStorage.getValidToken();
     setSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact-form/reply/info-request`, { // Adjust base URL as needed
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          ...formData,
-          parentId: selectedReq.id
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/contact-form/reply/info-request`,
+        {
+          // Adjust base URL as needed
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            ...formData,
+            parentId: selectedReq.id,
+          }),
+        }
+      );
 
       if (response.ok) {
         toast.success("Reply sent successfully!");
@@ -188,7 +204,7 @@ export const InfoRequestsTable = () => {
     setMediaFiles((prev) => prev.filter((f) => f.id !== id));
   };
   const handleCancel = () => {
-    setIsModalOpen(false)
+    setIsModalOpen(false);
     setMediaFiles([]);
     setDocFiles([]);
     toast.error("Form Cleared!", {
@@ -218,9 +234,7 @@ export const InfoRequestsTable = () => {
           </TableHeader>
           <TableBody>
             {loading ? (
-
               <GetQuoteTableSkeleton />
-
             ) : requests.length === 0 ? (
               <TableRow>
                 <TableCell
@@ -248,7 +262,10 @@ export const InfoRequestsTable = () => {
                         Replied
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground"
+                      >
                         Pending
                       </Badge>
                     )}
@@ -312,7 +329,9 @@ export const InfoRequestsTable = () => {
                 <Input
                   id="subject"
                   value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subject: e.target.value })
+                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -321,7 +340,9 @@ export const InfoRequestsTable = () => {
                   id="body"
                   rows={5}
                   value={formData.body}
-                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, body: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -336,10 +357,17 @@ export const InfoRequestsTable = () => {
               <DocumentsUpload files={docFiles} onFilesChange={setDocFiles} />
             </div>
             <AlertDialogFooter>
-              <Button onClick={() => handleCancel()} className="bg-inherit hover:bg-transparent text-black">
+              <Button
+                onClick={() => handleCancel()}
+                className="bg-inherit hover:bg-transparent text-black"
+              >
                 Cancel
               </Button>
-              <Button onClick={handleReplySubmit} disabled={submitting} className="bg-[#163859] hover:bg-[#163859]">
+              <Button
+                onClick={handleReplySubmit}
+                disabled={submitting}
+                className="bg-[#163859] hover:bg-[#163859]"
+              >
                 {submitting ? "Sending..." : "Send Reply"}
               </Button>
             </AlertDialogFooter>

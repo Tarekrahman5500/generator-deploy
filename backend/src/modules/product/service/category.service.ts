@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CategoryEntity } from 'src/entities/product';
@@ -23,8 +27,18 @@ export class CategoryService {
   async createCategory(
     createCategoryDto: CategoryCreateDto,
   ): Promise<CategoryEntity> {
-    const { fileIds, subCategoryNames, ...categoryData } = createCategoryDto;
+    const { fileIds, subCategoryNames, categoryName, description } =
+      createCategoryDto;
 
+    const exists = await this.categoryRepository.exists({
+      where: { categoryName },
+    });
+
+    if (exists) {
+      throw new ConflictException(
+        `Category with name ${categoryName} already exists`,
+      );
+    }
     // 1️⃣ Validate files before transaction
     const files = await this.fileService.getFileByIds(fileIds);
 
@@ -34,7 +48,10 @@ export class CategoryService {
 
     return this.dataSource.transaction(async (manager) => {
       // 2️⃣ Create category
-      const category = await manager.save(CategoryEntity, categoryData);
+      const category = await manager.save(CategoryEntity, {
+        categoryName,
+        description,
+      });
 
       // 3️⃣ Update usedAt for files
       await this.fileService.usedAtUpdate(fileIds, manager);
@@ -136,69 +153,146 @@ export class CategoryService {
       .getMany();
   }
 
-  async categoryUpdate(categoryDto: CategoryUpdateDto) {
-    const { id, fileIds, categoryName, description } = categoryDto;
+  // async categoryUpdate(categoryDto: CategoryUpdateDto) {
+  //   const { id, fileIds, categoryName, description } = categoryDto;
+
+  //   const category = await this.categoryRepository.findOne({
+  //     where: { id },
+  //     relations: ['categoryFiles'],
+  //   });
+
+  //   if (!category) {
+  //     throw new NotFoundException('Category not found');
+  //   }
+
+  //   if (fileIds?.length) {
+  //     const files = await this.fileService.getFileByIds(fileIds);
+
+  //     if (files.length !== fileIds.length) {
+  //       throw new NotFoundException('One or more files not found');
+  //     }
+  //   }
+
+  //   return await this.dataSource.transaction(async (manager) => {
+  //     // -------------------------
+  //     // A) Update category fields
+  //     // -------------------------
+  //     if (categoryName || description) {
+  //       await manager.update(
+  //         CategoryEntity,
+  //         { id },
+  //         {
+  //           ...(categoryName && { categoryName }),
+  //           ...(description && { description }),
+  //         },
+  //       );
+  //     }
+
+  //     // -------------------------
+  //     // B) Replace file relations
+  //     // -------------------------
+  //     if (fileIds?.length) {
+  //       // 1️⃣ Remove old relations ONLY
+  //       await manager.delete(CategoryFileRelationEntity, {
+  //         categoryId: id,
+  //       });
+
+  //       // 2️⃣ Create new relations
+  //       const relations = fileIds.map((fileId) => ({
+  //         categoryId: id,
+  //         fileId,
+  //       }));
+
+  //       await manager.insert(CategoryFileRelationEntity, relations);
+
+  //       // 3️⃣ Mark files as used (DO NOT DELETE)
+  //       await this.fileService.usedAtUpdate(fileIds, manager);
+  //     }
+
+  //     // -------------------------
+  //     // C) Return updated entity
+  //     // -------------------------
+  //     return manager.findOne(CategoryEntity, {
+  //       where: { id },
+  //       relations: ['categoryFiles', 'categoryFiles.file'],
+  //     });
+  //   });
+  // }
+
+  async categoryUpdate(dto: CategoryUpdateDto): Promise<CategoryEntity> {
+    const { id, categoryName, description, fileIds } = dto;
 
     const category = await this.categoryRepository.findOne({
       where: { id },
-      relations: ['categoryFiles'],
+      relations: ['categoryFiles', 'categoryFiles.file'],
     });
 
     if (!category) {
       throw new NotFoundException('Category not found');
     }
 
-    if (fileIds?.length) {
-      const files = await this.fileService.getFileByIds(fileIds);
+    // -------------------------
+    // A) Unique categoryName check (only if changed)
+    // -------------------------
+    if (categoryName !== undefined && categoryName !== category.categoryName) {
+      const exists = await this.categoryRepository.exists({
+        where: { categoryName },
+      });
 
-      if (files.length !== fileIds.length) {
-        throw new NotFoundException('One or more files not found');
+      if (exists) {
+        throw new ConflictException(
+          `Category with name "${categoryName}" already exists`,
+        );
       }
     }
 
-    return await this.dataSource.transaction(async (manager) => {
-      // -------------------------
-      // A) Update category fields
-      // -------------------------
-      if (categoryName || description) {
-        await manager.update(
-          CategoryEntity,
-          { id },
-          {
-            ...(categoryName && { categoryName }),
-            ...(description && { description }),
-          },
-        );
-      }
+    // -------------------------
+    // B) Handle fileIds (PATCH semantics)
+    // -------------------------
+    let shouldUpdateFiles = false;
 
-      // -------------------------
-      // B) Replace file relations
-      // -------------------------
-      if (fileIds?.length) {
-        // 1️⃣ Remove old relations ONLY
-        await manager.delete(CategoryFileRelationEntity, {
-          categoryId: id,
+    if (fileIds !== undefined) {
+      const existingFileIds = category.categoryFiles.map((cf) => cf.fileId);
+
+      const sameFiles =
+        existingFileIds.length === fileIds.length &&
+        existingFileIds.every((id) => fileIds.includes(id));
+
+      if (!sameFiles) {
+        const files = await this.fileService.getFileByIds(fileIds);
+
+        if (files.length !== fileIds.length) {
+          throw new NotFoundException('One or more files not found');
+        }
+
+        category.categoryFiles = fileIds.map((fileId) => {
+          const relation = new CategoryFileRelationEntity();
+          relation.categoryId = category.id;
+          relation.fileId = fileId;
+          return relation;
         });
 
-        // 2️⃣ Create new relations
-        const relations = fileIds.map((fileId) => ({
-          categoryId: id,
-          fileId,
-        }));
+        shouldUpdateFiles = true;
+      }
+    }
 
-        await manager.insert(CategoryFileRelationEntity, relations);
+    // -------------------------
+    // C) Partial scalar update
+    // -------------------------
+    Object.assign(category, {
+      ...(categoryName !== undefined && { categoryName }),
+      ...(description !== undefined && { description }),
+    });
 
-        // 3️⃣ Mark files as used (DO NOT DELETE)
+    // -------------------------
+    // D) Transaction save
+    // -------------------------
+    return this.dataSource.transaction(async (manager) => {
+      if (shouldUpdateFiles && fileIds?.length) {
         await this.fileService.usedAtUpdate(fileIds, manager);
       }
 
-      // -------------------------
-      // C) Return updated entity
-      // -------------------------
-      return manager.findOne(CategoryEntity, {
-        where: { id },
-        relations: ['categoryFiles', 'categoryFiles.file'],
-      });
+      return manager.save(CategoryEntity, category);
     });
   }
 

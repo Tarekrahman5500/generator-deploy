@@ -28,4 +28,21 @@ export class SearchController {
       query: query,
     };
   }
+
+  @Get('filter')
+  async filterProducts(
+    @Query()
+    dto: {
+      categoryId?: string;
+      subCategoryId?: string;
+      fieldId?: string;
+      valueId?: string;
+    },
+  ) {
+    const results = await this.searchService.dynamicProductSearch(dto);
+
+    return {
+      results,
+    };
+  }
 }

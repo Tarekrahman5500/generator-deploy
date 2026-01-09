@@ -29,7 +29,6 @@ import { Label } from "@/components/ui/label";
 import { UploadedFile } from "@/components/ProductMediaUpload";
 
 const ViewCategory = () => {
-  const accessToken = secureStorage.get("accessToken");
   const [categories, setCategories] = useState<CategoryResponse>({
     statusCode: 0,
     categories: [],
@@ -65,7 +64,7 @@ const ViewCategory = () => {
             url: fileObj.file?.url || "",
           },
         })),
-        subCategories: category.subCategories
+        subCategories: category.subCategories,
       }));
 
       setCategories({
@@ -88,7 +87,6 @@ const ViewCategory = () => {
   }, []);
 
   const handleEditClick = (category: Category) => {
-    console.log(category)
     setEditingCategory(category);
     setEditForm({
       categoryName: category?.categoryName,
@@ -104,7 +102,7 @@ const ViewCategory = () => {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+    const accessToken = await secureStorage.getValidToken();
     try {
       // 1️⃣ Create preview immediately
       const previewUrl = URL.createObjectURL(file);
@@ -119,7 +117,7 @@ const ViewCategory = () => {
           Authorization: `Bearer ${accessToken}`,
         },
         body: formData,
-      }
+      };
       // 3️⃣ Upload image
       const res = await fetch(url, options);
 
@@ -160,7 +158,7 @@ const ViewCategory = () => {
 
   const handleSaveCategory = async () => {
     if (!editingCategory) return;
-
+    const accessToken = await secureStorage.getValidToken();
     try {
       const url = `${import.meta.env.VITE_API_URL}/category`;
       const options = {
@@ -175,7 +173,7 @@ const ViewCategory = () => {
           description: editForm.description,
           fileIds: [editForm.filesId],
         }),
-      }
+      };
       // If you need to upload image, handle it here with FormData
       const res = await fetch(url, options);
 
@@ -188,16 +186,17 @@ const ViewCategory = () => {
         categories: prev.categories.map((cat) =>
           cat.id === editingCategory.id
             ? {
-              ...cat,
-              categoryName: editForm.categoryName,
-              description: editForm.description,
-            }
+                ...cat,
+                categoryName: editForm.categoryName,
+                description: editForm.description,
+              }
             : cat
         ),
       }));
 
       setIsEditModalOpen(false);
       setEditingCategory(null);
+      await fetchCategories();
     } catch (err) {
       toast.error("Failed to update category");
       console.error(err);
@@ -208,11 +207,11 @@ const ViewCategory = () => {
     if (!confirm("Are you sure you want to delete this category?")) return;
 
     setLoading(true);
-
+    const accessToken = await secureStorage.getValidToken();
     try {
-
-      const url = `${import.meta.env.VITE_API_URL
-        }/category/soft-delete/${categoryId}`;
+      const url = `${
+        import.meta.env.VITE_API_URL
+      }/category/soft-delete/${categoryId}`;
 
       const response = await fetch(url, {
         method: "DELETE",
@@ -240,6 +239,7 @@ const ViewCategory = () => {
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
 
   const removeFile = async (id: string) => {
+    const accessToken = await secureStorage.getValidToken();
     try {
       console.log("Removing file:", id);
       const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
@@ -250,7 +250,7 @@ const ViewCategory = () => {
           // If you need authorization:
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      };
       // Call API to delete file
       await fetch(url, options);
 
@@ -296,16 +296,19 @@ const ViewCategory = () => {
       if (!token) return; // refreshAccessToken handles the redirect to /login
 
       // 3. Call the API
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/sub-category/${id}`, {
-        method: "PATCH", // Using PATCH for partial updates
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          subCategoryName: tempValue,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/sub-category/${id}`,
+        {
+          method: "PATCH", // Using PATCH for partial updates
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subCategoryName: tempValue,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -314,7 +317,7 @@ const ViewCategory = () => {
 
       // 4. Update the local UI state (Optional: replace with a global fetch)
       // setItems(prev => prev.map(item => item.id === id ? { ...item, subCategoryName: tempValue } : item));
-      fetchCategories();
+      await fetchCategories();
       toast.success("Updated successfully!");
       setEditingId(null); // Close the edit mode
     } catch (error: any) {
@@ -361,8 +364,9 @@ const ViewCategory = () => {
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
                         {category.categoryFiles[0]?.file?.url ? (
                           <img
-                            src={`${import.meta.env.VITE_API_URL}/${category?.categoryFiles[0]?.file?.url
-                              }`}
+                            src={`${import.meta.env.VITE_API_URL}/${
+                              category?.categoryFiles[0]?.file?.url
+                            }`}
                             alt={category.categoryName}
                             className="w-full h-full object-cover"
                           />
@@ -376,11 +380,11 @@ const ViewCategory = () => {
                     <TableCell className="font-medium">
                       {category.categoryName}
                     </TableCell>
-                    <TableCell className="max-w-[300px] truncate text-muted-foreground mr-6"
-                      title={category.description}>
-
+                    <TableCell
+                      className="max-w-[300px] truncate text-muted-foreground mr-6"
+                      title={category.description}
+                    >
                       {category.description || "-"}
-
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="inline-flex items-center gap-2">
@@ -440,8 +444,9 @@ const ViewCategory = () => {
                     {editForm.imagePreview ? (
                       <>
                         <img
-                          src={`${import.meta.env.VITE_API_URL}/${editForm.imagePreview
-                            }`}
+                          src={`${import.meta.env.VITE_API_URL}/${
+                            editForm.imagePreview
+                          }`}
                           alt="Preview"
                           className="w-full h-full object-cover"
                         />
@@ -491,57 +496,61 @@ const ViewCategory = () => {
                 placeholder="Enter category name"
               />
             </div>
-            {editForm.subCategories.length > 0 ? <div className="space-y-4 w-full max-w-md">
-              <Label>Sub Categories</Label>
-              {editForm.subCategories.map((item) => (
-                <div key={item.id} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    {editingId === item.id ? (
-                      <Input
-                        value={tempValue}
-                        onChange={(e) => setTempValue(e.target.value)}
-                        className="h-9"
-                      />
-                    ) : (
-                      <div className="px-3 py-2 border border-solid rounded-md">
-                        {item.subCategoryName}
-                      </div>
-                    )}
-                  </div>
+            {editForm.subCategories.length > 0 ? (
+              <div className="space-y-4 w-full max-w-md">
+                <Label>Sub Categories</Label>
+                {editForm.subCategories.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      {editingId === item.id ? (
+                        <Input
+                          value={tempValue}
+                          onChange={(e) => setTempValue(e.target.value)}
+                          className="h-9"
+                        />
+                      ) : (
+                        <div className="px-3 py-2 border border-solid rounded-md">
+                          {item.subCategoryName}
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-1">
-                    {editingId === item.id ? (
-                      <>
+                    <div className="flex items-center gap-1">
+                      {editingId === item.id ? (
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleSave(item.id)}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={handleCancel}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleSave(item.id)}
-                          className="text-green-600 hover:text-green-700"
+                          onClick={() => handleEditClickSub(item)}
                         >
-                          <Check className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleCancel}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleEditClickSub(item)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div> : ""}
+                ))}
+              </div>
+            ) : (
+              ""
+            )}
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>

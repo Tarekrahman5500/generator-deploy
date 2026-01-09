@@ -109,7 +109,10 @@ const App = () => {
             path="/about"
             element={<About data={cmsData?.["About"] || []} />}
           />
-          <Route path="/contact" element={<Contact data={cmsData?.["Contact"] || []} />} />
+          <Route
+            path="/contact"
+            element={<Contact data={cmsData?.["Contact"] || []} />}
+          />
           <Route path="/quote" element={<Quote />} />
           <Route path="/login" element={<Login />} />
           <Route

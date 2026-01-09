@@ -56,7 +56,6 @@ export function GroupFormModal({
     categories: [],
   });
   const [upsert, setUpsert] = useState(false);
-  const accessToken = secureStorage.get("accessToken");
 
   useEffect(() => {
     if (group) {
@@ -92,14 +91,15 @@ export function GroupFormModal({
 
   const addField = () => {
     const newField: Field = {
-      id: group.id,
+      // Generate a unique ID for the field, NOT the group ID
+      id: crypto.randomUUID(),
       fieldName: "",
     };
+
     setFields([...fields, newField]);
-    setEditingFieldId(newField.id);
+    setEditingFieldId(newField.id); // Now this points to the specific new field
     setUpsert(true);
   };
-
   const updateField = async (updatedField: Field) => {
     // optimistic UI update (correct)
     setFields((prev) =>
@@ -112,6 +112,7 @@ export function GroupFormModal({
     };
 
     try {
+      const accessToken = await secureStorage.getValidToken();
       const url = `${import.meta.env.VITE_API_URL}/field`;
       const options = {
         method: `${upsert ? "POST" : "PATCH"}`,
@@ -119,8 +120,8 @@ export function GroupFormModal({
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify(body)
-      }
+        body: JSON.stringify(body),
+      };
       const res = await fetch(url, options);
 
       if (!res.ok) {
@@ -149,10 +150,32 @@ export function GroupFormModal({
     }
   };
 
-  const removeField = (id: string) => {
+  const removeField = async (id: string) => {
     setFields(fields.filter((f) => f.id !== id));
     if (editingFieldId === id) {
       setEditingFieldId(null);
+    }
+
+    if (id) {
+      const accessToken = await secureStorage.getValidToken();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/field/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (res.ok) {
+        toast.success("Field Deleted Successfully", {
+          style: {
+            background: "#326e12",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
+        fetchCategories();
+      }
     }
   };
 
@@ -184,8 +207,20 @@ export function GroupFormModal({
     const body = {
       groupName: name.trim(),
       categoryId: selectedCategoryId,
-      fieldNames: fields.map((f) => f.fieldName.trim()),
+      fieldNames: fields.map((f) => f.fieldName.trim()).filter((f) => f !== ""),
     };
+    if (body.fieldNames.length === 0) {
+      toast.error("Please Insert Field Name", {
+        style: {
+          background: "#ff0000",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
+      return;
+    }
+    const accessToken = await secureStorage.getValidToken();
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/group`, {
@@ -199,16 +234,28 @@ export function GroupFormModal({
 
       const json = await res.json();
       //console.log("API Response:", json);
+      if (res.ok) {
+        toast.success(`${name}" group created successfully.`, {
+          style: {
+            background: "#326e12",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
+      }
 
-      toast.success(`${name}" group created successfully.`, {
-        style: {
-          background: "#326e12",
-          color: "#fff",
-          borderRadius: "10px",
-          padding: "12px 16px",
-        },
-      });
-
+      if (json.statusCode === 901) {
+        toast.error(`${json.message}`, {
+          style: {
+            background: "#ff0000",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        });
+        return;
+      }
       onOpenChange(false);
       fetchCategories();
     } catch (err) {
@@ -233,6 +280,7 @@ export function GroupFormModal({
       id: group.id,
       groupName: name.trim(),
     };
+    const accessToken = await secureStorage.getValidToken();
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/group`, {
@@ -269,7 +317,14 @@ export function GroupFormModal({
       console.error(error);
     }
   };
-
+  const handleFieldChange = (id: string, value: string) => {
+    setFields((prevFields) =>
+      prevFields.map((field) =>
+        field.id === id ? { ...field, fieldName: value } : field
+      )
+    );
+    setUpsert(true); // Mark that changes have been made
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -354,7 +409,7 @@ export function GroupFormModal({
                 variant="ghost"
                 size="sm"
                 onClick={addField}
-                className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                className="text-primary hover:text-white hover:bg-[#163859]"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Add New Field
@@ -375,6 +430,7 @@ export function GroupFormModal({
                     }
                     onRemove={() => removeField(field.id)}
                     onUpdate={updateField}
+                    group={group}
                   />
                 ))}
               </div>
@@ -406,7 +462,10 @@ export function GroupFormModal({
             Cancel
           </Button>
           {!group && (
-            <Button onClick={handleSave}>
+            <Button
+              onClick={handleSave}
+              className="bg-[#163859] hover:bg-[#163859]"
+            >
               {group ? "Update Group" : "Create Group"}
             </Button>
           )}

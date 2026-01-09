@@ -37,15 +37,19 @@ const Index = ({ data }) => {
   ];
 
   const cmsContent = {
-    "title": data[0]?.title,
-    "description": data[0]?.description,
-    "file": {
-      "id": data[0]?.file?.id,
-      "originalName": data[0]?.file?.url?.originalName,
-      "url": data[0]?.file?.url,
+    title: data[0]?.title,
+    description: data[0]?.description,
+    file: {
+      id: data[0]?.file?.id,
+      originalName: data[0]?.file?.url?.originalName,
+      url: data[0]?.file?.url,
     },
-    "isVisible": data[0]?.isVisible,
-  }
+    isVisible: data[0]?.isVisible,
+  };
+  const expSection = {
+    title: data[1]?.title,
+    description: data[1]?.description,
+  };
   const [loading, setLoading] = useState(true);
   const categoriesStatic = [
     {
@@ -158,8 +162,7 @@ const Index = ({ data }) => {
       <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src={`${import.meta.env.VITE_API_URL}/${cmsContent.file.url
-              }`}
+            src={`${import.meta.env.VITE_API_URL}/${cmsContent.file.url}`}
             alt="Industrial manufacturing facility"
             className="w-full h-full object-cover"
           />
@@ -173,7 +176,6 @@ const Index = ({ data }) => {
             </h1>
             <p className="text-lg md:text-xl mb-8 text-white/90">
               {cmsContent.description}
-              
             </p>
             <Button
               asChild
@@ -209,8 +211,9 @@ const Index = ({ data }) => {
                       <PageLoader />
                     ) : (
                       <ImageLoader
-                        src={`${import.meta.env.VITE_API_URL}/${category.categoryFiles[0].file.url
-                          }`}
+                        src={`${import.meta.env.VITE_API_URL}/${
+                          category.categoryFiles[0].file.url
+                        }`}
                         alt={category?.categoryName}
                       />
                     )}
@@ -249,13 +252,10 @@ const Index = ({ data }) => {
         using white/10 to make the box pop against the navy background */}
           <div className="max-w-4xl mx-auto rounded-2xl bg-white/10 backdrop-blur-md p-12 text-center border border-white/10">
             <h2 className="text-4xl font-heading font-bold mb-4">
-              25+ Years of Engineering Excellence
+              {expSection.title}
             </h2>
             <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-              For over two decades, IndusTech has been at the forefront of
-              industrial innovation. Our mission is to empower businesses with
-              technology that drives progress and builds a better future.
-              Partner with us to engineer your success.
+              {expSection.description}
             </p>
             <Button
               asChild

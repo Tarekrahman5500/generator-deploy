@@ -1,5 +1,4 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { AdministratorToken } from './administrator.token.entity';
 import { AdministratorRole } from '../../common/enums';
 import {
   ContactFormEmailReplyEntity,
@@ -39,9 +38,6 @@ export class Administrator {
     name: 'updated_at',
   })
   updatedAt: Date;
-
-  @OneToMany(() => AdministratorToken, (token) => token.user)
-  tokens: AdministratorToken[];
 
   @OneToMany(() => ContactFormEmailReplyEntity, (reply) => reply.repliedBy)
   emailReplies: ContactFormEmailReplyEntity[];
