@@ -11,7 +11,13 @@ export const categorySchema = z.object({
       message: 'Sub-category names must be unique',
     }),
   description: noCodeDescription,
-  fileIds: z.array(z.uuidv4()).min(1),
+  fileIds: z
+    .array(
+      z.uuidv4({
+        message: 'Invalid file ID format',
+      }),
+    )
+    .min(1, 'At least one file must be selected'),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

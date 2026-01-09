@@ -6,29 +6,53 @@ const productValueSchema = z.object({
 });
 
 export const productSchema = z.object({
-  id: z.uuidv4(),
-  categoryId: z.uuidv4(),
-  subCategoryId: z.uuidv4().optional(),
-  modelName: z.string().min(5).max(100),
-  description: z.string().min(100),
-  information: z.array(productValueSchema),
-  fileIds: z.array(z.uuidv4().min(1)),
+  id: z.uuidv4({
+    message: 'Invalid product ID format',
+  }),
+
+  categoryId: z.uuidv4({
+    message: 'Invalid category ID format',
+  }),
+
+  subCategoryId: z
+    .uuidv4({
+      message: 'Invalid sub-category ID format',
+    })
+    .optional(),
+
+  modelName: z
+    .string()
+    .min(5, 'Model name must be at least 5 characters')
+    .max(100, 'Model name must not exceed 100 characters'),
+
+  description: z
+    .string()
+    .min(100, 'Description must contain at least 100 characters'),
+
+  information: z
+    .array(productValueSchema)
+    .min(1, 'At least one product information entry is required'),
+
+  fileIds: z
+    .array(
+      z.uuidv4({
+        message: 'Invalid file ID format',
+      }),
+    )
+    .min(1, 'At least one file must be selected'),
 });
 
 export const createProductSchema = productSchema.omit({ id: true });
-export const updateProductSchema = productSchema
-  .partial()
-  .extend({ id: z.uuidv4() })
-  .refine(
-    (data) => {
-      return Object.entries(data).some(
-        ([key, value]) => key !== 'id' && value !== undefined,
-      );
-    },
-    {
-      message: "At least one field other than 'id' must be provided.",
-    },
-  );
+export const updateProductSchema = productSchema.partial().refine(
+  (data) => {
+    return Object.entries(data).some(
+      ([key, value]) => key !== 'id' && value !== undefined,
+    );
+  },
+  {
+    message: "At least one field other than 'id' must be provided.",
+  },
+);
 
 // create product with group and category
 

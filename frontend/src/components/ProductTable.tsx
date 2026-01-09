@@ -240,12 +240,16 @@ const ProductTable = ({
     //  console.log(editedGroups);
     if (!editProduct) return;
     const information = Object.values(editedGroups).flat();
+    console.log(editProduct);
     const updatedProduct = {
       id: editProduct.id,
       modelName: editedProductName,
       description: editedDescription,
       information: information,
-      fileIds,
+      fileIds:
+        editProduct.files.length === 0
+          ? fileIds
+          : editProduct?.files?.map((file) => file.id),
     };
     const accessToken = await secureStorage.getValidToken();
     // console.log(updatedProduct);

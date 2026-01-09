@@ -213,14 +213,24 @@ export class ProductService {
       toUpdate = information.filter((i) => existingMap.has(i.fieldId));
       toInsert = information.filter((i) => !existingMap.has(i.fieldId));
     }
+    const existingRelations = await this.productFileRelationRepository.find({
+      where: { product: { id: productId } },
+      relations: ['file'],
+    });
 
-    // Prepare file relations (NO TRANSACTION)
-    const fileRelationPayload = fileIds?.length
-      ? fileIds.map((fileId) => ({
-          product: { id: productId },
-          file: { id: fileId },
-        }))
-      : [];
+    const existingFileIds = existingRelations.map((r) => r.file.id);
+
+    const sameIds =
+      fileIds?.length === existingFileIds.length &&
+      fileIds?.every((id) => existingFileIds.includes(id));
+
+    const fileRelationPayload =
+      fileIds && !sameIds
+        ? fileIds.map((fileId) => ({
+            product: { id: productId },
+            file: { id: fileId },
+          }))
+        : [];
 
     // -----------------------------
     // Transaction (writes only)

@@ -201,6 +201,7 @@ const AddCategory = () => {
       setDescription("");
       setFileIds([]);
       setUploadedFile(null);
+      setSubCategoryNames(null);
       toast.success("Category saved successfully!", {
         style: {
           background: "#326e12", // your custom red
