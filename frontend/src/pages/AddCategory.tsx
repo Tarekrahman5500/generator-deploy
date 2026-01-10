@@ -186,14 +186,21 @@ const AddCategory = () => {
         return;
       }
       if (!res.ok) {
-        toast.error("Failed to save category", {
-          style: {
-            background: "#ff0000", // your custom red
-            color: "#fff",
-            borderRadius: "10px",
-            padding: "12px 16px",
-          },
-        });
+        toast.error(
+          `${
+            res.status === 409
+              ? "Duplicate Entry.Category Already Exists"
+              : "Something went wrong!"
+          }`,
+          {
+            style: {
+              background: "#ff0000", // your custom red
+              color: "#fff",
+              borderRadius: "10px",
+              padding: "12px 16px",
+            },
+          }
+        );
         return;
       }
 

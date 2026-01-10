@@ -69,7 +69,9 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     location.state?.category?.categoryName || null
   );
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
+    []
+  );
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -90,7 +92,7 @@ const Products = () => {
   // 1. Get unique Sub-Categories for the selected Category
   const availableSubCategories = useMemo(() => {
     if (!selectedCategory) return [];
-    const cat = categories.find(c => c.categoryName === selectedCategory);
+    const cat = categories.find((c) => c.categoryName === selectedCategory);
     if (!cat || !cat.products) return [];
 
     // Extract unique subCategoryNames from the products in this category
@@ -106,10 +108,10 @@ const Products = () => {
 
     // Filter by Category
     if (selectedCategory) {
-      result = result.filter(c => c.categoryName === selectedCategory);
+      result = result.filter((c) => c.categoryName === selectedCategory);
     }
 
-    // Note: Sub-category filtering happens inside the CategorySection 
+    // Note: Sub-category filtering happens inside the CategorySection
     // or by passing the array down
     return result;
   }, [categories, selectedCategory]);
@@ -118,16 +120,20 @@ const Products = () => {
     <div className="min-h-screen bg-[#f6f7f8] dark:bg-[#101922]">
       <main className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-
           {/* Filters Sidebar */}
           <aside className="lg:col-span-1">
             <div className="sticky top-28 bg-white dark:bg-[#182129] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg">Filters</h3>
                 <button
-                  onClick={() => { setSelectedCategory(null); setSelectedSubCategories([]); }}
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setSelectedSubCategories([]);
+                  }}
                   className="text-xs text-[#163859] font-bold hover:underline"
-                >CLEAR ALL</button>
+                >
+                  CLEAR ALL
+                </button>
               </div>
 
               <div className="space-y-6">
@@ -152,8 +158,10 @@ const Products = () => {
                     selected={selectedSubCategories}
                     onChange={(val) => {
                       if (Array.isArray(selectedSubCategories)) {
-                        setSelectedSubCategories(prev =>
-                          prev.includes(val) ? prev.filter(i => i !== val) : [...prev, val]
+                        setSelectedSubCategories((prev) =>
+                          prev.includes(val)
+                            ? prev.filter((i) => i !== val)
+                            : [...prev, val]
                         );
                       }
                     }}
@@ -182,7 +190,13 @@ const Products = () => {
     </div>
   );
 };
-const CategorySection = ({ category, activeSubFilters }: { category: any, activeSubFilters: string[] }) => {
+const CategorySection = ({
+  category,
+  activeSubFilters,
+}: {
+  category: any;
+  activeSubFilters: string[];
+}) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -197,14 +211,16 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
         setLoading(true);
         // Using the page and limit parameters from state
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/category/products?categoryId=${category.id}&page=${currentPage}&limit=${PAGE_LIMIT}`
+          `${import.meta.env.VITE_API_URL}/category/products?categoryId=${
+            category.id
+          }&page=${currentPage}&limit=${PAGE_LIMIT}`
         );
         const json = await res.json();
 
         setProducts(json?.category.products || []);
         setMeta({
           totalPages: json?.category.meta?.totalPages || 1,
-          total: json?.category.meta?.total || 0
+          total: json?.category.meta?.total || 0,
         });
       } catch (err) {
         console.error("Fetch error:", err);
@@ -217,13 +233,17 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
 
   // Group products by subCategoryName
   const groupedProducts = useMemo(() => {
-    const filtered = activeSubFilters.length > 0
-      ? products.filter(p => activeSubFilters.includes(p.subCategory?.subCategoryName))
-      : products;
+    const filtered =
+      activeSubFilters.length > 0
+        ? products.filter((p) =>
+            activeSubFilters.includes(p.subCategory?.subCategoryName)
+          )
+        : products;
 
     return filtered.reduce((acc: Record<string, any[]>, product) => {
       // 1. Get the subcategory name
-      const subName = product.subCategory?.subCategoryName || "General Equipment";
+      const subName =
+        product.subCategory?.subCategoryName || "General Equipment";
 
       // 2. Corrected Logic: If the key doesn't exist, create it as an empty array
       if (!acc[subName]) {
@@ -237,7 +257,8 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
     }, {});
   }, [products, activeSubFilters]);
 
-  if (!loading && products.length === 0 && activeSubFilters.length === 0) return null;
+  if (!loading && products.length === 0 && activeSubFilters.length === 0)
+    return null;
 
   return (
     <div className="mb-24 pb-12 border-b border-gray-100 dark:border-gray-800 last:border-0">
@@ -256,25 +277,29 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(n => <ProductCardSkeleton key={n} />)}
+          {[1, 2, 3, 4].map((n) => (
+            <ProductCardSkeleton key={n} />
+          ))}
         </div>
       ) : (
         <>
-          {Object.entries(groupedProducts).map(([subName, subProducts]: [string, any]) => (
-            <div key={subName} className="mb-12">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="bg-[#163859] text-white text-[10px] font-black px-3 py-1 uppercase tracking-tighter">
-                  {subName}
-                </span>
-              </div>
+          {Object.entries(groupedProducts).map(
+            ([subName, subProducts]: [string, any]) => (
+              <div key={subName} className="mb-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="bg-[#163859] text-white text-[10px] font-black px-3 py-1 uppercase tracking-tighter">
+                    {subName}
+                  </span>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {subProducts.map((product: any) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {subProducts.map((product: any) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          )}
 
           {/* Pagination Controls */}
           {meta.totalPages > 1 && (
@@ -283,7 +308,7 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
                 variant="outline"
                 size="sm"
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => prev - 1)}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
                 className="border-[#163859] text-[#163859] font-bold hover:bg-[#163859] hover:text-white transition-all"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> PREV
@@ -294,10 +319,11 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded text-xs font-bold transition-colors ${currentPage === i + 1
-                      ? "bg-[#163859] text-white"
-                      : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                      }`}
+                    className={`w-8 h-8 rounded text-xs font-bold transition-colors ${
+                      currentPage === i + 1
+                        ? "bg-[#163859] text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   >
                     {i + 1}
                   </button>
@@ -308,7 +334,7 @@ const CategorySection = ({ category, activeSubFilters }: { category: any, active
                 variant="outline"
                 size="sm"
                 disabled={currentPage === meta.totalPages}
-                onClick={() => setCurrentPage(prev => prev + 1)}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
                 className="border-[#163859] text-[#163859] font-bold hover:bg-[#163859] hover:text-white transition-all"
               >
                 NEXT <ChevronRight className="h-4 w-4 ml-1" />
@@ -325,7 +351,7 @@ const ProductCard = ({ product }: { product: any }) => {
     // 1. Get existing data from localStorage
     const compareData = JSON.parse(
       localStorage.getItem("compare") ||
-      '{"productIds": [], "product": [], "productCategories": []}'
+        '{"productIds": [], "product": [], "productCategories": []}'
     );
 
     const {
@@ -452,24 +478,48 @@ const ProductCard = ({ product }: { product: any }) => {
     </div>
   );
 };
-const FilterGroup = ({ title, items, selected, onChange, type = "checkbox" }: any) => {
+const FilterGroup = ({
+  title,
+  items,
+  selected,
+  onChange,
+  type = "checkbox",
+}: any) => {
   return (
     <div className="border-b border-gray-100 dark:border-gray-800 pb-6 last:border-0">
-      <h4 className="text-xs font-bold mb-4 uppercase tracking-widest text-gray-400">{title}</h4>
+      <h4 className="text-xs font-bold mb-4 uppercase tracking-widest text-gray-400">
+        {title}
+      </h4>
       <div className="space-y-3">
         {items.map((item: string) => (
-          <label key={item} className="flex items-center gap-3 cursor-pointer group">
+          <label
+            key={item}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
             <input
               type={type}
               name={title} // Important for radio behavior
-              checked={Array.isArray(selected) ? selected.includes(item) : selected === item}
+              checked={
+                Array.isArray(selected)
+                  ? selected.includes(item)
+                  : selected === item
+              }
               onChange={() => onChange(item)}
-              className={`w-4 h-4 border-gray-300 text-[#163859] focus:ring-[#163859] ${type === 'radio' ? 'rounded-full' : 'rounded'}`}
+              className={`w-4 h-4 border-gray-300 text-[#163859] focus:ring-[#163859] ${
+                type === "radio" ? "rounded-full" : "rounded"
+              }`}
             />
-            <span className={`text-sm font-medium transition-colors ${(Array.isArray(selected) ? selected.includes(item) : selected === item)
-              ? "text-[#163859] font-bold"
-              : "text-gray-600 dark:text-gray-300 group-hover:text-[#163859]"
-              }`}>
+            <span
+              className={`text-sm font-medium transition-colors ${
+                (
+                  Array.isArray(selected)
+                    ? selected.includes(item)
+                    : selected === item
+                )
+                  ? "text-[#163859] font-bold"
+                  : "text-gray-600 dark:text-gray-300 group-hover:text-[#163859]"
+              }`}
+            >
               {item}
             </span>
           </label>
