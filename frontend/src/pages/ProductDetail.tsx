@@ -29,11 +29,30 @@ const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
+  const [pdfImage, setPdfImage] = useState<string | null>(null);
   // Use state instead of useRef to ensure the element is "ready"
   const [brochureElement, setBrochureElement] = useState<HTMLDivElement | null>(
     null
   );
+  async function toBase64(url: string): Promise<string> {
+    const res = await fetch(url);
+    const blob = await res.blob();
+
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject("Failed to convert image to base64");
+        }
+      };
+
+      reader.onerror = () => reject("FileReader error");
+      reader.readAsDataURL(blob);
+    });
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -57,34 +76,6 @@ const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
-  const downloadBrochure = async () => {
-    if (!brochureElement) {
-      alert("Preparing brochure... please try again in a second.");
-      return;
-    }
-
-    try {
-      // html2canvas captures the text exactly as Google Translate has modified it
-      const canvas = await html2canvas(brochureElement, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        allowTaint: true,
-      });
-
-      const imgData = canvas.toDataURL("image/jpg");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${product.modelName}_Technical_Data_Sheet.pdf`);
-    } catch (error) {
-      console.error("PDF Generation Error:", error);
-    }
-  };
-
   if (loading) {
     return (
       <div className="container px-6 py-20">
@@ -107,6 +98,35 @@ const ProductDetail = () => {
     ? Object.entries(product.group)
     : [];
 
+  const downloadBrochure = async () => {
+    if (!brochureElement) {
+      alert("Preparing brochure... please try again in a second.");
+      return;
+    }
+
+    try {
+      // html2canvas captures the text exactly as Google Translate has modified it
+      const canvas = await html2canvas(brochureElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        allowTaint: false,
+      });
+
+      const imgData = canvas.toDataURL("image/jpg");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      const base64Image = await toBase64(imageUrl);
+      setPdfImage(base64Image);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${product.modelName}_Technical_Data_Sheet.pdf`);
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+    }
+  };
   return (
     <div className="min-h-screen relative">
       {/* Breadcrumb */}
@@ -159,14 +179,14 @@ const ProductDetail = () => {
                 </Button>
 
                 {/* DOWNLOAD BUTTON */}
-                {/* <Button
+                <Button
                   onClick={downloadBrochure}
                   variant="outline"
                   size="lg"
                   className="w-full border-[#163859] text-[#163859] font-bold"
                 >
                   Download Brochure (PDF)
-                </Button> */}
+                </Button>
               </div>
             </div>
           </div>

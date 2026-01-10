@@ -226,11 +226,30 @@ const ViewCategory = () => {
         throw new Error(`Error: ${response.status}`);
       }
 
-      toast.success("Category deleted successfully");
+      toast.success("Category deleted successfully", {
+        style: {
+          background: "#ff0000",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       await fetchCategories();
     } catch (error) {
       console.error("Delete failed:", error);
-      toast.error("Failed to delete the category");
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
     } finally {
       setLoading(false);
     }
@@ -265,7 +284,19 @@ const ViewCategory = () => {
       fetchCategories();
     } catch (error) {
       console.error("Failed to delete file:", error);
-      toast.error(`${error.message}`);
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
     }
   };
   // console.log(categories);
@@ -318,11 +349,30 @@ const ViewCategory = () => {
       // 4. Update the local UI state (Optional: replace with a global fetch)
       // setItems(prev => prev.map(item => item.id === id ? { ...item, subCategoryName: tempValue } : item));
       await fetchCategories();
-      toast.success("Updated successfully!");
+      toast.success("Updated successfully!", {
+        style: {
+          background: "#326e12",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
       setEditingId(null); // Close the edit mode
     } catch (error: any) {
       console.error("Update error:", error);
-      toast.error(error.message || "Something went wrong while updating");
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
     } finally {
       setIsUpdating(false);
     }

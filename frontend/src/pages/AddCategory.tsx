@@ -220,14 +220,19 @@ const AddCategory = () => {
       fetchCategories();
     } catch (error) {
       console.error(error);
-      toast.error("Something went wrong!", {
-        style: {
-          background: "#ff0000", // your custom red
-          color: "#fff",
-          borderRadius: "10px",
-          padding: "12px 16px",
-        },
-      });
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
     }
   };
   const fetchCategories = async () => {
@@ -249,6 +254,19 @@ const AddCategory = () => {
       });
     } catch (error) {
       console.error("Error fetching categories:", error);
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000", //
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
       setCategories({
         statusCode: 500,
         categories: [],
@@ -287,13 +305,18 @@ const AddCategory = () => {
         },
       });
     } catch (error) {
-      toast.error("Failed to delete file", {
-        style: {
-          background: "#ff0000", // your custom red
-          color: "#fff",
-          borderRadius: "10px",
-        },
-      });
+      toast.error(
+        `${
+          error?.errors[0]?.message ? error?.errors[0]?.message : error.message
+        }`,
+        {
+          style: {
+            background: "#ff0000", // your custom red
+            color: "#fff",
+            borderRadius: "10px",
+          },
+        }
+      );
       console.error("Failed to delete file:", error);
     }
   };
