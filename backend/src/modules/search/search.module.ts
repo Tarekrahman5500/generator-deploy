@@ -9,6 +9,7 @@ import {
   ProductValueEntity,
   SubCategoryEntity,
 } from 'src/entities/product';
+import { ProductModule } from '../product/product.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import {
       ProductValueEntity,
       SubCategoryEntity,
     ]),
+    ProductModule,
   ],
   controllers: [SearchController],
   providers: [SearchService],

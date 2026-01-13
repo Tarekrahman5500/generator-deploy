@@ -3,7 +3,13 @@ import { noCodeDescription } from 'src/common/schema';
 
 export const categorySchema = z.object({
   id: z.uuidv4(),
-  categoryName: z.string(),
+  categoryName: z.string({ message: 'Category name is required' }),
+  serialNo: z
+    .number()
+    .int()
+    .positive({ message: 'Serial number must be a positive integer' })
+    .nullable()
+    .optional(),
   subCategoryNames: z
     .array(z.string().min(1))
     .min(1)
@@ -25,6 +31,7 @@ export const categorySchema = z.object({
 // Create
 export const categoryCreateSchema = categorySchema
   .pick({
+    serialNo: true,
     categoryName: true,
     subCategoryNames: true,
     description: true,
@@ -38,6 +45,12 @@ export const categoryCreateSchema = categorySchema
 export const categoryUpdateSchema = z
   .object({
     id: z.uuidv4(),
+    serialNo: z
+      .number()
+      .int()
+      .positive({ message: 'Serial number must be a positive integer' })
+      .nullable()
+      .optional(),
     categoryName: z.string().optional(),
     description: noCodeDescription.optional(),
     fileIds: z.array(z.uuidv4()).min(1).optional(),

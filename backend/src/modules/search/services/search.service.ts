@@ -8,6 +8,9 @@ import {
   ProductValueEntity,
   SubCategoryEntity,
 } from 'src/entities/product';
+import { ProductService } from 'src/modules/product/service';
+import { DynamicFilterDto } from '../dto';
+import { CATEGORY_FIELDS } from 'src/common/constants';
 
 export interface SearchResult {
   type: 'product' | 'category' | 'field' | 'value';
@@ -40,6 +43,8 @@ export class SearchService {
     private fieldRepo: Repository<FieldEntity>,
     @InjectRepository(ProductValueEntity)
     private productValueRepo: Repository<ProductValueEntity>,
+
+    private readonly productService: ProductService,
   ) {}
 
   async search(query: string): Promise<SearchResult[]> {
@@ -259,145 +264,277 @@ export class SearchService {
     return Array.from(suggestions).slice(0, 10);
   }
 
-  async dynamicProductSearch(dto: {
-    categoryId?: string;
-    subCategoryId?: string;
-    fieldId?: string;
-    valueId?: string;
-  }) {
-    if (!dto.categoryId) return [];
-    let productIds: string[] = [];
-    // Base product query
-    let qb = this.productRepo
-      .createQueryBuilder('product')
-      .where('product.is_deleted = false');
+  async dynamicProductSearch(dto: DynamicFilterDto) {
+    const {
+      categoryId,
+      subCategoryId,
+      modelName,
+      filters,
+      prpMin,
+      prpMax,
+      ltpMin,
+      ltpMax,
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = dto;
 
-    qb = qb.andWhere('product.category_id = :categoryId', {
-      categoryId: dto.categoryId,
+    /* --------------------------------
+     * 1️⃣ CATEGORY → FIELD MAP
+     * -------------------------------- */
+    // get categoryName from categoryId
+    const category = await this.categoryRepo.findOne({
+      where: { id: categoryId },
     });
 
-    if (dto.subCategoryId)
-      qb = qb.andWhere('product.sub_category_id = :subCategoryId', {
-        subCategoryId: dto.subCategoryId,
+    if (!category) {
+      return {
+        products: [],
+        filterValues: {},
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    const categoryFields =
+      CATEGORY_FIELDS[category.categoryName.toLowerCase()] || [];
+
+    if (categoryFields.length === 0) {
+      return {
+        products: [],
+        filterValues: {},
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+    /* --------------------------------
+     * 2️⃣ BASE QUERY
+     * -------------------------------- */
+    const baseQb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoin('product.productValues', 'pv')
+      .leftJoin('pv.field', 'field')
+      .where('product.isDeleted = false')
+      .andWhere('product.category_id = :categoryId', { categoryId });
+
+    if (subCategoryId) {
+      baseQb.andWhere('product.sub_category_id = :subCategoryId', {
+        subCategoryId,
       });
-    if (dto.fieldId)
-      qb = qb
-        .innerJoin('product.productValues', 'pv')
-        .andWhere('pv.field_id = :fieldId', { fieldId: dto.fieldId });
-    if (dto.valueId)
-      qb = qb.andWhere('pv.id = :valueId', { valueId: dto.valueId });
+    }
 
-    const products = await qb
-      .leftJoinAndSelect('product.subCategory', 'subCategory')
-      .leftJoinAndSelect('product.productValues', 'productValues')
-      .leftJoinAndSelect('productValues.field', 'field')
-      .getMany();
-
-    productIds = products.map((p) => p.id);
-
-    // 1️⃣ categoryId only → subcategories OR fields
-    if (dto.categoryId && !dto.subCategoryId && !dto.fieldId && !dto.valueId) {
-      // Filter out products with null subCategory first
-      const subCategories = Array.from(
-        new Map(
-          products
-            .filter((p) => p.subCategory) // ignore null subCategory
-            .map((p) => [p.subCategory!.id, p.subCategory!]), // ! tells TS it's not null here
-        ).values(),
+    if (modelName) {
+      baseQb.andWhere('LOWER(product.model_name) = :modelName', {
+        modelName: modelName.toLowerCase(),
+      });
+    }
+    /* --------------------------------
+     * 3️⃣ DYNAMIC FILTERS
+     * -------------------------------- */
+    const addFilter = (qb, idx, fieldName: string, value: string) => {
+      const alias = `pv_filter_${idx}`;
+      qb.innerJoin(
+        'product.productValues',
+        alias,
+        `${alias}.field_id = (SELECT id FROM field WHERE LOWER(field_name) = :field_${idx} LIMIT 1) AND ${alias}.value = :val_${idx}`,
+        { [`field_${idx}`]: fieldName.toLowerCase(), [`val_${idx}`]: value },
       );
+    };
 
-      if (subCategories.length > 0) {
-        return {
-          subCategories: subCategories.map((s) => ({
-            subCategoryId: s!.id, // ! safe because we filtered null
-            subCategoryName: s!.subCategoryName,
-          })),
-          productIds,
-        };
-      } else {
-        // No subcategories → return fields
-        const fieldsMap = new Map();
-        products.forEach((p) => {
-          p.productValues?.forEach((pv) => {
-            fieldsMap.set(pv.field.id, pv.field.fieldName);
-          });
-        });
-        const fields = Array.from(fieldsMap.entries()).map(
-          ([fieldId, fieldName]) => ({
-            fieldId,
-            fieldName,
-          }),
-        );
-        return { fields, productIds };
-      }
+    if (filters && Object.keys(filters).length > 0) {
+      Object.entries(filters).forEach(([fieldName, value], idx) => {
+        if (
+          categoryFields
+            .map((f) => f.toLowerCase())
+            .includes(fieldName.toLowerCase())
+        ) {
+          addFilter(baseQb, idx, fieldName, value);
+        }
+      });
     }
 
-    // 2️⃣ categoryId + subCategoryId → fields
-    if (dto.categoryId && dto.subCategoryId && !dto.fieldId && !dto.valueId) {
-      const fieldsMap = new Map();
-      products.forEach((p) => {
-        p.productValues?.forEach((pv) => {
-          fieldsMap.set(pv.field.id, pv.field.fieldName);
-        });
+    /* --------------------------------
+     * 4️⃣ RANGE FILTERS (PRP / LTP)
+     * -------------------------------- */
+    const rangeFilters: { field: string; min: number; max: number }[] = [];
+
+    if (prpMin !== undefined || prpMax !== undefined) {
+      rangeFilters.push({
+        field: 'prime power kva',
+        min: prpMin ?? 0,
+        max: prpMax ?? 999999,
       });
-      const fields = Array.from(fieldsMap.entries()).map(
-        ([fieldId, fieldName]) => ({
-          fieldId,
-          fieldName,
-          productIds: products.map((p) => p.id),
-        }),
+    }
+    if (ltpMin !== undefined || ltpMax !== undefined) {
+      rangeFilters.push({
+        field: 'standby power kva',
+        min: ltpMin ?? 0,
+        max: ltpMax ?? 999999,
+      });
+    }
+
+    rangeFilters.forEach((rf, idx) => {
+      const alias = `pv_range_${idx}`;
+      baseQb.andWhere(
+        `EXISTS (
+        SELECT 1 FROM product_value ${alias}
+        JOIN field f_${alias} ON f_${alias}.id = ${alias}.field_id
+        WHERE ${alias}.product_id = product.id
+        AND LOWER(f_${alias}.field_name) = :fieldName_${idx}
+        AND CAST(${alias}.value AS DECIMAL) BETWEEN :min_${idx} AND :max_${idx}
+      )`,
+        {
+          [`fieldName_${idx}`]: rf.field.toLowerCase(),
+          [`min_${idx}`]: rf.min,
+          [`max_${idx}`]: rf.max,
+        },
       );
-      return fields;
+    });
+
+    /* --------------------------------
+     * 5️⃣ GET PRODUCT IDS
+     * -------------------------------- */
+    const [rows, total] = await baseQb
+      .select(['product.id', `product.${sortBy}`])
+      .orderBy(`product.${sortBy}`, sortOrder)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const productIds = rows.map((r) => r.id);
+
+    if (!productIds.length) {
+      return {
+        products: [],
+        filterValues: {},
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
     }
 
-    // 3️⃣ categoryId + subCategoryId + fieldId → values
-    if (dto.categoryId && dto.subCategoryId && dto.fieldId && !dto.valueId) {
-      const valueMap = new Map();
-      products.forEach((p) => {
-        p.productValues?.forEach((pv) => {
-          if (pv.field.id === dto.fieldId) {
-            if (!valueMap.has(pv.id))
-              valueMap.set(pv.id, {
-                valueId: pv.id,
-                value: pv.value,
-                productIds: [],
-              });
-            valueMap.get(pv.id).productIds.push(p.id);
-          }
-        });
-      });
-      return Array.from(valueMap.values());
-    }
+    /* --------------------------------
+     * 6️⃣ FETCH FULL PRODUCTS WITH RELATIONS
+     * -------------------------------- */
+    const products = await this.productService.getProductsByIds(productIds);
 
-    // 4️⃣ categoryId + subCategoryId + fieldId + valueId → product IDs only
-    if (dto.categoryId && dto.subCategoryId && dto.fieldId && dto.valueId) {
-      return productIds;
-    }
+    /* --------------------------------
+     * 7️⃣ FILTER AGGREGATION (FACETS)
+     * -------------------------------- */
+    const filterQb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoin('product.productValues', 'pv')
+      .leftJoin('pv.field', 'field')
+      .where('product.id IN (:...ids)', { ids: productIds });
 
-    // 5️⃣ categoryId + fieldId → values
-    if (dto.categoryId && !dto.subCategoryId && dto.fieldId && !dto.valueId) {
-      const valueMap = new Map();
-      products.forEach((p) => {
-        p.productValues?.forEach((pv) => {
-          if (pv.field.id === dto.fieldId) {
-            if (!valueMap.has(pv.id))
-              valueMap.set(pv.id, {
-                valueId: pv.id,
-                value: pv.value,
-                productIds: [],
-              });
-            valueMap.get(pv.id).productIds.push(p.id);
-          }
-        });
-      });
-      return Array.from(valueMap.values());
-    }
+    //   .select([
+    //     'field.id AS fieldId',
+    //     'field.field_name AS fieldName',
+    //     'pv.value AS value',
+    //   ])
+    //   .andWhere('LOWER(field.field_name) IN (:...fields)', {
+    //     fields: categoryFields.map((f) => f.toLowerCase()),
+    //   })
+    //   .distinct(true)
+    //   .getRawMany();
 
-    // 6️⃣ categoryId + fieldId + valueId → product IDs
-    if (dto.categoryId && !dto.subCategoryId && dto.fieldId && dto.valueId) {
-      return productIds;
-    }
+    // console.log('CATEGORY FIELDS:', categoryFields);
+    const rawFilters = await filterQb
+      .select([
+        'field.id AS fieldId',
+        'field.field_name AS fieldName',
+        'pv.value AS value',
+      ])
+      .andWhere(
+        categoryFields
+          .map((_, idx) => `LOWER(field.field_name) LIKE :field_${idx}`)
+          .join(' OR '),
+        categoryFields.reduce(
+          (acc, field, idx) => {
+            acc[`field_${idx}`] = `%${field.toLowerCase()}%`;
+            return acc;
+          },
+          {} as Record<string, string>,
+        ),
+      )
+      .distinct(true)
+      .getRawMany();
 
-    return [];
+    // 2️⃣ Fetch MODELs from product table directly
+    const modelRows = await this.productRepo
+      .createQueryBuilder('product')
+      .select(['product.modelName AS value'])
+      .where('product.id IN (:...ids)', { ids: productIds })
+      .distinct(true)
+      .getRawMany();
+
+    const filterValues: Record<string, { fieldId?: string; values: string[] }> =
+      {};
+    rawFilters.forEach(({ fieldName, fieldId, value }) => {
+      if (!filterValues[fieldName])
+        filterValues[fieldName] = { fieldId, values: [] };
+      if (!filterValues[fieldName].values.includes(value))
+        filterValues[fieldName].values.push(value);
+    });
+
+    filterValues['Model'] = {
+      values: Array.from(new Set(modelRows.map((r) => r.value))),
+    };
+    /* --------------------------------
+     * 8️⃣ RANGE META (MIN/MAX)
+     * -------------------------------- */
+    const { prp: prpRange, ltp: ltpRange } = await this.getPrpLtpRange(
+      categoryId,
+      subCategoryId,
+    );
+
+    /* --------------------------------
+     * 9️⃣ FINAL RESPONSE
+     * -------------------------------- */
+    return {
+      filterValues: { ...filterValues, prpRange, ltpRange },
+      products,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  private async getPrpLtpRange(categoryId: string, subCategoryId?: string) {
+    const [prpRange, ltpRange] = await Promise.all([
+      this.productValueRepo
+        .createQueryBuilder('pv')
+        .innerJoin('pv.product', 'product')
+        .innerJoin('pv.field', 'field')
+        .select('MIN(CAST(pv.value AS DECIMAL(10,2)))', 'min')
+        .addSelect('MAX(CAST(pv.value AS DECIMAL(10,2)))', 'max')
+        .where('product.category_id = :categoryId', { categoryId })
+        .andWhere(
+          subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
+          { subCategoryId },
+        )
+        .andWhere('field.fieldName LIKE :name', { name: '%PRP%' })
+        .getRawOne(),
+
+      this.productValueRepo
+        .createQueryBuilder('pv')
+        .innerJoin('pv.product', 'product')
+        .innerJoin('pv.field', 'field')
+        .select('MIN(CAST(pv.value AS DECIMAL(10,2)))', 'min')
+        .addSelect('MAX(CAST(pv.value AS DECIMAL(10,2)))', 'max')
+        .where('product.category_id = :categoryId', { categoryId })
+        .andWhere(
+          subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
+          { subCategoryId },
+        )
+        .andWhere('field.fieldName LIKE :name', { name: '%LTP%' })
+        .getRawOne(),
+    ]);
+
+    return {
+      prp: {
+        min: Number(prpRange?.min ?? 0),
+        max: Number(prpRange?.max ?? 0),
+      },
+      ltp: {
+        min: Number(ltpRange?.min ?? 0),
+        max: Number(ltpRange?.max ?? 0),
+      },
+    };
   }
 }

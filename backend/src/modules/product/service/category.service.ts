@@ -27,7 +27,7 @@ export class CategoryService {
   async createCategory(
     createCategoryDto: CategoryCreateDto,
   ): Promise<CategoryEntity> {
-    const { fileIds, subCategoryNames, categoryName, description } =
+    const { fileIds, subCategoryNames, categoryName, description, serialNo } =
       createCategoryDto;
 
     const exists = await this.categoryRepository.exists({
@@ -38,6 +38,18 @@ export class CategoryService {
       throw new ConflictException(
         `Category with name ${categoryName} already exists`,
       );
+    }
+
+    if (serialNo !== undefined && serialNo !== null) {
+      const serialExists = await this.categoryRepository.exists({
+        where: { serialNo },
+      });
+
+      if (serialExists) {
+        throw new ConflictException(
+          `Serial number ${serialNo} is already assigned to another category`,
+        );
+      }
     }
     // 1️⃣ Validate files before transaction
     const files = await this.fileService.getFileByIds(fileIds);
@@ -51,6 +63,7 @@ export class CategoryService {
       const category = await manager.save(CategoryEntity, {
         categoryName,
         description,
+        serialNo,
       });
 
       // 3️⃣ Update usedAt for files
@@ -80,147 +93,8 @@ export class CategoryService {
     });
   }
 
-  async findAllCategories(page = 1, limit = 10) {
-    const take = Math.min(Math.max(limit, 1), 100); // safety cap
-    const skip = (Math.max(page, 1) - 1) * take;
-
-    const qb = this.categoryRepository
-      .createQueryBuilder('category')
-      .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
-      .leftJoinAndSelect('categoryFile.file', 'file')
-      .leftJoinAndSelect('category.subCategories', 'subCategory')
-      .select([
-        'category.id',
-        'category.categoryName',
-        'category.description',
-
-        'categoryFile.id',
-
-        'file.id',
-        'file.url',
-        'file.mimeType',
-
-        'subCategory.id',
-        'subCategory.subCategoryName',
-      ])
-      .where('category.isDeleted = false')
-      .skip(skip)
-      .take(take);
-
-    const [categories, total] = await qb.getManyAndCount();
-
-    return {
-      meta: {
-        total,
-        page,
-        limit: take,
-        totalPages: Math.ceil(total / take),
-      },
-      categories,
-    };
-  }
-
-  // ------------------------------------------------------------
-  // Find by ID
-  // ------------------------------------------------------------
-  async findCategoryById(id: string): Promise<CategoryEntity | null> {
-    // Use QueryBuilder to select category + categoryFiles + file
-    const category = await this.categoryRepository
-      .createQueryBuilder('category')
-      .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
-      .leftJoinAndSelect('categoryFile.file', 'file')
-      .select([
-        'category.id',
-        'category.categoryName',
-        'category.description',
-        'categoryFile.id',
-        'file.id',
-        'file.url',
-        'file.mimeType',
-      ])
-      .where('category.id = :id', { id })
-      .andWhere('category.isDeleted = false')
-      .getOne();
-
-    return category || null;
-  }
-
-  async getAllCategoriesNameAndDescription() {
-    return await this.categoryRepository
-      .createQueryBuilder('category')
-      .select(['category.id', 'category.categoryName', 'category.description'])
-      .andWhere('category.isDeleted = false')
-      .getMany();
-  }
-
-  // async categoryUpdate(categoryDto: CategoryUpdateDto) {
-  //   const { id, fileIds, categoryName, description } = categoryDto;
-
-  //   const category = await this.categoryRepository.findOne({
-  //     where: { id },
-  //     relations: ['categoryFiles'],
-  //   });
-
-  //   if (!category) {
-  //     throw new NotFoundException('Category not found');
-  //   }
-
-  //   if (fileIds?.length) {
-  //     const files = await this.fileService.getFileByIds(fileIds);
-
-  //     if (files.length !== fileIds.length) {
-  //       throw new NotFoundException('One or more files not found');
-  //     }
-  //   }
-
-  //   return await this.dataSource.transaction(async (manager) => {
-  //     // -------------------------
-  //     // A) Update category fields
-  //     // -------------------------
-  //     if (categoryName || description) {
-  //       await manager.update(
-  //         CategoryEntity,
-  //         { id },
-  //         {
-  //           ...(categoryName && { categoryName }),
-  //           ...(description && { description }),
-  //         },
-  //       );
-  //     }
-
-  //     // -------------------------
-  //     // B) Replace file relations
-  //     // -------------------------
-  //     if (fileIds?.length) {
-  //       // 1️⃣ Remove old relations ONLY
-  //       await manager.delete(CategoryFileRelationEntity, {
-  //         categoryId: id,
-  //       });
-
-  //       // 2️⃣ Create new relations
-  //       const relations = fileIds.map((fileId) => ({
-  //         categoryId: id,
-  //         fileId,
-  //       }));
-
-  //       await manager.insert(CategoryFileRelationEntity, relations);
-
-  //       // 3️⃣ Mark files as used (DO NOT DELETE)
-  //       await this.fileService.usedAtUpdate(fileIds, manager);
-  //     }
-
-  //     // -------------------------
-  //     // C) Return updated entity
-  //     // -------------------------
-  //     return manager.findOne(CategoryEntity, {
-  //       where: { id },
-  //       relations: ['categoryFiles', 'categoryFiles.file'],
-  //     });
-  //   });
-  // }
-
   async categoryUpdate(dto: CategoryUpdateDto): Promise<CategoryEntity> {
-    const { id, categoryName, description, fileIds } = dto;
+    const { id, categoryName, description, fileIds, serialNo } = dto;
 
     const category = await this.categoryRepository.findOne({
       where: { id },
@@ -246,6 +120,21 @@ export class CategoryService {
       }
     }
 
+    if (
+      serialNo !== undefined &&
+      serialNo !== null &&
+      serialNo !== category.serialNo
+    ) {
+      const serialExists = await this.categoryRepository.exists({
+        where: { serialNo },
+      });
+
+      if (serialExists) {
+        throw new ConflictException(
+          `Serial number ${serialNo} is already assigned to another category`,
+        );
+      }
+    }
     // -------------------------
     // B) Handle fileIds (PATCH semantics)
     // -------------------------
@@ -282,6 +171,7 @@ export class CategoryService {
     Object.assign(category, {
       ...(categoryName !== undefined && { categoryName }),
       ...(description !== undefined && { description }),
+      ...(serialNo !== undefined && { serialNo }),
     });
 
     // -------------------------
@@ -294,6 +184,87 @@ export class CategoryService {
 
       return manager.save(CategoryEntity, category);
     });
+  }
+
+  async findAllCategories(page = 1, limit = 10) {
+    const take = Math.min(Math.max(limit, 1), 100); // safety cap
+    const skip = (Math.max(page, 1) - 1) * take;
+
+    const qb = this.categoryRepository
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
+      .leftJoinAndSelect('categoryFile.file', 'file')
+      .leftJoinAndSelect('category.subCategories', 'subCategory')
+      .select([
+        'category.id',
+        'category.serialNo',
+        'category.categoryName',
+        'category.description',
+        'categoryFile.id',
+        'file.id',
+        'file.url',
+        'file.mimeType',
+        'subCategory.id',
+        'subCategory.subCategoryName',
+      ])
+      .where('category.isDeleted = false')
+      .skip(skip)
+      .take(take);
+
+    const [categories, total] = await qb.getManyAndCount();
+
+    return {
+      meta: {
+        total,
+        page,
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
+      categories: categories.sort((a, b) => {
+        if (a.serialNo === null) return 1;
+        if (b.serialNo === null) return -1;
+        return a.serialNo - b.serialNo;
+      }),
+    };
+  }
+
+  // ------------------------------------------------------------
+  // Find by ID
+  // ------------------------------------------------------------
+  async findCategoryById(id: string): Promise<CategoryEntity | null> {
+    // Use QueryBuilder to select category + categoryFiles + file
+    const category = await this.categoryRepository
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.categoryFiles', 'categoryFile')
+      .leftJoinAndSelect('categoryFile.file', 'file')
+      .select([
+        'category.id',
+        'category.serialNo',
+        'category.categoryName',
+        'category.description',
+        'categoryFile.id',
+        'file.id',
+        'file.url',
+        'file.mimeType',
+      ])
+      .where('category.id = :id', { id })
+      .andWhere('category.isDeleted = false')
+      .getOne();
+
+    return category || null;
+  }
+
+  async getAllCategoriesNameAndDescription() {
+    return await this.categoryRepository
+      .createQueryBuilder('category')
+      .select([
+        'category.id',
+        'category.serialNo',
+        'category.categoryName',
+        'category.description',
+      ])
+      .andWhere('category.isDeleted = false')
+      .getMany();
   }
 
   async categorySoftDelete(id: string) {

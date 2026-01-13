@@ -56,5 +56,6 @@ import { GroupEntity } from 'src/entities/product/group.entity';
     SubCategoryService,
     ...jwtProviders,
   ],
+  exports: [ProductService, CategoryService, SubCategoryService],
 })
 export class ProductModule {}

@@ -654,16 +654,16 @@ export class ProductService {
     }
 
     // Check that all products have the same sub-category (if subCategory is set)
-    const subCategoryIds = new Set(
-      products.map((p) => p.subCategory?.id ?? null),
-    );
+    // const subCategoryIds = new Set(
+    //   products.map((p) => p.subCategory?.id ?? null),
+    // );
 
-    // If any products have subCategory, all must have the same one
-    if (subCategoryIds.size > 1) {
-      throw new BadRequestException(
-        `All products must belong to the same sub-category for comparison`,
-      );
-    }
+    // // If any products have subCategory, all must have the same one
+    // if (subCategoryIds.size > 1) {
+    //   throw new BadRequestException(
+    //     `All products must belong to the same sub-category for comparison`,
+    //   );
+    // }
     // return products;
     return products.map((p) => this.transformProductDetailsFromRaw(p));
   }
