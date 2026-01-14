@@ -71,6 +71,7 @@ const Products = () => {
   const [filterValues, setFilterValues] = useState<any>({});
   const [isFilterActive, setIsFilterActive] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     location.state?.category?.categoryName || null
@@ -94,7 +95,47 @@ const Products = () => {
     };
     fetchCategories();
   }, []);
+  // NEW: Fetch Filter Schema when Category is selected
+  useEffect(() => {
+    const fetchFilterSchema = async () => {
+      if (!selectedCategory) {
+        setFilterValues({});
+        return;
+      }
 
+      const catId = categories.find(
+        (c) => c.categoryName === selectedCategory
+      )?.id;
+      if (!catId) return;
+
+      try {
+        setFilterLoading(true);
+        // We call the filter API with just the categoryId to get the filterValues (ranges, models, etc.)
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/search/filter`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ categoryId: catId, page: 1, limit: 10 }),
+          }
+        );
+        const json = await res.json();
+        setFilterValues(json?.filterValues || {});
+      } catch (err) {
+        console.error("Failed to fetch schema:", err);
+      } finally {
+        setFilterLoading(false);
+      }
+    };
+
+    fetchFilterSchema();
+  }, [selectedCategory, categories]);
+
+  // Find current ID safely
+  const currentCategoryId = useMemo(
+    () => categories.find((c) => c.categoryName === selectedCategory)?.id,
+    [categories, selectedCategory]
+  );
   // 1. Get unique Sub-Categories for the selected Category
   const availableSubCategories = useMemo(() => {
     if (!selectedCategory) return [];
@@ -121,7 +162,6 @@ const Products = () => {
     // or by passing the array down
     return result;
   }, [categories, selectedCategory]);
-
   return (
     <div className="min-h-screen bg-[#f6f7f8] dark:bg-[#101922]">
       <main className="container mx-auto px-6 py-12">
@@ -150,7 +190,7 @@ const Products = () => {
                   type="radio"
                   items={categories.map((c) => c.categoryName)}
                   selected={selectedCategory}
-                  onChange={(val) => {
+                  onChange={(val: any) => {
                     setSelectedCategory(val);
                     setSelectedSubCategories([]); // Reset subs when main cat changes
                   }}
@@ -158,12 +198,8 @@ const Products = () => {
                 {selectedCategory && (
                   <GeneratorFilterCard
                     filters={filterValues}
-                    loading={Object.keys(filterValues).length === 0}
-                    categoryId={
-                      categories.find(
-                        (c) => c.categoryName === selectedCategory
-                      )?.id
-                    }
+                    loading={filterLoading} // Use the specific filter loader
+                    categoryId={currentCategoryId}
                     setProducts={setFilteredProducts}
                     setIsFilterActive={setIsFilterActive}
                   />
@@ -294,7 +330,7 @@ const CategorySection = ({
         const json = await res.json();
 
         setProducts(json?.products || []);
-        setFilterValues(json?.filterValues || {});
+        // setFilterValues(json?.filterValues || {});
 
         setMeta({
           totalPages: json?.meta?.totalPages || 1,
@@ -481,20 +517,31 @@ export const ProductCard = ({ product }: { product: any }) => {
       style: { background: "#163859", color: "#fff" },
     });
   };
-
+  const getImageUrl = (path?: string) =>
+    path ? `${import.meta.env.VITE_API_URL}/${path}` : "/placeholder.png";
   return (
     <div className="group bg-white dark:bg-[#182129] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 flex flex-col">
       {/* Image Section */}
       <div className="aspect-square relative overflow-hidden bg-gray-50">
-        <img
-          src={
-            product.files?.[0]?.url
-              ? `${import.meta.env.VITE_API_URL}/${product.files[0].url}`
-              : "/placeholder.png"
-          }
-          alt={product.modelName}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+        {product.files
+          ?.filter(
+            (file: any) =>
+              file.mimeType === "image/png" ||
+              file.mimeType === "image/jpeg" ||
+              file.mimeType === "image/gif"
+          )
+          .slice(0, 1) // Ensure we only work with the first valid image found
+          .map((image: any) => (
+            <img
+              src={getImageUrl(image.url)}
+              alt={product.modelName}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/placeholder.svg";
+              }}
+            />
+          ))}
+
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-[#163859]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>

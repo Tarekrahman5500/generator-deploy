@@ -488,19 +488,24 @@ export class SearchService {
     filterValues['Model'] = {
       values: Array.from(new Set(modelRows.map((r) => r.value))),
     };
-    /* --------------------------------
-     * 8️⃣ RANGE META (MIN/MAX)
-     * -------------------------------- */
-    const { prp: prpRange, ltp: ltpRange } = await this.getPrpLtpRange(
-      categoryId,
-      subCategoryId,
-    );
 
+    // 8️⃣ PRP / LTP RANGE META
+    const { prp, ltp } = await this.getPrpLtpRange(categoryId, subCategoryId);
+
+    const rangeMeta: Record<string, { min: number; max: number }> = {};
+
+    if (!(prp.min === 0 && prp.max === 0)) {
+      rangeMeta.prpRange = prp;
+    }
+
+    if (!(ltp.min === 0 && ltp.max === 0)) {
+      rangeMeta.ltpRange = ltp;
+    }
     /* --------------------------------
      * 9️⃣ FINAL RESPONSE
      * -------------------------------- */
     return {
-      filterValues: { ...filterValues, prpRange, ltpRange },
+      filterValues: { ...filterValues, ...rangeMeta },
       products,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };

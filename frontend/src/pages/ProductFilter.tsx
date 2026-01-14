@@ -36,10 +36,9 @@ type GeneratorFilterCardProps = {
 export default function GeneratorFilterCard({
   filters,
   loading = false,
-  setProducts,
   categoryId,
+  setProducts,
   setIsFilterActive, // Add this prop
-  subCategory,
 }: any) {
   // 1. Local states for all filter types
   const [selectedValues, setSelectedValues] = useState<
