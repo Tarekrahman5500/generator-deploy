@@ -268,18 +268,20 @@ export class CategoryService {
   }
 
   async categorySoftDelete(id: string) {
-    // 1️⃣ Check if category exists
-    const category = await this.categoryRepository.findOne({
-      where: { id },
-    });
+    // // 1️⃣ Check if category exists
+    // const category = await this.categoryRepository.findOne({
+    //   where: { id },
+    // });
 
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
+    // if (!category) {
+    //   throw new NotFoundException('Category not found');
+    // }
 
-    // 2️⃣ Soft delete by setting isDeleted to true
-    category.isDeleted = true;
-    await this.categoryRepository.save(category);
-    return { message: 'Category soft deleted successfully' };
+    // // 2️⃣ Soft delete by setting isDeleted to true
+    // category.isDeleted = true;
+    // await this.categoryRepository.save(category);
+    await this.categoryRepository.delete({ id });
+
+    return { message: 'Category permanently deleted successfully' };
   }
 }
