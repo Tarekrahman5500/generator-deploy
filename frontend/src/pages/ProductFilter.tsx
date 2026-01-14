@@ -38,14 +38,17 @@ export default function GeneratorFilterCard({
   loading = false,
   categoryId,
   setProducts,
-  setIsFilterActive, // Add this prop
+  setIsFilterActive,
 }: any) {
   // 1. Local states for all filter types
   const [selectedValues, setSelectedValues] = useState<
     Record<string, string[]>
   >({});
   const [ranges, setRanges] = useState<Record<string, [number, number]>>({});
-
+  useEffect(() => {
+    setSelectedValues({});
+    setRanges({});
+  }, [categoryId]);
   // Initialize ranges if not set
   useEffect(() => {
     const initialRanges: any = {};

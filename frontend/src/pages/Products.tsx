@@ -97,9 +97,11 @@ const Products = () => {
   }, []);
   // NEW: Fetch Filter Schema when Category is selected
   useEffect(() => {
-    const fetchFilterSchema = async () => {
+    const fetchFilterSchemaAndProducts = async () => {
       if (!selectedCategory) {
         setFilterValues({});
+        setFilteredProducts([]);
+        setIsFilterActive(false);
         return;
       }
 
@@ -108,27 +110,44 @@ const Products = () => {
       )?.id;
       if (!catId) return;
 
+      // --- RESET STEP ---
+      // Clear old products and filters immediately so the user doesn't see a mismatch
+      setFilteredProducts([]);
+      setIsFilterActive(false); // Go back to CategorySection view or show a loader
+      setFilterValues({});
+
       try {
         setFilterLoading(true);
-        // We call the filter API with just the categoryId to get the filterValues (ranges, models, etc.)
+
+        // 1. Fetch both the new Schema and the first page of products for this category
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/search/filter`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ categoryId: catId, page: 1, limit: 10 }),
+            body: JSON.stringify({
+              categoryId: catId,
+              page: 1,
+              limit: 10, // Initial load for the new category
+            }),
           }
         );
+
         const json = await res.json();
+
+        // 2. Update both states with the clean data from the NEW category
         setFilterValues(json?.filterValues || {});
+        // If you want the filtered view to show immediately:
+        // setFilteredProducts(json?.products || []);
+        // setIsFilterActive(true);
       } catch (err) {
-        console.error("Failed to fetch schema:", err);
+        console.error("Sync error:", err);
       } finally {
         setFilterLoading(false);
       }
     };
 
-    fetchFilterSchema();
+    fetchFilterSchemaAndProducts();
   }, [selectedCategory, categories]);
 
   // Find current ID safely
