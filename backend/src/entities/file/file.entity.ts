@@ -28,6 +28,9 @@ export class FileEntity {
   @Column({ type: 'int' })
   size: number;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  language: string;
+
   @Column({ type: 'timestamp', nullable: true })
   usedAt: Date | null;
 

@@ -80,7 +80,11 @@ export function ProductGroupDetails({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-[#163859] hover:bg-[#163859] text-white hover:text-white"
+                >
                   {activeGroup?.label}
 
                   <ChevronDown className="w-4 h-4" />
@@ -91,7 +95,11 @@ export function ProductGroupDetails({
                   <DropdownMenuItem
                     key={group.id}
                     onClick={() => onGroupChange(group.id)}
-                    className={currentGroup === group?.id ? "bg-[#163859]" : ""}
+                    className={
+                      currentGroup === group?.id
+                        ? "bg-[#163859] hover:bg-[#163859] text-white hover:text-white"
+                        : ""
+                    }
                   >
                     {group?.label}
                   </DropdownMenuItem>

@@ -44,6 +44,7 @@ export function FieldRow({
       onEdit(); // just exit edit mode
       return;
     }
+    console.log(group?.id && !group);
 
     onUpdate(
       group?.id && !group

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Plus,
   X,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,9 @@ import { toast } from "sonner";
 import { secureStorage } from "@/security/SecureStorage";
 import ProductTableSkeleton from "./Skeleton/AdminProductSkeleton";
 import { ProductMediaUpload, UploadedFile } from "./ProductMediaUpload";
+import { DocumentsUpload, UploadedDoc } from "./DocumentsUpload";
+import { DocFile } from "@/pages/AddProducts";
+import { set } from "date-fns";
 
 interface ProductFile {
   id: string;
@@ -109,6 +113,7 @@ const ProductTable = ({
     Record<string, GroupField[]>
   >({});
   const [missingId, setMissingId] = useState("");
+  const [docFiles, setDocFiles] = useState<UploadedDoc[]>([]);
   const handleView = (product: Product) => {
     setViewProduct(product);
   };
@@ -237,17 +242,17 @@ const ProductTable = ({
     });
   };
   const handleSaveEdit = async () => {
-    //  console.log(editedGroups);
+    // console.log("length", editProduct.files.length);
     if (!editProduct) return;
     const information = Object.values(editedGroups).flat();
-    console.log(editProduct);
+    //console.log("new file", fileIds);
     const updatedProduct = {
       id: editProduct.id,
       modelName: editedProductName,
       description: editedDescription,
       information: information,
       fileIds:
-        editProduct.files.length === 0
+        editProduct.files.length === 0 || editProduct.files.length > 0
           ? fileIds
           : editProduct?.files?.map((file) => file.id),
     };
@@ -342,7 +347,7 @@ const ProductTable = ({
     path ? `${import.meta.env.VITE_API_URL}/${path}` : "/placeholder.png";
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-
+  const [removeFileId, setRemoveFileId] = useState<any>();
   const removeFile = async (id: string) => {
     try {
       const accessToken = await secureStorage.getValidToken();
@@ -360,13 +365,19 @@ const ProductTable = ({
 
       // Update local state
       const file = mediaFiles.find((f) => f.id === id);
+      const docFile = docFiles.find((f) => f.id === id);
       if (file?.backendId) {
         setFileIds((prev) => prev.filter((fid) => fid !== file.backendId));
       }
-
+      if (docFile?.id) {
+        setFileIds((prev) => prev.filter((fid) => fid !== docFile.id));
+      }
       setMediaFiles((prev) => prev.filter((f) => f.id !== id));
+      setDocFiles((prev) => prev.filter((f) => f.id !== id));
+      toast.success(`File Deleted Successfully`);
     } catch (error) {
       console.error("Failed to delete file:", error);
+      toast.error(error.message || "Failed to delete file");
     }
   };
 
@@ -459,6 +470,80 @@ const ProductTable = ({
       toast.error(`${error}`);
     }
   };
+
+  const uploadPdf = async (files: UploadedDoc[]) => {
+    files.forEach(async (fileObj) => {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append("file", fileObj.file);
+      formData.append("language", fileObj.language);
+
+      const accessToken = await secureStorage.getValidToken();
+      const xhr = new XMLHttpRequest();
+
+      xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/pdf`);
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          setDocFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileObj.id ? { ...f, progress: percent } : f
+            )
+          );
+        }
+      };
+
+      xhr.onload = () => {
+        let res: { response?: any; message: any };
+        try {
+          res = JSON.parse(xhr.responseText);
+        } catch (e) {
+          res = { message: "Unexpected server response" };
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const backendId = res?.response?.id;
+          if (backendId) {
+            setDocFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileObj.id
+                  ? { ...f, status: "complete", progress: 100 }
+                  : f
+              )
+            );
+            console.log("uploaded backendId", backendId);
+
+            setRemoveFileId(backendId);
+            setFileIds((prev) => [...prev, backendId]);
+
+            // Success message from backend
+            toast.success(res.message || "File uploaded successfully!");
+          }
+        } else {
+          // Error message from backend (e.g., "File is required" or "Invalid format")
+          handleUploadError(fileObj.id);
+          toast.error(res.message || "Upload failed.");
+        }
+        setIsUploading(false);
+      };
+
+      xhr.onerror = () => {
+        handleUploadError(fileObj.id);
+        setIsUploading(false);
+        toast.error("Network error. Could not connect to server.");
+      };
+
+      xhr.send(formData);
+    });
+  };
+  const handleUploadError = (id: string) => {
+    setDocFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+    );
+  };
+
   return (
     <div className="space-y-4">
       {loading ? (
@@ -491,19 +576,30 @@ const ProductTable = ({
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      {product.files?.[0] && (
-                        <div className="h-10 w-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                          <img
-                            src={getImageUrl(product.files?.[0]?.url)}
-                            alt={product.modelName}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                "/placeholder.svg";
-                            }}
-                          />
-                        </div>
-                      )}
+                      {product.files
+                        ?.filter(
+                          (file: any) =>
+                            file.mimeType === "image/png" ||
+                            file.mimeType === "image/jpeg" ||
+                            file.mimeType === "image/gif"
+                        )
+                        .slice(0, 1) // Ensure we only work with the first valid image found
+                        .map((image: any) => (
+                          <div
+                            key={image.id}
+                            className="h-10 w-10 rounded-lg bg-muted overflow-hidden flex-shrink-0"
+                          >
+                            <img
+                              src={getImageUrl(image.url)}
+                              alt={product.modelName}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  "/placeholder.svg";
+                              }}
+                            />
+                          </div>
+                        ))}
                       <span className="font-medium text-foreground">
                         {product.modelName}
                       </span>
@@ -670,7 +766,7 @@ const ProductTable = ({
       </Dialog>
       {/* Edit Modal */}
       <Dialog open={!!editProduct} onOpenChange={() => setEditProduct(null)}>
-        <DialogContent className="max-w-3xl bg-card border-border p-4">
+        <DialogContent className="max-w-4xl bg-card border-border p-4">
           <DialogHeader>
             <DialogTitle className="text-foreground">Edit Product</DialogTitle>
             <DialogDescription>
@@ -849,30 +945,60 @@ const ProductTable = ({
                       {editProduct.files.map((file, index) => (
                         <div
                           key={file.id}
-                          className="relative rounded-lg bg-muted overflow-hidden h-24 w-full flex items-center justify-center"
+                          className="relative rounded-lg bg-muted overflow-hidden h-24 w-full flex items-center justify-center border border-border"
                         >
-                          <img
-                            src={`${import.meta.env.VITE_API_URL}/${file.url}`}
-                            alt={file.originalName}
-                            className="object-cover h-full w-full"
-                          />
+                          {/* CONDITIONAL RENDERING BASED ON MIMETYPE */}
+                          {file.mimeType.startsWith("image/") ? (
+                            <img
+                              src={`${import.meta.env.VITE_API_URL}/${
+                                file.url
+                              }`}
+                              alt={file.originalName}
+                              className="object-cover h-full w-full"
+                            />
+                          ) : file.mimeType === "application/pdf" ? (
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <FileText className="w-8 h-8 text-red-500" />
+                              <span className="text-[10px] font-medium px-2 truncate w-full text-center">
+                                {file.originalName || "PDF Document"}
+                              </span>
+                            </div>
+                          ) : (
+                            /* Fallback for other file types (DOCX, XLS, etc.) */
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <FileText className="w-8 h-8 text-blue-500" />
+                              <span className="text-[10px] font-medium truncate w-full text-center">
+                                {file.originalName}
+                              </span>
+                            </div>
+                          )}
+
                           {/* Delete Button */}
                           <button
+                            type="button" // Prevent accidental form submission
                             onClick={() => {
-                              // Remove from state
-                              const updatedFiles = [...editProduct.files];
-                              updatedFiles.splice(index, 1);
-                              setEditProduct((prev: any) => ({
-                                ...prev,
-                                files: updatedFiles,
-                              }));
+                              // 1. Find the specific file to remove
+                              const fileToRemove = editProduct.files.find(
+                                (f) => f.id === file.id
+                              );
 
-                              // Call removeFile for backend handling
-                              removeFile(editProduct.files[0].id);
+                              if (fileToRemove) {
+                                // 2. Remove from local state using filter (cleaner than splice)
+                                setEditProduct((prev: any) => ({
+                                  ...prev,
+                                  files: prev.files.filter(
+                                    (f: any) => f.id !== file.id
+                                  ),
+                                }));
+
+                                // 3. Call backend removal logic
+                                removeFile(fileToRemove.id);
+                                console.log("Removing file:", fileToRemove.id);
+                              }
                             }}
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700"
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700 transition-colors shadow-sm"
                           >
-                            ×
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
                       ))}
@@ -881,12 +1007,18 @@ const ProductTable = ({
                 )}
 
                 {/* ProductMediaUpload for adding new files */}
-                <div className="mt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mt-4">
                   <ProductMediaUpload
                     files={mediaFiles}
                     onFilesChange={setMediaFiles}
                     onUpload={uploadImage}
                     onRemove={removeFile}
+                  />
+                  <DocumentsUpload
+                    files={docFiles}
+                    onFilesChange={setDocFiles}
+                    onUpload={uploadPdf}
+                    fileRemoveId={removeFileId}
                   />
                 </div>
               </div>

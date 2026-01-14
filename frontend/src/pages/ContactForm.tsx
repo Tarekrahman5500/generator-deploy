@@ -20,12 +20,16 @@ import {
 import { secureStorage } from "@/security/SecureStorage";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
+import {
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductMediaUpload } from "@/components/ProductMediaUpload";
 import { Badge } from "@/components/ui/badge";
+import { Pencil, Trash2 } from "lucide-react";
 const ContactForm = () => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +49,7 @@ const ContactForm = () => {
   const [selectedReq, setSelectedReq] = useState(null);
   const [formData, setFormData] = useState({
     subject: "Your Subject",
-    body: "The message you want to send!"
+    body: "The message you want to send!",
   });
   const handleOpenModal = (req: any) => {
     setSelectedReq(req);
@@ -56,14 +60,16 @@ const ContactForm = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL
-        }/contact-form?page=${page}&limit=${limit}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      }
+        `${
+          import.meta.env.VITE_API_URL
+        }/contact-form?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       if (!res.ok) throw new Error("Failed to load data");
@@ -85,19 +91,26 @@ const ContactForm = () => {
     const accessToken = await secureStorage.getValidToken();
     setSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/contact-form/reply`, { // Adjust base URL as needed
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', "Authorization": `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          ...formData,
-          parentId: selectedReq.id
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/contact-form/reply`,
+        {
+          // Adjust base URL as needed
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            ...formData,
+            parentId: selectedReq.id,
+          }),
+        }
+      );
 
       if (response.ok) {
         toast.success("Reply sent successfully!");
         setIsModalOpen(false);
-        fetchData()
+        fetchData();
       } else {
         throw new Error("Failed to send reply");
       }
@@ -112,7 +125,7 @@ const ContactForm = () => {
     fetchData();
   }, [page]);
   const handleCancel = () => {
-    setIsModalOpen(false)
+    setIsModalOpen(false);
     toast.error("Form Cleared!", {
       style: {
         background: "#ff0000", // your custom red
@@ -122,7 +135,32 @@ const ContactForm = () => {
       },
     });
   };
+  const handleDelete = async (id: string) => {
+    try {
+      const accessToken = await secureStorage.getValidToken();
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/contact-form/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
+      if (response.ok) {
+        toast.success("Message deleted successfully");
+        // Optional: Refresh your data list here
+        fetchData();
+      } else {
+        toast.error("Failed to delete message");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("An error occurred while deleting");
+    }
+  };
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-2">Contact Form Submissions</h1>
@@ -169,7 +207,7 @@ const ContactForm = () => {
                     <TableCell>{row.telephone}</TableCell>
                     <TableCell>{row.country}</TableCell>
                     <Tooltip>
-                      <TooltipTrigger >
+                      <TooltipTrigger>
                         <TableCell className="max-w-xs truncate">
                           {row.message}
                         </TableCell>
@@ -182,20 +220,38 @@ const ContactForm = () => {
                           Replied
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground"
+                        >
                           Pending
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenModal(row)}
-                        // Simply pass the boolean directly
-                        disabled={row.isReplied}
-                      >
-                        {row.isReplied ? "Replied" : "Reply"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {/* REPLY BUTTON */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0 border-[#163859] text-[#163859] hover:bg-[#163859] hover:text-white"
+                          onClick={() => handleOpenModal(row)}
+                          disabled={row.isReplied}
+                          title={row.isReplied ? "Replied" : "Reply"}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+
+                        {/* DELETE BUTTON */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(row.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -203,7 +259,6 @@ const ContactForm = () => {
             </TableBody>
           </Table>
         </CardContent>
-
       </Card>
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="min-w-max">
@@ -217,7 +272,9 @@ const ContactForm = () => {
               <Input
                 id="subject"
                 value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
               />
             </div>
             <div className="grid gap-2">
@@ -226,16 +283,25 @@ const ContactForm = () => {
                 id="body"
                 rows={5}
                 value={formData.body}
-                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, body: e.target.value })
+                }
               />
             </div>
           </div>
 
           <AlertDialogFooter>
-            <Button onClick={() => handleCancel()} className="bg-inherit hover:bg-transparent text-black">
+            <Button
+              onClick={() => handleCancel()}
+              className="bg-inherit hover:bg-transparent text-black"
+            >
               Cancel
             </Button>
-            <Button onClick={handleReplySubmit} disabled={submitting} className="bg-[#163859] hover:bg-[#163859]">
+            <Button
+              onClick={handleReplySubmit}
+              disabled={submitting}
+              className="bg-[#163859] hover:bg-[#163859]"
+            >
               {submitting ? "Sending..." : "Send Reply"}
             </Button>
           </AlertDialogFooter>

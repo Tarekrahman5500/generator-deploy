@@ -17,10 +17,12 @@ export class FileService {
 
   async saveFileInfo(
     file: Express.Multer.File,
+    language?: string,
   ): Promise<UploadFileResponseDto> {
     const fileEntity = this.fileRepo.create({
       fileName: file.filename,
       originalName: file.originalname,
+      language: language,
       url: `uploads/${file.filename}`,
       mimeType: file.mimetype,
       size: file.size,

@@ -355,35 +355,46 @@ export class SearchService {
     /* --------------------------------
      * 4️⃣ RANGE FILTERS (PRP / LTP)
      * -------------------------------- */
-    const rangeFilters: { field: string; min: number; max: number }[] = [];
 
-    if (prpMin !== undefined || prpMax !== undefined) {
-      rangeFilters.push({
-        field: 'prime power kva',
-        min: prpMin ?? 0,
-        max: prpMax ?? 999999,
-      });
-    }
-    if (ltpMin !== undefined || ltpMax !== undefined) {
-      rangeFilters.push({
-        field: 'standby power kva',
-        min: ltpMin ?? 0,
-        max: ltpMax ?? 999999,
-      });
-    }
+    const rangeFieldMap = {
+      prp: 'prime power (prp) kva dg set',
+      ltp: 'standby power power (ltp) kw dg set',
+    } as const;
+
+    const rangeFilters = [
+      prpMin !== undefined || prpMax !== undefined
+        ? {
+            fieldName: rangeFieldMap.prp,
+            min: prpMin ?? 0,
+            max: prpMax ?? 999999,
+          }
+        : null,
+
+      ltpMin !== undefined || ltpMax !== undefined
+        ? {
+            fieldName: rangeFieldMap.ltp,
+            min: ltpMin ?? 0,
+            max: ltpMax ?? 999999,
+          }
+        : null,
+    ].filter(Boolean) as { fieldName: string; min: number; max: number }[];
 
     rangeFilters.forEach((rf, idx) => {
-      const alias = `pv_range_${idx}`;
+      const pvAlias = `pv_range_${idx}`;
+      const fAlias = `f_range_${idx}`;
+
       baseQb.andWhere(
-        `EXISTS (
-        SELECT 1 FROM product_value ${alias}
-        JOIN field f_${alias} ON f_${alias}.id = ${alias}.field_id
-        WHERE ${alias}.product_id = product.id
-        AND LOWER(f_${alias}.field_name) = :fieldName_${idx}
-        AND CAST(${alias}.value AS DECIMAL) BETWEEN :min_${idx} AND :max_${idx}
-      )`,
+        `exists (
+      select 1
+      from product_value ${pvAlias}
+      join field ${fAlias} on ${fAlias}.id = ${pvAlias}.field_id
+      where ${pvAlias}.product_id = product.id
+        and lower(${fAlias}.field_name) = :field_${idx}
+        and cast(${pvAlias}.value as decimal(10,2))
+            between :min_${idx} and :max_${idx}
+    )`,
         {
-          [`fieldName_${idx}`]: rf.field.toLowerCase(),
+          [`field_${idx}`]: rf.fieldName,
           [`min_${idx}`]: rf.min,
           [`max_${idx}`]: rf.max,
         },
@@ -508,7 +519,9 @@ export class SearchService {
           subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
           { subCategoryId },
         )
-        .andWhere('field.fieldName LIKE :name', { name: '%PRP%' })
+        .andWhere('field.fieldName LIKE :name', {
+          name: '%prime power (prp) kva dg set%',
+        })
         .getRawOne(),
 
       this.productValueRepo
@@ -522,7 +535,9 @@ export class SearchService {
           subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
           { subCategoryId },
         )
-        .andWhere('field.fieldName LIKE :name', { name: '%LTP%' })
+        .andWhere('field.fieldName LIKE :name', {
+          name: '%standby power power (ltp) kw dg set%',
+        })
         .getRawOne(),
     ]);
 

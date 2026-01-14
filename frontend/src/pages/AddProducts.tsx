@@ -9,7 +9,7 @@ import {
   ProductMediaUpload,
   UploadedFile,
 } from "@/components/ProductMediaUpload";
-import { DocumentsUpload } from "@/components/DocumentsUpload";
+import { DocumentsUpload, UploadedDoc } from "@/components/DocumentsUpload";
 
 import { useLocation } from "react-router-dom";
 
@@ -56,11 +56,11 @@ export default function AddProducts() {
   const [description, setDescription] = useState("");
   const [groupValues, setGroupValues] = useState<Record<string, string>>({});
 
-  const [docFiles, setDocFiles] = useState<DocFile[]>([]);
+  const [docFiles, setDocFiles] = useState<UploadedDoc[]>([]);
   const [apiGroups, setApiGroups] = useState([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
-
+  const [removeFileId, setRemoveFileId] = useState<any>();
   const [isUploading, setIsUploading] = useState(false);
   // fetch categories first
 
@@ -196,7 +196,7 @@ export default function AddProducts() {
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
-    }
+    };
     const res = await fetch(url, options);
     if (!res.ok) {
       const error = await res.json();
@@ -262,7 +262,75 @@ export default function AddProducts() {
 
     setMediaFiles((prev) => prev.filter((f) => f.id !== id));
   };
+  const uploadPdf = async (files: UploadedDoc[]) => {
+    files.forEach(async (fileObj) => {
+      setIsUploading(true);
+      console.log(fileObj);
+      const formData = new FormData();
+      formData.append("file", fileObj.file);
+      formData.append("language", fileObj.language);
+      const accessToken = await secureStorage.getValidToken();
+      const xhr = new XMLHttpRequest();
 
+      xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/pdf`);
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          setDocFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileObj.id ? { ...f, progress: percent } : f
+            )
+          );
+        }
+      };
+
+      xhr.onload = () => {
+        let res;
+        try {
+          res = JSON.parse(xhr.responseText);
+        } catch (e) {
+          res = { message: "Unexpected server response" };
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const backendId = res?.response?.id;
+          if (backendId) {
+            setDocFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileObj.id
+                  ? { ...f, status: "complete", progress: 100 }
+                  : f
+              )
+            );
+            setRemoveFileId(backendId);
+            setFileIds((prev) => [...prev, backendId]);
+            // Success message from backend
+            toast.success(res.message || "File uploaded successfully!");
+          }
+        } else {
+          // Error message from backend (e.g., "File is required" or "Invalid format")
+          handleUploadError(fileObj.id);
+          toast.error(res.message || "Upload failed.");
+        }
+        setIsUploading(false);
+      };
+
+      xhr.onerror = () => {
+        handleUploadError(fileObj.id);
+        setIsUploading(false);
+        toast.error("Network error. Could not connect to server.");
+      };
+
+      xhr.send(formData);
+    });
+  };
+  const handleUploadError = (id: string) => {
+    setDocFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+    );
+  };
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -322,7 +390,12 @@ export default function AddProducts() {
             onRemove={removeFile}
           />
 
-          <DocumentsUpload files={docFiles} onFilesChange={setDocFiles} />
+          <DocumentsUpload
+            files={docFiles}
+            onFilesChange={setDocFiles}
+            onUpload={uploadPdf}
+            fileRemoveId={removeFileId}
+          />
         </div>
 
         {/* Action Buttons */}

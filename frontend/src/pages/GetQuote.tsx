@@ -29,7 +29,8 @@ import {
   UploadedFile,
 } from "@/components/ProductMediaUpload";
 import { DocFile } from "./AddProducts";
-import { DocumentsUpload } from "@/components/DocumentsUpload";
+import { DocumentsUpload, UploadedDoc } from "@/components/DocumentsUpload";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Product {
   id: string;
@@ -93,7 +94,7 @@ export const InfoRequestsTable = () => {
       setLoading(false);
     }
   };
-
+  const [removeFileId, setRemoveFileId] = useState<any>();
   useEffect(() => {
     fetchRequests();
   }, [page]);
@@ -104,7 +105,7 @@ export const InfoRequestsTable = () => {
     subject: "Your Subject",
     body: "The message you want to send!",
   });
-  const [docFiles, setDocFiles] = useState<DocFile[]>([]);
+  const [docFiles, setDocFiles] = useState<UploadedDoc[]>([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
 
@@ -216,6 +217,104 @@ export const InfoRequestsTable = () => {
       },
     });
   };
+  const uploadPdf = async (files: UploadedDoc[]) => {
+    files.forEach(async (fileObj) => {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append("file", fileObj.file);
+      formData.append("language", fileObj?.language);
+      const accessToken = await secureStorage.getValidToken();
+      const xhr = new XMLHttpRequest();
+
+      xhr.open("POST", `${import.meta.env.VITE_API_URL}/file/pdf`);
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          setDocFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileObj.id ? { ...f, progress: percent } : f
+            )
+          );
+        }
+      };
+
+      xhr.onload = () => {
+        let res: { response?: any; message: any };
+        try {
+          res = JSON.parse(xhr.responseText);
+        } catch (e) {
+          res = { message: "Unexpected server response" };
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const backendId = res?.response?.id;
+          if (backendId) {
+            setDocFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileObj.id
+                  ? { ...f, status: "complete", progress: 100 }
+                  : f
+              )
+            );
+            console.log("uploaded backendId", backendId);
+
+            setRemoveFileId(backendId);
+            setFileIds((prev) => [...prev, backendId]);
+
+            // Success message from backend
+            toast.success(res.message || "File uploaded successfully!");
+          }
+        } else {
+          // Error message from backend (e.g., "File is required" or "Invalid format")
+          handleUploadError(fileObj.id);
+          toast.error(res.message || "Upload failed.");
+        }
+        setIsUploading(false);
+      };
+
+      xhr.onerror = () => {
+        handleUploadError(fileObj.id);
+        setIsUploading(false);
+        toast.error("Network error. Could not connect to server.");
+      };
+
+      xhr.send(formData);
+    });
+  };
+  const handleUploadError = (id: string) => {
+    setDocFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+    );
+  };
+  const handleDelete = async (id: string) => {
+    try {
+      const accessToken = await secureStorage.getValidToken();
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/contact-form/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        toast.success("Message deleted successfully");
+        // Optional: Refresh your data list here
+        fetchRequests();
+      } else {
+        toast.error("Failed to delete message");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("An error occurred while deleting");
+    }
+  };
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Info Requests</h2>
@@ -271,14 +370,27 @@ export const InfoRequestsTable = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      onClick={() => handleOpenModal(req)}
-                      // Simply pass the boolean directly
-                      disabled={req.isReplied}
-                    >
-                      {req.isReplied ? "Replied" : "Reply"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => handleOpenModal(req)}
+                        // Simply pass the boolean directly
+                        disabled={req.isReplied}
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 border-[#163859] text-[#163859] hover:bg-[#163859] hover:text-white"
+                        title={req.isReplied ? "Replied" : "Reply"}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(req.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -354,7 +466,12 @@ export const InfoRequestsTable = () => {
                 onRemove={removeFile}
               />
 
-              <DocumentsUpload files={docFiles} onFilesChange={setDocFiles} />
+              <DocumentsUpload
+                files={docFiles}
+                onFilesChange={setDocFiles}
+                onUpload={uploadPdf}
+                fileRemoveId={removeFileId}
+              />
             </div>
             <AlertDialogFooter>
               <Button

@@ -105,7 +105,10 @@ export function GroupFormModal({
     setFields((prev) =>
       prev.map((f) => (f.id === updatedField.id ? updatedField : f))
     );
-
+    if (!group) {
+      setEditingFieldId(null); // Just close the edit mode
+      return;
+    }
     const body = {
       id: updatedField.id,
       fieldName: updatedField.fieldName,

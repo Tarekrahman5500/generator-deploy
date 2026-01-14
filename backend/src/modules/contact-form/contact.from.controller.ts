@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpStatus,
+  Param,
   Post,
   Query,
   Req,
@@ -137,6 +139,24 @@ export class ContactFromController {
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: replies,
+    });
+  }
+
+  @Delete(':id')
+  async deleteContactForm(@Param('id') id: string) {
+    await this.contactFormService.deleteContactForm(id);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { deleted: true },
+    });
+  }
+
+  @Delete('info-request/:id')
+  async deleteInfoRequestForm(@Param('id') id: string) {
+    await this.contactFormService.deleteInfoRequestForm(id);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { deleted: true },
     });
   }
 }

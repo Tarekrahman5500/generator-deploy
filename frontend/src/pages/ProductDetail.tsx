@@ -14,10 +14,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronRight, FileText } from "lucide-react";
 import ProductDetailsSkeleton from "@/components/Skeleton/ProductSkeletonDetails";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import { ProductGallery } from "./ProductGalery";
 const features = [
   "Ultra-bright LED modules with 360° visibility",
   "IP65 rated water and dust resistant housing",
@@ -127,6 +133,10 @@ const ProductDetail = () => {
       console.error("PDF Generation Error:", error);
     }
   };
+  const getImageUrl = (path: string) => {
+    if (!path) return "/placeholder.png"; // Fallback
+    return `${import.meta.env.VITE_API_URL}/${path}`;
+  };
   return (
     <div className="min-h-screen relative">
       {/* Breadcrumb */}
@@ -146,13 +156,7 @@ const ProductDetail = () => {
       <section className="pb-20">
         <div className="container px-6">
           <div className="grid lg:grid-cols-2 gap-12 mb-12">
-            <div className="rounded-xl overflow-hidden bg-muted/30">
-              <img
-                src={imageUrl}
-                alt={product.modelName}
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <ProductGallery product={product} />
 
             <div>
               <h1 className="text-4xl font-heading font-bold mb-2">
@@ -177,16 +181,47 @@ const ProductDetail = () => {
                     Request a Quote
                   </NavLink>
                 </Button>
-
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {product?.files
+                    // 1. Filter the array to include ONLY PDFs
+                    ?.filter((file: any) => file.mimeType === "application/pdf")
+                    // 2. Map over the filtered results
+                    .map((file: any) => (
+                      <a
+                        href={getImageUrl(file.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        key={file.id}
+                        download={file.originalName || "document.pdf"}
+                      >
+                        <div
+                          key={file.id}
+                          className="relative rounded-lg bg-muted overflow-hidden h-24 w-48 flex items-center justify-center border border-border"
+                        >
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <img
+                              src="../../public/PDF_file_icon.png
+                          "
+                              alt="pdf"
+                              className="h-14 w-12"
+                            />
+                            <span className="text-[10px] font-medium px-2 truncate w-full text-center">
+                              {`PDF Document (${file?.language?.toUpperCase()})`}
+                            </span>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                </div>
                 {/* DOWNLOAD BUTTON */}
-                <Button
+                {/* <Button
                   onClick={downloadBrochure}
                   variant="outline"
                   size="lg"
                   className="w-full border-[#163859] text-[#163859] font-bold"
                 >
                   Download Brochure (PDF)
-                </Button>
+                </Button> */}
               </div>
             </div>
           </div>

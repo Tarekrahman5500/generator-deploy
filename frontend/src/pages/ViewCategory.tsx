@@ -55,6 +55,7 @@ const ViewCategory = () => {
 
       const categories: Category[] = json.categories.map((category: any) => ({
         id: category.id || "",
+        serialNo: category.serialNo,
         categoryName: category.categoryName || "",
         description: category.description || "",
         categoryFiles: (category.categoryFiles || []).map((fileObj: any) => ({
@@ -387,6 +388,7 @@ const ViewCategory = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-24">Serial</TableHead>
                 <TableHead className="w-24">Image</TableHead>
                 <TableHead>Category Name</TableHead>
                 <TableHead>Description</TableHead>
@@ -410,6 +412,9 @@ const ViewCategory = () => {
               ) : (
                 categories.categories.map((category) => (
                   <TableRow key={category.id}>
+                    <TableCell className="text-center">
+                      {category.serialNo}
+                    </TableCell>
                     <TableCell>
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
                         {category.categoryFiles[0]?.file?.url ? (

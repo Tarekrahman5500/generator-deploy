@@ -27,6 +27,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import GeneratorFilterCard from "./ProductFilter";
+import { set } from "date-fns";
+import { AnyMxRecord } from "node:dns";
 // Interfaces for your API data
 interface File {
   url: string;
@@ -53,6 +56,7 @@ export interface Category {
   categoryFiles: CategoryFile[];
   products: Record<string, any>[];
   subCategories: Record<string, any>[];
+  serialNo?: number;
 }
 
 export interface CategoryResponse {
@@ -64,7 +68,9 @@ const Products = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
+  const [filterValues, setFilterValues] = useState<any>({});
+  const [isFilterActive, setIsFilterActive] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     location.state?.category?.categoryName || null
@@ -129,6 +135,7 @@ const Products = () => {
                   onClick={() => {
                     setSelectedCategory(null);
                     setSelectedSubCategories([]);
+                    setIsFilterActive(false);
                   }}
                   className="text-xs text-[#163859] font-bold hover:underline"
                 >
@@ -148,7 +155,19 @@ const Products = () => {
                     setSelectedSubCategories([]); // Reset subs when main cat changes
                   }}
                 />
-
+                {selectedCategory && (
+                  <GeneratorFilterCard
+                    filters={filterValues}
+                    loading={Object.keys(filterValues).length === 0}
+                    categoryId={
+                      categories.find(
+                        (c) => c.categoryName === selectedCategory
+                      )?.id
+                    }
+                    setProducts={setFilteredProducts}
+                    setIsFilterActive={setIsFilterActive}
+                  />
+                )}
                 {/* Dynamic Sub-Category Filter */}
                 {selectedCategory && availableSubCategories.length > 0 && (
                   <FilterGroup
@@ -172,15 +191,61 @@ const Products = () => {
           </aside>
 
           {/* Main Content Area */}
+          {/* Main Content Area */}
           <div className="lg:col-span-3">
             {loading ? (
               <Skeleton className="w-full h-[500px]" />
+            ) : isFilterActive ? (
+              // THIS SECTION SHOWS WHEN GeneratorFilterCard TRIGGERS success
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="flex justify-between items-end border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-[#163859] italic uppercase">
+                      Filtered Results
+                    </h2>
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">
+                      {filteredProducts.length} Products Found
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsFilterActive(false)}
+                    className="text-xs font-bold text-[#163859]"
+                  >
+                    BACK TO CATEGORIES
+                  </Button>
+                </div>
+
+                {filteredProducts.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-20 text-center bg-white rounded-xl border border-dashed">
+                    <p className="text-gray-400 font-medium">
+                      No products match your specific filters.
+                    </p>
+                    <Button
+                      variant="link"
+                      onClick={() => setIsFilterActive(false)}
+                      className="text-[#163859] mt-2"
+                    >
+                      Clear filters and try again
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
+              // DEFAULT VIEW
               filteredData.map((category) => (
                 <CategorySection
                   key={category.id}
                   category={category}
                   activeSubFilters={selectedSubCategories}
+                  setFilterValues={setFilterValues}
                 />
               ))
             )}
@@ -193,9 +258,11 @@ const Products = () => {
 const CategorySection = ({
   category,
   activeSubFilters,
+  setFilterValues,
 }: {
   category: any;
   activeSubFilters: string[];
+  setFilterValues: React.Dispatch<React.SetStateAction<AnyMxRecord>>;
 }) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +270,7 @@ const CategorySection = ({
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1, total: 0 });
-  const PAGE_LIMIT = 8; // Your requested perPage limit
+  const PAGE_LIMIT = 10; // Your requested perPage limit
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -211,16 +278,27 @@ const CategorySection = ({
         setLoading(true);
         // Using the page and limit parameters from state
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/category/products?categoryId=${
-            category.id
-          }&page=${currentPage}&limit=${PAGE_LIMIT}`
+          `${import.meta.env.VITE_API_URL}/search/filter`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              categoryId: category.id,
+              page: currentPage,
+              limit: PAGE_LIMIT,
+            }),
+          }
         );
         const json = await res.json();
 
-        setProducts(json?.category.products || []);
+        setProducts(json?.products || []);
+        setFilterValues(json?.filterValues || {});
+
         setMeta({
-          totalPages: json?.category.meta?.totalPages || 1,
-          total: json?.category.meta?.total || 0,
+          totalPages: json?.meta?.totalPages || 1,
+          total: json?.meta?.total || 0,
         });
       } catch (err) {
         console.error("Fetch error:", err);
@@ -346,7 +424,7 @@ const CategorySection = ({
     </div>
   );
 };
-const ProductCard = ({ product }: { product: any }) => {
+export const ProductCard = ({ product }: { product: any }) => {
   const handleCompare = () => {
     // 1. Get existing data from localStorage
     const compareData = JSON.parse(

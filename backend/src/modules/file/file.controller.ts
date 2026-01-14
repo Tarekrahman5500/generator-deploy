@@ -9,6 +9,7 @@ import {
   HttpStatus,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
@@ -49,10 +50,12 @@ export class FileController {
     FileInterceptor('file', { storage: createDiskStorage('pdf') }),
   )
   async pdfUpload(
+    @Req() req,
     @UploadedFile(createFileValidator(10, ['application/pdf']))
     file: Express.Multer.File,
   ) {
-    const response = await this.fileService.saveFileInfo(file);
+    const language = req.body.language ?? 'en';
+    const response = await this.fileService.saveFileInfo(file, language);
 
     return apiResponse({
       statusCode: HttpStatus.ACCEPTED,

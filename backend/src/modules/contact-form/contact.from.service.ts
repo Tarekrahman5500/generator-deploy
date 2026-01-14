@@ -326,4 +326,14 @@ export class ContactFormService {
       order: { createdAt: 'DESC' },
     });
   }
+
+  async deleteContactForm(id: string) {
+    await this.contactRepo.delete({ id });
+    return { deleted: true };
+  }
+
+  async deleteInfoRequestForm(id: string) {
+    await this.infoRepo.delete({ id });
+    return { deleted: true };
+  }
 }
