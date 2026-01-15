@@ -17,7 +17,7 @@ import {
   Boxes,
   BookText,
   ShieldPlus,
-  Mails
+  Mails,
 } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
@@ -31,9 +31,10 @@ const Dashboard = () => {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-muted"
+        `w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${
+          isActive
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted"
         }`
       }
       onClick={() => setMobileMenuOpen(false)}
@@ -56,11 +57,11 @@ const Dashboard = () => {
           padding: "12px 16px",
         },
       });
+      navigate("/login");
       return;
     }
 
     try {
-
       const url = `${import.meta.env.VITE_API_URL}/auth/logout`;
       const options = {
         method: "POST",
@@ -68,8 +69,7 @@ const Dashboard = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-
-      }
+      };
 
       const response = await fetch(url, options);
 
@@ -224,15 +224,17 @@ const Dashboard = () => {
 
       {/* Mobile Drawer */}
       <div
-        className={`fixed inset-0 z-50 md:hidden transition-opacity duration-300 ${mobileMenuOpen
-          ? "opacity-100 pointer-events-auto"
-          : "opacity-0 pointer-events-none"
-          }`}
+        className={`fixed inset-0 z-50 md:hidden transition-opacity duration-300 ${
+          mobileMenuOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
       >
         {/* OVERLAY */}
         <div
-          className={`fixed inset-0 bg-black transition-opacity duration-300 ${mobileMenuOpen ? "opacity-50" : "opacity-0"
-            }`}
+          className={`fixed inset-0 bg-black transition-opacity duration-300 ${
+            mobileMenuOpen ? "opacity-50" : "opacity-0"
+          }`}
           onClick={() => setMobileMenuOpen(false)}
         />
 

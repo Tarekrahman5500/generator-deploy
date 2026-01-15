@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { access } from "fs";
+import { useNavigate } from "react-router-dom";
 
 interface GroupFormModalProps {
   open: boolean;
@@ -56,7 +57,7 @@ export function GroupFormModal({
     categories: [],
   });
   const [upsert, setUpsert] = useState(false);
-
+  const navigate = useNavigate();
   useEffect(() => {
     if (group) {
       setName(group.groupName);
@@ -126,12 +127,18 @@ export function GroupFormModal({
         body: JSON.stringify(body),
       };
       const res = await fetch(url, options);
-
+      const data = await res.json();
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
       if (!res.ok) {
-        throw new Error("Failed to update field name");
+        throw new Error(`${data.message}`);
       }
 
-      toast.success("Field Name Updated successfully", {
+      toast.success(`${updatedField.fieldName} updated successfully`, {
         style: {
           background: "#326e12",
           color: "#fff",
@@ -141,7 +148,7 @@ export function GroupFormModal({
       });
       fetchCategories();
     } catch (error) {
-      toast.error("Failed to update field name", {
+      toast.error(`${error.message}`, {
         style: {
           background: "#ff0000",
           color: "#fff",
@@ -168,6 +175,12 @@ export function GroupFormModal({
           Authorization: `Bearer ${accessToken}`,
         },
       });
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
       if (res.ok) {
         toast.success("Field Deleted Successfully", {
           style: {
@@ -237,6 +250,12 @@ export function GroupFormModal({
 
       const json = await res.json();
       //console.log("API Response:", json);
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
       if (res.ok) {
         toast.success(`${name}" group created successfully.`, {
           style: {
@@ -246,6 +265,9 @@ export function GroupFormModal({
             padding: "12px 16px",
           },
         });
+      }
+      if (!res.ok) {
+        throw new Error(`${json.message}`);
       }
 
       if (json.statusCode === 901) {
@@ -263,7 +285,7 @@ export function GroupFormModal({
       fetchCategories();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save group.", {
+      toast.error(`${err.message}`, {
         style: {
           background: "#ff0000",
           color: "#fff",
@@ -294,22 +316,28 @@ export function GroupFormModal({
         },
         body: JSON.stringify(body),
       });
+      const data = await res.json();
 
       if (!res.ok) {
-        throw new Error("Failed to update group name");
+        throw new Error(`${data.message}`);
       }
 
-      toast.success("Group name updated successfully", {
-        style: {
-          background: "#326e12",
-          color: "#fff",
-          borderRadius: "10px",
-          padding: "12px 16px",
-        },
-      });
+      toast.success(
+        `${
+          body?.groupName ? body.groupName : "Group Name"
+        } updated successfully`,
+        {
+          style: {
+            background: "#326e12",
+            color: "#fff",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+        }
+      );
       fetchCategories();
     } catch (error) {
-      toast.error("Failed to update group name", {
+      toast.error(`${error.message}`, {
         style: {
           background: "#ff0000",
           color: "#fff",

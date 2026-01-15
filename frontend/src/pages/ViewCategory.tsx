@@ -177,8 +177,15 @@ const ViewCategory = () => {
       };
       // If you need to upload image, handle it here with FormData
       const res = await fetch(url, options);
+      const data = await res.json();
 
-      if (!res.ok) throw new Error("Failed to update");
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
+      if (!res.ok) throw new Error(`${data.message}`);
 
       toast.success("Category updated successfully");
 
@@ -199,7 +206,7 @@ const ViewCategory = () => {
       setEditingCategory(null);
       await fetchCategories();
     } catch (err) {
-      toast.error("Failed to update category");
+      toast.error(err.message);
       console.error(err);
     }
   };
@@ -223,7 +230,7 @@ const ViewCategory = () => {
       });
 
       if (!response.ok) {
-        toast.error("Failed to delete the category");
+        toast.error("Failed to delete the category.");
         throw new Error(`Error: ${response.status}`);
       }
 

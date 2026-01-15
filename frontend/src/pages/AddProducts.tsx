@@ -11,7 +11,7 @@ import {
 } from "@/components/ProductMediaUpload";
 import { DocumentsUpload, UploadedDoc } from "@/components/DocumentsUpload";
 
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { toast } from "sonner";
 import { secureStorage } from "@/security/SecureStorage";
@@ -62,6 +62,7 @@ export default function AddProducts() {
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
   const [removeFileId, setRemoveFileId] = useState<any>();
   const [isUploading, setIsUploading] = useState(false);
+  const navigate = useNavigate();
   // fetch categories first
 
   useEffect(() => {
@@ -198,6 +199,12 @@ export default function AddProducts() {
       body: JSON.stringify(body),
     };
     const res = await fetch(url, options);
+    if (res.status === 401) {
+      secureStorage.clear();
+      toast.error("Session expired. Please login again.");
+      navigate("/login");
+      return;
+    }
     if (!res.ok) {
       const error = await res.json();
       toast.error(error.message, {
@@ -233,9 +240,9 @@ export default function AddProducts() {
     setGroupValues({});
     setMediaFiles([]);
     setDocFiles([]);
-    toast.error("Form Cleared!", {
+    toast.success("Form Cleared!", {
       style: {
-        background: "#ff0000", // your custom red
+        background: "#326e12", // your custom red
         color: "#fff",
         borderRadius: "10px",
         padding: "12px 16px",

@@ -24,6 +24,7 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { ProductGallery } from "./ProductGalery";
+import pdfIcon from "../assets/PDF_file_icon.png";
 const features = [
   "Ultra-bright LED modules with 360° visibility",
   "IP65 rated water and dust resistant housing",
@@ -200,13 +201,15 @@ const ProductDetail = () => {
                         >
                           <div className="flex flex-col items-center justify-center gap-1">
                             <img
-                              src="../../public/PDF_file_icon.png
-                          "
+                              src={pdfIcon}
                               alt="pdf"
                               className="h-14 w-12"
                             />
                             <span className="text-[10px] font-medium px-2 truncate w-full text-center">
-                              {`PDF Document (${file?.language?.toUpperCase()})`}
+                              {`${file.fileName.slice(
+                                0,
+                                16
+                              )} (${file?.language?.toUpperCase()})`}
                             </span>
                           </div>
                         </div>

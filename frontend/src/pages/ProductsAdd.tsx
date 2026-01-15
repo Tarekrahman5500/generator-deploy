@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 
 import { ProductGroup } from "@/types/group";
-import { toast } from "@/hooks/use-toast";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,8 @@ import { ProductGroupsTable } from "@/components/ProductGroupsTable";
 import { GroupFormModal } from "@/components/GroupFormModal";
 import { GroupDetailsModal } from "@/components/GroupDetailsModal";
 import { secureStorage } from "@/security/SecureStorage";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 // Sample data
 ///group/category/categoryId
@@ -51,7 +53,7 @@ export default function ProductsAdd() {
   });
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(""); // store ID
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>(""); // store ID
-
+  const navigate = useNavigate();
   const filteredGroups = groups.filter((group) =>
     group.groupName.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -94,6 +96,12 @@ export default function ProductsAdd() {
           },
         }
       );
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
       const data = await res.json();
 
       setGroups(data.groups || []);
@@ -144,28 +152,26 @@ export default function ProductsAdd() {
           },
         }
       );
-
+      if (res.status === 401) {
+        secureStorage.clear();
+        toast.error("Session expired. Please login again.");
+        navigate("/login");
+        return;
+      }
+      const data = await res.json();
       if (res.ok) {
         // 2. Find the name for the toast before removing from state
         const groupName = groups.find((g) => g.id === deleteId)?.groupName;
 
         // 3. Update local state to remove the item immediately
         setGroups(groups.filter((g) => g.id !== deleteId));
-
-        toast({
-          title: "Group Deleted",
-          description: `"${groupName}" has been deleted successfully`,
-        });
+        toast.success(`"${groupName}" has been deleted successfully`);
       } else {
-        throw new Error("Failed to delete the group on the server");
+        throw new Error(`${data.message}`);
       }
     } catch (error) {
       console.error("Delete error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Could not delete the group. Please try again.",
-      });
+      toast.error(`${error.message}`);
     } finally {
       setDeleteId(null);
       // 4. Optionally re-fetch to ensure sync, though local filter is usually enough
