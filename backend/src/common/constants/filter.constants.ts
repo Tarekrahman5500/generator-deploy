@@ -4,14 +4,15 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export const CATEGORY_FIELDS: Record<string, string[]> = {
   'generator sets': [
-    'model',
-    'engine brand',
-    'alternator brand',
-    'prime power kva',
-    'standby power kva',
-    'speed',
-    'voltage',
-    'frequency',
+    'Model',
+    'Phases',
+    'Engine Brand',
+    'Alternator Brand',
+    'Controller Type',
+    'PRIME POWER (PRP) KVA DG SET',
+    'STANDBY POWER POWER (LTP) KVA DG SET',
+    'Frequency (HZ)',
+    'Voltage (V) VAC',
   ],
   'marine generators': [
     'model',
@@ -24,6 +25,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'frequency',
     'cooling system',
   ],
+
   'air compressors': [
     'model',
     'compressor type',
@@ -36,6 +38,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'dryer (y/n)',
     'noise level db(a)',
   ],
+
   'light towers': [
     'model',
     'light type',
@@ -48,6 +51,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'trailer (y/n)',
     'noise level db(a)',
   ],
+
   'distribution panels': [
     'model',
     'rated current (a)',
@@ -60,19 +64,8 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'metering (y/n)',
     'application',
   ],
+
   'ups systems': [
-    'model',
-    'ups topology',
-    'power (kva)',
-    'power (kw)',
-    'phase',
-    'input voltage',
-    'output voltage',
-    'battery type',
-    'runtime (min)',
-    'form factor',
-  ],
-  'battery energy storage (bess)': [
     'model',
     'energy (kwh)',
     'power (kw)',
@@ -84,6 +77,20 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'ip rating',
     'application',
   ],
+
+  'battery energy storage (bess)': [
+    'model',
+    'ups topology',
+    'power (kva)',
+    'power (kw)',
+    'phase',
+    'input voltage',
+    'output voltage',
+    'battery type',
+    'runtime (min)',
+    'form factor',
+  ],
+
   'solar panels': [
     'model',
     'power (wp)',
@@ -96,6 +103,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'isc (a)',
     'dimensions (mm)',
   ],
+
   inverters: [
     'model',
     'inverter type',
@@ -108,6 +116,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'ip rating',
     'warranty (yrs)',
   ],
+
   forklifts: [
     'model',
     'power type',
@@ -120,6 +129,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'aisle width (mm)',
     'application',
   ],
+
   'agricultural systems': [
     'model',
     'system type',
@@ -132,6 +142,7 @@ export const CATEGORY_FIELDS: Record<string, string[]> = {
     'autonomy (h)',
     'application',
   ],
+
   'containers & canopies': [
     'model',
     'enclosure type',
@@ -156,3 +167,28 @@ Object.values(CATEGORY_FIELDS).forEach((fields) => {
     FIELD_TYPE[f.toLowerCase()] = 'string';
   });
 });
+
+export const OrderableFields = {
+  'generator sets': ['PRIME POWER (PRP) KW DG SET'],
+  'marine generators': ['PRIME POWER KVA'],
+
+  'air compressors': ['FLOW RATE (M3/MIN)'],
+
+  'light towers': ['LUMEN OUTPUT'],
+
+  'distribution panels': ['RATED CURRENT (A)'],
+
+  'ups systems': ['ENERGY (KWH)'],
+
+  'battery energy storage (bess)': ['POWER (KVA)'],
+
+  'solar panels': ['POWER (WP)'],
+
+  inverters: ['AC POWER (KW)'],
+
+  forklifts: ['CAPACITY (KG)'],
+
+  'agricultural systems': ['POWER (KW)'],
+
+  'containers & canopies': ['ENCLOSURE TYPE'],
+};

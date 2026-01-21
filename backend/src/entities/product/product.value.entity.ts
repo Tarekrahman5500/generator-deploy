@@ -4,10 +4,12 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { ProductEntity } from './product.entity';
 import { FieldEntity } from './field.entity';
 
+@Unique('uq_product_field', ['product', 'field'])
 @Entity('product_value')
 export class ProductValueEntity {
   @PrimaryGeneratedColumn('uuid')

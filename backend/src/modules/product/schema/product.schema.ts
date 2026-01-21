@@ -10,6 +10,11 @@ export const productSchema = z.object({
     message: 'Invalid product ID format',
   }),
 
+  serialNo: z
+    .number({ message: 'Serial number must be a positive number' })
+    .nullable()
+    .optional(),
+
   categoryId: z.uuidv4({
     message: 'Invalid category ID format',
   }),
@@ -22,12 +27,10 @@ export const productSchema = z.object({
 
   modelName: z
     .string()
-    .min(5, 'Model name must be at least 5 characters')
+    .min(1, 'Model name must be at least 1 characters')
     .max(100, 'Model name must not exceed 100 characters'),
 
-  description: z
-    .string()
-    .min(100, 'Description must contain at least 100 characters'),
+  description: z.string({ message: 'Description is required' }),
 
   information: z
     .array(productValueSchema)
@@ -102,11 +105,13 @@ export const productCompareScheme = z.object({
 export const productUpsertSchema = productSchema
   .pick({
     id: true,
+    serialNo: true,
     modelName: true,
     description: true,
     fileIds: true,
   })
   .partial({
+    serialNo: true,
     modelName: true,
     description: true,
     fileIds: true,

@@ -2,17 +2,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { FileEntity } from 'src/entities/file';
-import { UploadFileResponseDto } from './dto';
+import { FileIdParamDto, UploadFileResponseDto } from './dto';
 import { join } from 'path';
 import * as fs from 'node:fs/promises';
 import * as xlsx from 'xlsx';
 import * as path from 'node:path';
+import { ProductFileRelationEntity } from 'src/entities/product';
 
 @Injectable()
 export class FileService {
   constructor(
     @InjectRepository(FileEntity)
     private readonly fileRepo: Repository<FileEntity>,
+
+    @InjectRepository(ProductFileRelationEntity)
+    private readonly productFileRelationRepo: Repository<ProductFileRelationEntity>,
   ) {}
 
   async saveFileInfo(
@@ -89,10 +93,17 @@ export class FileService {
     }
   }
 
-  async deleteFileById(id: string): Promise<void> {
-    const ids: string[] = [];
-    ids.push(id);
-    return await this.deleteFilesByIds(ids);
+  async deleteFileById(params: FileIdParamDto): Promise<void> {
+    const { id, productId } = params;
+
+    if (productId) {
+      await this.productFileRelationRepo.delete({
+        file: { id: id },
+        product: { id: productId },
+      });
+    } else {
+      return await this.deleteFilesByIds([id]);
+    }
   }
 
   execlExtractData(buffer: Buffer) {
@@ -107,7 +118,8 @@ export class FileService {
     });
 
     // 🔹 Skip first 5 data rows (not header)
-    return rows.slice(0, 3);
+    // return rows.slice(0, 3);
+    return rows;
   }
 
   async getFileBuffer(file: { url: string }): Promise<Buffer> {

@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { CategoryEntity } from './category.entity';
 import { SubCategoryEntity } from './sub.category.entity';
@@ -12,14 +13,15 @@ import { ProductFileRelationEntity } from 'src/entities/product/product.file.rel
 import { ProductValueEntity } from 'src/entities/product/product.value.entity';
 import { InfoRequestFormEntity } from '../contact-form';
 
+@Index('idx_product_category_id', ['category'])
 @Entity('product')
 export class ProductEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // ======================
-  // CATEGORY (REQUIRED)
-  // ======================
+  @Column({ type: 'int', nullable: true })
+  serialNo: number;
+
   @ManyToOne(() => CategoryEntity, {
     nullable: false,
     onDelete: 'CASCADE',
@@ -44,7 +46,6 @@ export class ProductEntity {
     type: 'varchar',
     length: 150,
     name: 'model_name',
-    unique: true,
   })
   modelName: string;
 

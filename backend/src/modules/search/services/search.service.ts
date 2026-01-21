@@ -9,8 +9,8 @@ import {
   SubCategoryEntity,
 } from 'src/entities/product';
 import { ProductService } from 'src/modules/product/service';
-import { DynamicFilterDto } from '../dto';
-import { CATEGORY_FIELDS } from 'src/common/constants';
+import { DynamicFilterDto, SingleProductDto } from '../dto';
+import { analyzeFieldValues } from './product.sort.util';
 
 export interface SearchResult {
   type: 'product' | 'category' | 'field' | 'value';
@@ -217,7 +217,6 @@ export class SearchService {
     return results;
   }
 
-  // Simple autocomplete/suggestions
   async getSuggestions(query: string): Promise<string[]> {
     if (!query || query.length < 2) {
       return [];
@@ -268,41 +267,43 @@ export class SearchService {
     const {
       categoryId,
       subCategoryId,
-      modelName,
+      modelNames,
       filters,
-      prpMin,
-      prpMax,
-      ltpMin,
-      ltpMax,
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
     } = dto;
 
+    // console.log(filters);
     /* --------------------------------
      * 1️⃣ CATEGORY → FIELD MAP
      * -------------------------------- */
     // get categoryName from categoryId
-    const category = await this.categoryRepo.findOne({
-      where: { id: categoryId },
-    });
+    const category = await this.categoryRepo
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.groups', 'group')
+      .leftJoinAndSelect('group.fields', 'field', 'field.filter = :filter', {
+        filter: true,
+      })
+      .where('category.id = :categoryId', { categoryId })
+      .getOne();
 
     if (!category) {
       return {
         products: [],
-        filterValues: {},
         meta: { total: 0, page, limit, totalPages: 0 },
       };
     }
 
-    const categoryFields =
-      CATEGORY_FIELDS[category.categoryName.toLowerCase()] || [];
+    const categoryFields: string[] =
+      category?.groups
+        ?.flatMap((group) => group?.fields ?? [])
+        .map((field) => field?.fieldName) ?? [];
 
     if (categoryFields.length === 0) {
       return {
         products: [],
-        filterValues: {},
         meta: { total: 0, page, limit, totalPages: 0 },
       };
     }
@@ -322,84 +323,88 @@ export class SearchService {
       });
     }
 
-    if (modelName) {
-      baseQb.andWhere('LOWER(product.model_name) = :modelName', {
-        modelName: modelName.toLowerCase(),
+    if (modelNames && modelNames.length > 0) {
+      baseQb.andWhere('LOWER(product.model_name) IN (:...modelNames)', {
+        modelNames: modelNames.map((name) => name.toLowerCase()),
       });
     }
     /* --------------------------------
      * 3️⃣ DYNAMIC FILTERS
      * -------------------------------- */
-    const addFilter = (qb, idx, fieldName: string, value: string) => {
+    // const addFilter = (qb, idx, fieldName: string, value: string) => {
+    //   const alias = `pv_filter_${idx}`;
+    //   qb.innerJoin(
+    //     'product.productValues',
+    //     alias,
+    //     `${alias}.field_id = (SELECT id FROM field WHERE LOWER(field_name) = :field_${idx} LIMIT 1) AND ${alias}.value = :val_${idx}`,
+    //     { [`field_${idx}`]: fieldName.toLowerCase(), [`val_${idx}`]: value },
+    //   );
+    // };
+
+    // if (filters && Object.keys(filters).length > 0) {
+    //   // solve the range problem but no input style change
+    //   Object.entries(filters).forEach(([fieldName, value], idx) => {
+    //     if (
+    //       categoryFields
+    //         .map((f) => f.toLowerCase())
+    //         .includes(fieldName.toLowerCase())
+    //     ) {
+    //       addFilter(baseQb, idx, fieldName, value);
+    //     }
+    //   });
+    // }
+
+    const addFilter = (
+      qb,
+      idx: number,
+      fieldId: string,
+      value: string | number | { min: number; max: number },
+    ) => {
       const alias = `pv_filter_${idx}`;
-      qb.innerJoin(
-        'product.productValues',
-        alias,
-        `${alias}.field_id = (SELECT id FROM field WHERE LOWER(field_name) = :field_${idx} LIMIT 1) AND ${alias}.value = :val_${idx}`,
-        { [`field_${idx}`]: fieldName.toLowerCase(), [`val_${idx}`]: value },
-      );
+
+      // RANGE FILTER
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        'min' in value &&
+        'max' in value
+      ) {
+        qb.innerJoin(
+          'product.productValues',
+          alias,
+          `
+        ${alias}.field_id = :field_${idx}
+        AND CAST(${alias}.value AS DECIMAL(10,2)) >= :min_${idx}
+        AND CAST(${alias}.value AS DECIMAL(10,2)) <= :max_${idx}
+      `,
+          {
+            [`field_${idx}`]: fieldId,
+            [`min_${idx}`]: value.min,
+            [`max_${idx}`]: value.max,
+          },
+        );
+      } else {
+        // EXACT MATCH (existing behavior)
+        qb.innerJoin(
+          'product.productValues',
+          alias,
+          `
+      ${alias}.field_id = :field_${idx}
+      AND ${alias}.value = :val_${idx}
+    `,
+          {
+            [`field_${idx}`]: fieldId,
+            [`val_${idx}`]: String(value),
+          },
+        );
+      }
     };
 
     if (filters && Object.keys(filters).length > 0) {
-      Object.entries(filters).forEach(([fieldName, value], idx) => {
-        if (
-          categoryFields
-            .map((f) => f.toLowerCase())
-            .includes(fieldName.toLowerCase())
-        ) {
-          addFilter(baseQb, idx, fieldName, value);
-        }
+      Object.entries(filters).forEach(([fieldId, value], idx) => {
+        addFilter(baseQb, idx, fieldId, value as any);
       });
     }
-
-    /* --------------------------------
-     * 4️⃣ RANGE FILTERS (PRP / LTP)
-     * -------------------------------- */
-
-    const rangeFieldMap = {
-      prp: 'prime power (prp) kva dg set',
-      ltp: 'standby power power (ltp) kw dg set',
-    } as const;
-
-    const rangeFilters = [
-      prpMin !== undefined || prpMax !== undefined
-        ? {
-            fieldName: rangeFieldMap.prp,
-            min: prpMin ?? 0,
-            max: prpMax ?? 999999,
-          }
-        : null,
-
-      ltpMin !== undefined || ltpMax !== undefined
-        ? {
-            fieldName: rangeFieldMap.ltp,
-            min: ltpMin ?? 0,
-            max: ltpMax ?? 999999,
-          }
-        : null,
-    ].filter(Boolean) as { fieldName: string; min: number; max: number }[];
-
-    rangeFilters.forEach((rf, idx) => {
-      const pvAlias = `pv_range_${idx}`;
-      const fAlias = `f_range_${idx}`;
-
-      baseQb.andWhere(
-        `exists (
-      select 1
-      from product_value ${pvAlias}
-      join field ${fAlias} on ${fAlias}.id = ${pvAlias}.field_id
-      where ${pvAlias}.product_id = product.id
-        and lower(${fAlias}.field_name) = :field_${idx}
-        and cast(${pvAlias}.value as decimal(10,2))
-            between :min_${idx} and :max_${idx}
-    )`,
-        {
-          [`field_${idx}`]: rf.fieldName,
-          [`min_${idx}`]: rf.min,
-          [`max_${idx}`]: rf.max,
-        },
-      );
-    });
 
     /* --------------------------------
      * 5️⃣ GET PRODUCT IDS
@@ -416,7 +421,6 @@ export class SearchService {
     if (!productIds.length) {
       return {
         products: [],
-        filterValues: {},
         meta: { total: 0, page, limit, totalPages: 0 },
       };
     }
@@ -427,134 +431,178 @@ export class SearchService {
     const products = await this.productService.getProductsByIds(productIds);
 
     /* --------------------------------
-     * 7️⃣ FILTER AGGREGATION (FACETS)
-     * -------------------------------- */
-    const filterQb = this.productRepo
-      .createQueryBuilder('product')
-      .leftJoin('product.productValues', 'pv')
-      .leftJoin('pv.field', 'field')
-      .where('product.id IN (:...ids)', { ids: productIds });
-
-    //   .select([
-    //     'field.id AS fieldId',
-    //     'field.field_name AS fieldName',
-    //     'pv.value AS value',
-    //   ])
-    //   .andWhere('LOWER(field.field_name) IN (:...fields)', {
-    //     fields: categoryFields.map((f) => f.toLowerCase()),
-    //   })
-    //   .distinct(true)
-    //   .getRawMany();
-
-    // console.log('CATEGORY FIELDS:', categoryFields);
-    const rawFilters = await filterQb
-      .select([
-        'field.id AS fieldId',
-        'field.field_name AS fieldName',
-        'pv.value AS value',
-      ])
-      .andWhere(
-        categoryFields
-          .map((_, idx) => `LOWER(field.field_name) LIKE :field_${idx}`)
-          .join(' OR '),
-        categoryFields.reduce(
-          (acc, field, idx) => {
-            acc[`field_${idx}`] = `%${field.toLowerCase()}%`;
-            return acc;
-          },
-          {} as Record<string, string>,
-        ),
-      )
-      .distinct(true)
-      .getRawMany();
-
-    // 2️⃣ Fetch MODELs from product table directly
-    const modelRows = await this.productRepo
-      .createQueryBuilder('product')
-      .select(['product.modelName AS value'])
-      .where('product.id IN (:...ids)', { ids: productIds })
-      .distinct(true)
-      .getRawMany();
-
-    const filterValues: Record<string, { fieldId?: string; values: string[] }> =
-      {};
-    rawFilters.forEach(({ fieldName, fieldId, value }) => {
-      if (!filterValues[fieldName])
-        filterValues[fieldName] = { fieldId, values: [] };
-      if (!filterValues[fieldName].values.includes(value))
-        filterValues[fieldName].values.push(value);
-    });
-
-    filterValues['Model'] = {
-      values: Array.from(new Set(modelRows.map((r) => r.value))),
-    };
-
-    // 8️⃣ PRP / LTP RANGE META
-    const { prp, ltp } = await this.getPrpLtpRange(categoryId, subCategoryId);
-
-    const rangeMeta: Record<string, { min: number; max: number }> = {};
-
-    if (!(prp.min === 0 && prp.max === 0)) {
-      rangeMeta.prpRange = prp;
-    }
-
-    if (!(ltp.min === 0 && ltp.max === 0)) {
-      rangeMeta.ltpRange = ltp;
-    }
-    /* --------------------------------
      * 9️⃣ FINAL RESPONSE
      * -------------------------------- */
     return {
-      filterValues: { ...filterValues, ...rangeMeta },
       products,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  private async getPrpLtpRange(categoryId: string, subCategoryId?: string) {
-    const [prpRange, ltpRange] = await Promise.all([
-      this.productValueRepo
-        .createQueryBuilder('pv')
-        .innerJoin('pv.product', 'product')
-        .innerJoin('pv.field', 'field')
-        .select('MIN(CAST(pv.value AS DECIMAL(10,2)))', 'min')
-        .addSelect('MAX(CAST(pv.value AS DECIMAL(10,2)))', 'max')
-        .where('product.category_id = :categoryId', { categoryId })
-        .andWhere(
-          subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
-          { subCategoryId },
-        )
-        .andWhere('field.fieldName LIKE :name', {
-          name: '%prime power (prp) kva dg set%',
-        })
-        .getRawOne(),
+  async singleProductSearch(dto: SingleProductDto) {
+    const { page = 1, limit = 10 } = dto;
 
-      this.productValueRepo
-        .createQueryBuilder('pv')
-        .innerJoin('pv.product', 'product')
-        .innerJoin('pv.field', 'field')
-        .select('MIN(CAST(pv.value AS DECIMAL(10,2)))', 'min')
-        .addSelect('MAX(CAST(pv.value AS DECIMAL(10,2)))', 'max')
-        .where('product.category_id = :categoryId', { categoryId })
-        .andWhere(
-          subCategoryId ? 'product.sub_category_id = :subCategoryId' : '1=1',
-          { subCategoryId },
-        )
-        .andWhere('field.fieldName LIKE :name', {
-          name: '%standby power power (ltp) kw dg set%',
+    // 1️⃣ Base category (serialNo = 1)
+    const baseCategory = dto.categoryId
+      ? await this.categoryRepo.findOne({
+          where: { id: dto.categoryId },
         })
-        .getRawOne(),
-    ]);
+      : await this.categoryRepo.findOne({
+          where: { serialNo: 1 },
+        });
+
+    if (!baseCategory) {
+      return {
+        products: [],
+        filterValues: [],
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    // 2️⃣ Product search (unchanged)
+    const response = await this.dynamicProductSearch({
+      ...dto,
+      categoryId: baseCategory.id,
+    });
+
+    // console.log('SINGLE PRODUCT SEARCH RESPONSE:', response);
+    // 3️⃣ All categories ordered by serialNo
+    const categories = await this.categoryRepo.find({
+      select: ['id', 'categoryName', 'serialNo'],
+      order: { serialNo: 'ASC' },
+    });
+
+    // 4️⃣ Fetch all filters in ONE query
+    const rawFilters = await this.productRepo
+      .createQueryBuilder('product')
+      .innerJoin('product.productValues', 'pv')
+      .innerJoin('pv.field', 'field', 'field.filter = :filter', {
+        filter: true,
+      })
+      .where('product.category_id IN (:...categoryIds)', {
+        categoryIds: categories.map((c) => c.id),
+      })
+      .select([
+        'product.category_id AS categoryId',
+        'field.id AS fieldId',
+        'field.field_name AS fieldName',
+        'pv.value AS value',
+      ])
+      .distinct(true)
+      .getRawMany();
+
+    // 5️⃣ Aggregate by category (internal map)
+    // const categoryMap = new Map<
+    //   string,
+    //   {
+    //     categoryId: string;
+    //     serialNo: number;
+    //     categoryName: string;
+    //     values: Record<string, { fieldId?: string; values: string[] }>;
+    //   }
+    // >();
+
+    // rawFilters.forEach(({ categoryId, fieldId, fieldName, value }) => {
+    //   const category = categories.find((c) => c.id === categoryId);
+    //   if (!category) return;
+
+    //   if (!categoryMap.has(category.id)) {
+    //     categoryMap.set(category.id, {
+    //       categoryId: category.id,
+    //       serialNo: category.serialNo,
+    //       categoryName: category.categoryName,
+    //       values: {},
+    //     });
+    //   }
+
+    //   const values = categoryMap.get(category.id)!.values;
+
+    //   if (!values[fieldName]) {
+    //     values[fieldName] = { fieldId, values: [] };
+    //   }
+
+    //   if (!values[fieldName].values.includes(value)) {
+    //     values[fieldName].values.push(value);
+    //   }
+    // });
+
+    // // 6️⃣ Convert Map → Array (FINAL SHAPE)
+    // const filterValues = Array.from(categoryMap.values()).sort(
+    //   (a, b) => a.serialNo - b.serialNo,
+    // );
+
+    // 5️⃣ Aggregate by category (internal map)
+    const categoryMap = new Map<
+      string,
+      {
+        categoryId: string;
+        serialNo: number;
+        categoryName: string;
+        values: Record<
+          string,
+          {
+            fieldId: string;
+            rawValues: string[];
+          }
+        >;
+      }
+    >();
+
+    rawFilters.forEach(({ categoryId, fieldId, fieldName, value }) => {
+      const category = categories.find((c) => c.id === categoryId);
+      if (!category) return;
+
+      if (!categoryMap.has(category.id)) {
+        categoryMap.set(category.id, {
+          categoryId: category.id,
+          serialNo: category.serialNo,
+          categoryName: category.categoryName,
+          values: {},
+        });
+      }
+
+      const values = categoryMap.get(category.id)!.values;
+
+      if (!values[fieldName]) {
+        values[fieldName] = {
+          fieldId,
+          rawValues: [],
+        };
+      }
+
+      if (!values[fieldName].rawValues.includes(value)) {
+        values[fieldName].rawValues.push(value);
+      }
+    });
+
+    // 6️⃣ Convert + analyze field values (FINAL SHAPE)
+    const filterValues = Array.from(categoryMap.values())
+      .sort((a, b) => a.serialNo - b.serialNo)
+      .map((category) => ({
+        categoryId: category.categoryId,
+        serialNo: category.serialNo,
+        categoryName: category.categoryName,
+        values: Object.fromEntries(
+          Object.entries(category.values).map(
+            ([fieldName, { fieldId, rawValues }]) => {
+              const analyzed = analyzeFieldValues(rawValues);
+
+              return [
+                fieldName,
+                {
+                  fieldId,
+                  ...analyzed,
+                },
+              ];
+            },
+          ),
+        ),
+      }));
 
     return {
-      prp: {
-        min: Number(prpRange?.min ?? 0),
-        max: Number(prpRange?.max ?? 0),
-      },
-      ltp: {
-        min: Number(ltpRange?.min ?? 0),
-        max: Number(ltpRange?.max ?? 0),
-      },
+      products: response.products,
+      meta: response.meta,
+      filterValues,
     };
   }
 }

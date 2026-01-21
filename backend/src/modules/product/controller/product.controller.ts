@@ -15,7 +15,7 @@ import {
   ProductCreateGroupDto,
   ProductUpsertDto,
 } from '../dto';
-import { ProductService } from '../service';
+import { BulkProductService, ProductService } from '../service';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 import { AuthGuard } from 'src/auth/guard';
 import { isPublic } from 'src/decorator';
@@ -23,7 +23,10 @@ import { isPublic } from 'src/decorator';
 @UseGuards(AuthGuard)
 @Controller('product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly bulkProductService: BulkProductService,
+  ) {}
   @Post()
   async createProduct(@Body() createProductDto: CreateProductDto) {
     const product = await this.productService.createProduct(createProductDto);
@@ -106,11 +109,14 @@ export class ProductController {
   }
 
   @Post('execl-genset-add')
-  async execlGensetAdd(@Body() body: { categoryId: string; fileId: string }) {
-    const { categoryId, fileId } = body;
-    const result = await this.productService.productCreateByExecl(
+  async execlGensetAdd(
+    @Body() body: { categoryId: string; fileId: string; imageFileId: string },
+  ) {
+    const { categoryId, fileId, imageFileId } = body;
+    const result = await this.bulkProductService.productCreateByExecl(
       categoryId,
       fileId,
+      imageFileId,
     );
 
     return apiResponse({

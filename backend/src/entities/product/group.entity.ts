@@ -16,6 +16,9 @@ export class GroupEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'int', nullable: true })
+  serialNo: number;
+
   @Column({ type: 'varchar', length: 100, name: 'group_name' })
   groupName: string;
 

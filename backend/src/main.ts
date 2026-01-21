@@ -29,6 +29,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://marexisitaly.com',
       'https://www.marexisitaly.com',
+      'https://relaxation-standards-nashville-flexible.trycloudflare.com',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
@@ -73,6 +74,7 @@ async function bootstrap() {
       'http://localhost:8080',
       'http://localhost:5000',
       'https://marexisitaly.com',
+      'https://relaxation-standards-nashville-flexible.trycloudflare.com',
     ];
 
     const origin = req.headers.origin;

@@ -8,8 +8,8 @@ export class CategoryEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'int', nullable: true, unique: true })
-  serialNo: number | null;
+  @Column({ type: 'int', nullable: false, unique: true })
+  serialNo: number;
 
   @Column({ type: 'varchar', length: 100, unique: true, name: 'category_name' })
   categoryName: string;

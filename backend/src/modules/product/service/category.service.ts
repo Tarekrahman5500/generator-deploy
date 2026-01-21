@@ -21,78 +21,6 @@ export class CategoryService {
     private readonly subCategoryService: SubCategoryService,
   ) {}
 
-  // ------------------------------------------------------------
-  // Create
-  // ------------------------------------------------------------
-  async createCategory(
-    createCategoryDto: CategoryCreateDto,
-  ): Promise<CategoryEntity> {
-    const { fileIds, subCategoryNames, categoryName, description, serialNo } =
-      createCategoryDto;
-
-    const exists = await this.categoryRepository.exists({
-      where: { categoryName },
-    });
-
-    if (exists) {
-      throw new ConflictException(
-        `Category with name ${categoryName} already exists`,
-      );
-    }
-
-    if (serialNo !== undefined && serialNo !== null) {
-      const serialExists = await this.categoryRepository.exists({
-        where: { serialNo },
-      });
-
-      if (serialExists) {
-        throw new ConflictException(
-          `Serial number ${serialNo} is already assigned to another category`,
-        );
-      }
-    }
-    // 1️⃣ Validate files before transaction
-    const files = await this.fileService.getFileByIds(fileIds);
-
-    if (!files || files.length !== fileIds.length) {
-      throw new NotFoundException('Files are not found');
-    }
-
-    return this.dataSource.transaction(async (manager) => {
-      // 2️⃣ Create category
-      const category = await manager.save(CategoryEntity, {
-        categoryName,
-        description,
-        serialNo,
-      });
-
-      // 3️⃣ Update usedAt for files
-      await this.fileService.usedAtUpdate(fileIds, manager);
-
-      // 4️⃣ Create category-file relations (payload first)
-      const relationsPayload = fileIds.map((fileId) => ({
-        categoryId: category.id,
-        fileId,
-      }));
-
-      await manager.save(
-        CategoryFileRelationEntity,
-        manager.create(CategoryFileRelationEntity, relationsPayload),
-      );
-
-      // 5️⃣ Optional: bulk create sub-categories
-      if (subCategoryNames?.length) {
-        await this.subCategoryService.bulkSubCategoryCreate(
-          category.id,
-          subCategoryNames,
-          manager,
-        );
-      }
-
-      return category;
-    });
-  }
-
   async categoryUpdate(dto: CategoryUpdateDto): Promise<CategoryEntity> {
     const { id, categoryName, description, fileIds, serialNo } = dto;
 
@@ -115,26 +43,11 @@ export class CategoryService {
 
       if (exists) {
         throw new ConflictException(
-          `Category with name "${categoryName}" already exists`,
+          `Category with name ${categoryName} already exists`,
         );
       }
     }
 
-    if (
-      serialNo !== undefined &&
-      serialNo !== null &&
-      serialNo !== category.serialNo
-    ) {
-      const serialExists = await this.categoryRepository.exists({
-        where: { serialNo },
-      });
-
-      if (serialExists) {
-        throw new ConflictException(
-          `Serial number ${serialNo} is already assigned to another category`,
-        );
-      }
-    }
     // -------------------------
     // B) Handle fileIds (PATCH semantics)
     // -------------------------
@@ -171,19 +84,162 @@ export class CategoryService {
     Object.assign(category, {
       ...(categoryName !== undefined && { categoryName }),
       ...(description !== undefined && { description }),
-      ...(serialNo !== undefined && { serialNo }),
+      // ...(serialNo !== undefined && { serialNo }),
     });
 
     // -------------------------
     // D) Transaction save
     // -------------------------
     return this.dataSource.transaction(async (manager) => {
+      if (typeof serialNo === 'number' && serialNo !== category.serialNo) {
+        const oldSerial = category.serialNo;
+        const newSerial = serialNo;
+
+        const tempSerial = -1; // must not exist in table
+
+        // Step 1: set current category to temp
+        category.serialNo = tempSerial;
+        await manager.save(CategoryEntity, category);
+
+        // Step 2: shift conflicting categories
+        if (newSerial < oldSerial) {
+          // Moving up: Shift others higher. Update in DESC order.
+          await manager
+            .createQueryBuilder()
+            .update(CategoryEntity)
+            .set({ serialNo: () => 'serial_no + 1' })
+            .where('serial_no >= :newSerial AND serial_no < :oldSerial', {
+              newSerial,
+              oldSerial,
+            })
+            .orderBy('serial_no', 'DESC') // <--- Critical: Move the highest ones first
+            .execute();
+        } else {
+          // Moving down: Shift others lower. Update in ASC order.
+          await manager
+            .createQueryBuilder()
+            .update(CategoryEntity)
+            .set({ serialNo: () => 'serial_no - 1' })
+            .where('serial_no <= :newSerial AND serial_no > :oldSerial', {
+              newSerial,
+              oldSerial,
+            })
+            .orderBy('serial_no', 'ASC') // <--- Critical: Move the lowest ones first
+            .execute();
+        }
+
+        // Step 3: assign new serialNo to category
+        category.serialNo = newSerial;
+      }
+
+      // console.log(category);
+
       if (shouldUpdateFiles && fileIds?.length) {
         await this.fileService.usedAtUpdate(fileIds, manager);
       }
 
       return manager.save(CategoryEntity, category);
     });
+  }
+
+  async createCategory(dto: CategoryCreateDto): Promise<CategoryEntity> {
+    const { categoryName, description, fileIds, subCategoryNames, serialNo } =
+      dto;
+
+    // 1. Pre-transaction checks (Optional but good for performance)
+    const exists = await this.dataSource.manager.findOne(CategoryEntity, {
+      where: { categoryName },
+    });
+    if (exists) {
+      throw new ConflictException(
+        `Category with name ${categoryName} already exists`,
+      );
+    }
+
+    // Validate files
+    const files = await this.fileService.getFileByIds(fileIds);
+    if (!files || files.length !== fileIds.length) {
+      throw new NotFoundException('One or more files not found');
+    }
+
+    return this.dataSource.transaction(
+      async (manager): Promise<CategoryEntity> => {
+        // -------------------------
+        // SERIAL HANDLING
+        // -------------------------
+        let finalSerial: number;
+
+        if (serialNo !== undefined && serialNo !== null) {
+          // Check if the requested serial already exists
+          const serialExists = await manager
+            .createQueryBuilder(CategoryEntity, 'c')
+            .where('c.serial_no = :serialNo', { serialNo })
+            .getExists();
+
+          if (serialExists) {
+            // SHIFT LOGIC:
+            // We add .orderBy('serial_no', 'DESC') so that the highest numbers
+            // are incremented first, avoiding the Unique Constraint error.
+            await manager
+              .createQueryBuilder()
+              .update(CategoryEntity)
+              .set({ serialNo: () => 'serial_no + 1' })
+              .where('serial_no >= :serialNo', { serialNo })
+              .orderBy('serial_no', 'DESC') // <--- CRITICAL FIX
+              .execute();
+          }
+          finalSerial = serialNo;
+        } else {
+          // If no serial provided, get MAX + 1
+          const maxSerialObj = await manager
+            .createQueryBuilder(CategoryEntity, 'c')
+            .select('MAX(c.serial_no)', 'max')
+            .getRawOne<{ max: number | null }>();
+
+          finalSerial = (maxSerialObj?.max ?? 0) + 1;
+        }
+
+        // -------------------------
+        // CREATE CATEGORY
+        // -------------------------
+        const category = manager.create(CategoryEntity, {
+          categoryName,
+          description,
+          serialNo: finalSerial,
+        });
+
+        // Save the category first to get the ID
+        const savedCategory = await manager.save(CategoryEntity, category);
+
+        // -------------------------
+        // CATEGORY FILE RELATIONS
+        // -------------------------
+        if (fileIds?.length) {
+          await this.fileService.usedAtUpdate(fileIds, manager);
+
+          const relationsPayload = fileIds.map((fileId) => ({
+            categoryId: savedCategory.id,
+            fileId,
+          }));
+
+          // Use manager.insert or save for relations
+          await manager.insert(CategoryFileRelationEntity, relationsPayload);
+        }
+
+        // -------------------------
+        // SUBCATEGORIES
+        // -------------------------
+        if (subCategoryNames?.length) {
+          await this.subCategoryService.bulkSubCategoryCreate(
+            savedCategory.id,
+            subCategoryNames,
+            manager,
+          );
+        }
+
+        return savedCategory;
+      },
+    );
   }
 
   async findAllCategories(page = 1, limit = 10) {
@@ -228,9 +284,6 @@ export class CategoryService {
     };
   }
 
-  // ------------------------------------------------------------
-  // Find by ID
-  // ------------------------------------------------------------
   async findCategoryById(id: string): Promise<CategoryEntity | null> {
     // Use QueryBuilder to select category + categoryFiles + file
     const category = await this.categoryRepository

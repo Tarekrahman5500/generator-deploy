@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpStatus, Post, Query } from '@nestjs/common';
 import { SearchService } from '../services/search.service';
-import { DynamicFilterDto } from '../dto';
+import { DynamicFilterDto, SingleProductDto } from '../dto';
 import { apiResponse } from 'src/common/apiResponse/api.response';
 
 @Controller('search')
@@ -37,6 +37,19 @@ export class SearchController {
     dto: DynamicFilterDto,
   ) {
     const results = await this.searchService.dynamicProductSearch(dto);
+
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: { ...results },
+    });
+  }
+
+  @Post('product')
+  async serialProducts(
+    @Body()
+    dto: SingleProductDto,
+  ) {
+    const results = await this.searchService.singleProductSearch(dto);
 
     return apiResponse({
       statusCode: HttpStatus.OK,

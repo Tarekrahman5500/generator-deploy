@@ -4,9 +4,10 @@ import { FileService } from './file.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileEntity } from 'src/entities/file';
 import { jwtProviders } from 'src/auth/provider';
+import { ProductFileRelationEntity } from 'src/entities/product';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FileEntity])],
+  imports: [TypeOrmModule.forFeature([FileEntity, ProductFileRelationEntity])],
   exports: [FileService],
   providers: [FileService, ...jwtProviders],
   controllers: [FileController],

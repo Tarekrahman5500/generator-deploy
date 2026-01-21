@@ -37,13 +37,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : exception;
 
       if (zodError instanceof ZodError) {
-        message = 'Validation failed';
-        errors.push(
-          ...zodError.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-          })),
-        );
+        const formattedErrors = zodError.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+        }));
+
+        message = formattedErrors[0]?.message ?? 'Validation failed';
+        errors.push(...formattedErrors);
       } else {
         message = 'Invalid request data';
       }

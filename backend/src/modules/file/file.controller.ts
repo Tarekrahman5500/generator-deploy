@@ -10,6 +10,7 @@ import {
   Delete,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
@@ -77,9 +78,9 @@ export class FileController {
     });
   }
 
-  @Delete(':id')
-  async deleteFile(@Param() params: FileIdParamDto) {
-    await this.fileService.deleteFileById(params.id);
+  @Delete()
+  async deleteFile(@Query() params: FileIdParamDto) {
+    await this.fileService.deleteFileById(params);
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { message: 'File deleted successfully' },

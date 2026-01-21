@@ -16,6 +16,7 @@ export type UploadFileResponse = z.infer<typeof uploadFileResponseSchema>;
 // Query schema (for retrieving files by ID)
 export const fileIdParamSchema = z.object({
   id: z.uuid(),
+  productId: z.uuid({ message: 'Product ID must be a valid UUID ' }).optional(),
 });
 
 export type FileIdParam = z.infer<typeof fileIdParamSchema>;

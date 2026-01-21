@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { FieldCreateDto, FieldUpdateDto, GroupFieldsDto } from '../dto';
 import {
   FieldEntity,
@@ -8,6 +12,7 @@ import {
   ProductValueEntity,
 } from 'src/entities/product';
 import { GroupEntity } from 'src/entities/product/group.entity';
+import { ProductFieldHelperService } from 'src/modules/product/service/product-field.helper.service';
 
 @Injectable()
 export class FieldService {
@@ -16,30 +21,112 @@ export class FieldService {
     private readonly fieldRepository: Repository<FieldEntity>,
     @InjectRepository(GroupEntity)
     private readonly groupRepository: Repository<GroupEntity>,
+    private readonly dataSource: DataSource,
+    private readonly productFieldHelperService: ProductFieldHelperService,
   ) {}
 
   // ------------------------------------------------------------
   // Create Field
   // ------------------------------------------------------------
-  async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
-    const { id, ...fieldData } = createFieldDto;
+  // async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
+  //   const { id, ...fieldData } = createFieldDto;
 
-    // Check if group exists
+  //   // Check if group exists
+  //   const group = await this.groupRepository.findOne({
+  //     where: { id },
+  //   });
+  //   if (!group) {
+  //     throw new NotFoundException('Group not found');
+  //   }
+
+  //   const field = this.fieldRepository.create({
+  //     ...fieldData,
+  //     group,
+  //   });
+
+  //   return this.fieldRepository.save(field);
+  // }
+
+  async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
+    const { id: groupId, fieldName, serialNo, filter, order } = createFieldDto;
+
+    // 1️⃣ PRE-TRANSACTION: GET operations
     const group = await this.groupRepository.findOne({
-      where: { id },
+      where: { id: groupId },
+      relations: {
+        category: true,
+      },
     });
-    if (!group) {
-      throw new NotFoundException('Group not found');
+    if (!group) throw new NotFoundException('Group not found');
+
+    const categoryId = group?.category?.id;
+
+    // Check if field name already exists in this group
+    const nameExists = await this.fieldRepository.findOne({
+      where: { fieldName, group: { id: groupId } },
+    });
+    if (nameExists) {
+      throw new ConflictException(
+        `Field ${fieldName} already exists in this group`,
+      );
     }
 
-    const field = this.fieldRepository.create({
-      ...fieldData,
-      group,
+    // Get MAX serial if no serialNo is provided
+    const maxSerialObj = await this.fieldRepository
+      .createQueryBuilder('f')
+      .where('f.group_id = :groupId', { groupId })
+      .select('MAX(f.serial_no)', 'max')
+      .getRawOne();
+    const nextSerial = (Number(maxSerialObj?.max) || 0) + 1;
+
+    // 2️⃣ START TRANSACTION: WRITE operations
+    return this.dataSource.transaction(async (manager) => {
+      let finalSerial: number;
+      // get all product ids in this category
+      const productsIds =
+        await this.productFieldHelperService.getProductIdsByCategoryId(
+          categoryId,
+          manager,
+        );
+
+      if (serialNo !== undefined && serialNo !== null) {
+        // SHIFT LOGIC: Move existing fields in this group up by 1
+        await manager
+          .createQueryBuilder()
+          .update(FieldEntity)
+          .set({ serialNo: () => 'serial_no + 1' })
+          .where('group_id = :groupId AND serial_no >= :serialNo', {
+            groupId,
+            serialNo,
+          })
+          .orderBy('serial_no', 'DESC') // Clear path from top down
+          .execute();
+
+        finalSerial = serialNo;
+      } else {
+        finalSerial = nextSerial;
+      }
+
+      // 3️⃣ CREATE & SAVE
+      const field = manager.create(FieldEntity, {
+        fieldName,
+        serialNo: finalSerial,
+        filter,
+        order,
+        group,
+      });
+
+      const response = await manager.save(FieldEntity, field);
+      // After field is created, create product values for all products in this category
+      await this.productFieldHelperService.ensureProductValuesExist(
+        productsIds,
+        [response.id],
+        manager,
+      );
+
+      return response;
     });
-
-    return this.fieldRepository.save(field);
   }
-
   // ------------------------------------------------------------
   // Find All Fields
   // ------------------------------------------------------------
@@ -62,27 +149,146 @@ export class FieldService {
   // ------------------------------------------------------------
   // Update Field
   // ------------------------------------------------------------
-  async updateField(fieldDto: FieldUpdateDto): Promise<FieldEntity> {
-    const { id, groupId, fieldName } = fieldDto;
+  // async updateField(fieldDto: FieldUpdateDto): Promise<FieldEntity> {
+  //   const { id, groupId, fieldName } = fieldDto;
 
+  //   const field = await this.fieldRepository.findOne({
+  //     where: { id },
+  //     relations: ['group'],
+  //   });
+  //   if (!field) throw new NotFoundException('Field not found');
+
+  //   // Update group if provided
+  //   if (groupId) {
+  //     const group = await this.groupRepository.findOne({
+  //       where: { id: groupId },
+  //     });
+  //     if (!group) throw new NotFoundException('Group not found');
+  //     field.group = group;
+  //   }
+
+  //   if (fieldName) field.fieldName = fieldName;
+
+  //   return this.fieldRepository.save(field);
+  // }
+
+  async updateField(fieldDto: FieldUpdateDto): Promise<FieldEntity> {
+    const {
+      id,
+      groupId,
+      fieldName,
+      serialNo,
+      order = false,
+      filter = false,
+    } = fieldDto;
+
+    // 1️⃣ PRE-TRANSACTION: Fetch current state
     const field = await this.fieldRepository.findOne({
       where: { id },
       relations: ['group'],
     });
     if (!field) throw new NotFoundException('Field not found');
 
-    // Update group if provided
-    if (groupId) {
-      const group = await this.groupRepository.findOne({
+    const oldGroupId = field.group.id;
+    const targetGroupId = groupId || oldGroupId;
+    const oldSerial = field.serialNo;
+
+    // Validate target group if changing
+    let targetGroup = field.group;
+    if (groupId && groupId !== oldGroupId) {
+      const groupExists = await this.groupRepository.findOne({
         where: { id: groupId },
       });
-      if (!group) throw new NotFoundException('Group not found');
-      field.group = group;
+      if (!groupExists) throw new NotFoundException('Target Group not found');
+      targetGroup = groupExists;
     }
 
-    if (fieldName) field.fieldName = fieldName;
+    // 2️⃣ START TRANSACTION: Handle Serial Shifting
+    return this.dataSource.transaction(async (manager) => {
+      if (
+        typeof serialNo === 'number' &&
+        (serialNo !== oldSerial || targetGroupId !== oldGroupId)
+      ) {
+        // Step A: Set current field to a temp value to free up its current serialNo
+        await manager.update(FieldEntity, id, { serialNo: -1 });
 
-    return this.fieldRepository.save(field);
+        // Step B: Logic for same group movement
+        if (targetGroupId === oldGroupId) {
+          if (serialNo !== oldSerial) {
+            if (serialNo < oldSerial) {
+              // Moving Up: Shift others between new and old DOWN (+1)
+              await manager
+                .createQueryBuilder()
+                .update(FieldEntity)
+                .set({ serialNo: () => 'serial_no + 1' })
+                .where(
+                  'group_id = :gId AND serial_no >= :newS AND serial_no < :oldS AND id != :id',
+                  { gId: oldGroupId, newS: serialNo, oldS: oldSerial, id },
+                )
+                .orderBy('serial_no', 'DESC')
+                .execute();
+            } else {
+              // Moving Down: Shift others between old and new UP (-1)
+              await manager
+                .createQueryBuilder()
+                .update(FieldEntity)
+                .set({ serialNo: () => 'serial_no - 1' })
+                .where(
+                  'group_id = :gId AND serial_no <= :newS AND serial_no > :oldS AND id != :id',
+                  { gId: oldGroupId, newS: serialNo, oldS: oldSerial, id },
+                )
+                .orderBy('serial_no', 'ASC')
+                .execute();
+            }
+          }
+        }
+        // Step C: Logic for cross-group movement
+        else {
+          // 1. Close the gap in the OLD group
+          await manager
+            .createQueryBuilder()
+            .update(FieldEntity)
+            .set({ serialNo: () => 'serial_no - 1' })
+            .where('group_id = :oldGId AND serial_no > :oldS', {
+              oldGId: oldGroupId,
+              oldS: oldSerial,
+            })
+            .orderBy('serial_no', 'ASC')
+            .execute();
+
+          // 2. Open space in the NEW group
+          await manager
+            .createQueryBuilder()
+            .update(FieldEntity)
+            .set({ serialNo: () => 'serial_no + 1' })
+            .where('group_id = :newGId AND serial_no >= :newS', {
+              newGId: targetGroupId,
+              newS: serialNo,
+            })
+            .orderBy('serial_no', 'DESC')
+            .execute();
+        }
+
+        field.serialNo = serialNo;
+      }
+
+      if (order === true) {
+        await manager.update(
+          FieldEntity,
+          { group: { id: targetGroupId } },
+          { order: false },
+        );
+      }
+
+      // Update remaining scalars
+      if (fieldName) field.fieldName = fieldName;
+      field.group = targetGroup;
+
+      field.filter = filter;
+      field.order = order;
+      // 3️⃣ FINAL SAVE
+      return manager.save(FieldEntity, field);
+    });
   }
 
   // ------------------------------------------------------------
