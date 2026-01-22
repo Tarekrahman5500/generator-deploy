@@ -36,13 +36,11 @@ export const productSchema = z.object({
     .array(productValueSchema)
     .min(1, 'At least one product information entry is required'),
 
-  fileIds: z
-    .array(
-      z.uuidv4({
-        message: 'Invalid file ID format',
-      }),
-    )
-    .min(1, 'At least one file must be selected'),
+  fileIds: z.array(
+    z.uuidv4({
+      message: 'Invalid file ID format',
+    }),
+  ),
 });
 
 export const createProductSchema = productSchema.omit({ id: true });

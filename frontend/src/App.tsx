@@ -135,7 +135,6 @@ const App = () => {
             <Route path="cms-management" element={<BackgroundManagement />} />
             <Route path="email-config" element={<EmailConfig />} />
           </Route>
-
           <Route path="*" element={<NotFound />} />
         </Routes>
 

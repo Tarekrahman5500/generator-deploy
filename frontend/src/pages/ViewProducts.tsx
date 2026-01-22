@@ -78,7 +78,7 @@ const ViewProducts = () => {
   const [meta, setMeta] = useState<Meta | null>(null);
   const fetchCategoryProducts = async (
     page = 1,
-    limit = 10
+    limit = 10,
   ): Promise<CategoryProductsResponse> => {
     const url = new URL(`${import.meta.env.VITE_API_URL}/category/products`);
 
@@ -108,6 +108,20 @@ const ViewProducts = () => {
 
     loadProducts();
   }, [currentPage]);
+  const handleRefresh = async () => {
+    try {
+      setLoading(true); // Show loading state
+      const data = await fetchCategoryProducts(currentPage, 10);
+
+      // 2. IMPORTANT: You MUST update the state here
+      setProducts(data.category.products);
+      setMeta(data.category.meta);
+    } catch (error) {
+      console.error("Refresh failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -126,6 +140,7 @@ const ViewProducts = () => {
           products={products}
           meta={{ ...meta, page: currentPage }}
           onPageChange={handlePageChange}
+          onRefresh={handleRefresh} // <--- Add this prop
         />
       </main>
     </div>

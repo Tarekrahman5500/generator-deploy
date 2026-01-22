@@ -48,7 +48,7 @@ const Login = () => {
               borderRadius: "10px",
               padding: "12px 16px",
             },
-          }
+          },
         );
         return;
       }
@@ -93,7 +93,7 @@ const Login = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ const Login = () => {
         <div className="w-full max-w-md space-y-8">
           {/* Logo and Brand */}
           <div className="flex items-center gap-3">
-            <Link to="/">
+            <Link to="/home">
               <img
                 src={marexis}
                 style={{ height: "50%", width: "50%", cursor: "pointer" }}

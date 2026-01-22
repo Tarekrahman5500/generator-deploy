@@ -55,7 +55,7 @@ export default function ProductsAdd() {
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>(""); // store ID
   const navigate = useNavigate();
   const filteredGroups = groups.filter((group) =>
-    group.groupName.toLowerCase().includes(searchQuery.toLowerCase())
+    group.groupName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
   useEffect(() => {
     const fetchCategories = async () => {
@@ -94,7 +94,7 @@ export default function ProductsAdd() {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
       if (res.status === 401) {
         secureStorage.clear();
@@ -150,7 +150,7 @@ export default function ProductsAdd() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
       if (res.status === 401) {
         secureStorage.clear();
@@ -184,7 +184,7 @@ export default function ProductsAdd() {
     setIsFormOpen(true);
     fetchGroups();
   };
-
+  console.log(selectedGroup);
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -242,6 +242,7 @@ export default function ProductsAdd() {
 
             {/* Table */}
             <ProductGroupsTable
+              serialNo={selectedGroup?.serialNo}
               categoryId={selectedCategoryId}
               groups={groups}
               onViewDetails={handleViewDetails}

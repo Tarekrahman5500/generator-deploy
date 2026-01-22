@@ -159,7 +159,7 @@ export class CategoryService {
     // Validate files
     const files = await this.fileService.getFileByIds(fileIds);
     if (!files || files.length !== fileIds.length) {
-      throw new NotFoundException('One or more files not found');
+      throw new NotFoundException('At least one file is required');
     }
 
     return this.dataSource.transaction(

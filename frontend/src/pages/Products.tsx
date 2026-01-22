@@ -28,8 +28,9 @@ import {
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import GeneratorFilterCard from "./ProductFilter";
-import { set } from "date-fns";
-import { AnyMxRecord } from "node:dns";
+
+import { useNavigate } from "react-router-dom";
+
 // Interfaces for your API data
 interface File {
   url: string;
@@ -63,23 +64,34 @@ export interface CategoryResponse {
   statusCode: number;
   categories: Category[];
 }
+
 const Products = () => {
   const location = useLocation();
+
+  // 1. Data States
   const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [filterValues, setFilterValues] = useState<any>({});
-  const [isFilterActive, setIsFilterActive] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
-  const [filterLoading, setFilterLoading] = useState(false);
-  // Filter States
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    location.state?.category?.categoryName || null
-  );
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
-    []
+  const [filterValues, setFilterValues] = useState<any>({});
+  const [activeFilterPayload, setActiveFilterPayload] = useState<any | null>(
+    null,
   );
 
+  // 2. Loading & UI States
+  const [loading, setLoading] = useState(true); // Initial category fetch
+  const [filterLoading, setFilterLoading] = useState(false); // Product/Filter fetch
+  const [isFilterActive, setIsFilterActive] = useState(false);
+
+  // 3. Selection & Pagination States
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    location.state?.category?.categoryName || null,
+  );
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
+    [],
+  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [meta, setMeta] = useState({ totalPages: 1, total: 0, page: 1 });
+
+  // Fetch initial Category List (once)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -88,104 +100,185 @@ const Products = () => {
         const json = await res.json();
         setCategories(json.categories || []);
       } catch (err) {
-        setError(true);
+        console.error("Category fetch error", err);
       } finally {
         setLoading(false);
       }
     };
     fetchCategories();
   }, []);
-  // NEW: Fetch Filter Schema when Category is selected
+
+  // MAIN SYNC: Fetch Products and Filter Schema whenever Category or Page changes
   useEffect(() => {
-    const fetchFilterSchemaAndProducts = async () => {
-      if (!selectedCategory) {
-        setFilterValues({});
-        setFilteredProducts([]);
-        setIsFilterActive(false);
-        return;
-      }
+    if (!categories.length) return;
 
-      const catId = categories.find(
-        (c) => c.categoryName === selectedCategory
-      )?.id;
-      if (!catId) return;
+    const catId = categories.find(
+      (c) => c.categoryName === selectedCategory,
+    )?.id;
 
-      // --- RESET STEP ---
-      // Clear old products and filters immediately so the user doesn't see a mismatch
-      setFilteredProducts([]);
-      setIsFilterActive(false); // Go back to CategorySection view or show a loader
-      setFilterValues({});
-
+    const fetchByCategory = async () => {
       try {
         setFilterLoading(true);
 
-        // 1. Fetch both the new Schema and the first page of products for this category
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/search/filter`,
+          `${import.meta.env.VITE_API_URL}/search/product`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              categoryId: catId,
+              categoryId: catId || undefined,
               page: 1,
-              limit: 10, // Initial load for the new category
+              limit: 10,
             }),
-          }
+          },
         );
 
         const json = await res.json();
 
-        // 2. Update both states with the clean data from the NEW category
-        setFilterValues(json?.filterValues || {});
-        // If you want the filtered view to show immediately:
-        // setFilteredProducts(json?.products || []);
-        // setIsFilterActive(true);
+        setFilteredProducts(json?.products?.length > 0 ? json?.products : []);
+        setFilterValues(json?.filterValues || {}); // ✅ ONLY HERE
+        setCurrentPage(1);
+
+        setMeta({
+          totalPages: json?.meta?.totalPages || 1,
+          total: json?.meta?.total || 0,
+          page: json?.meta?.page || 1,
+        });
+
+        setIsFilterActive(!!selectedCategory);
       } catch (err) {
-        console.error("Sync error:", err);
+        console.error(err);
       } finally {
         setFilterLoading(false);
       }
     };
 
-    fetchFilterSchemaAndProducts();
+    fetchByCategory();
   }, [selectedCategory, categories]);
 
-  // Find current ID safely
-  const currentCategoryId = useMemo(
-    () => categories.find((c) => c.categoryName === selectedCategory)?.id,
-    [categories, selectedCategory]
-  );
-  // 1. Get unique Sub-Categories for the selected Category
-  const availableSubCategories = useMemo(() => {
-    if (!selectedCategory) return [];
-    const cat = categories.find((c) => c.categoryName === selectedCategory);
-    if (!cat || !cat.products) return [];
+  useEffect(() => {
+    if (!categories.length) return;
 
-    // Extract unique subCategoryNames from the products in this category
-    const subs = cat.products
-      .map((p: any) => p.subCategory?.subCategoryName)
+    const fetchPage = async () => {
+      try {
+        // ✅ FILTER MODE
+        if (isFilterActive && activeFilterPayload) {
+          const res = await fetch(
+            `${import.meta.env.VITE_API_URL}/search/filter`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...activeFilterPayload,
+                page: currentPage,
+              }),
+            },
+          );
+
+          const json = await res.json();
+
+          setFilteredProducts(json?.products || []);
+
+          setMeta({
+            totalPages: json?.meta?.totalPages || 1,
+            total: json?.meta?.total || 0,
+            page: json?.meta?.page || currentPage,
+          });
+        }
+
+        // ✅ NORMAL MODE
+        else {
+          const catId = categories.find(
+            (c) => c.categoryName === selectedCategory,
+          )?.id;
+
+          const res = await fetch(
+            `${import.meta.env.VITE_API_URL}/search/product`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                categoryId: catId || undefined,
+                page: currentPage,
+                limit: 10,
+              }),
+            },
+          );
+
+          const json = await res.json();
+
+          setFilteredProducts(json?.products || []);
+
+          setMeta({
+            totalPages: json?.meta?.totalPages || 1,
+            total: json?.meta?.total || 0,
+            page: json?.meta?.page || currentPage,
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchPage();
+  }, [currentPage, isFilterActive, activeFilterPayload]);
+
+  // Derived State: Grouping products by Category Name
+  const groupedResults = useMemo(() => {
+    // Apply Sub-Category filtering locally if checkboxes are checked
+    const visibleProducts =
+      selectedSubCategories.length > 0
+        ? filteredProducts.filter((p) =>
+            selectedSubCategories.includes(p.subCategory?.subCategoryName),
+          )
+        : filteredProducts;
+
+    return visibleProducts.reduce((acc: Record<string, any[]>, product) => {
+      const catName = product.category?.categoryName || "Industrial Equipment";
+      if (!acc[catName]) acc[catName] = [];
+      acc[catName].push(product);
+      return acc;
+    }, {});
+  }, [filteredProducts, selectedSubCategories]);
+
+  // Derived State: Get unique subcategories for the sidebar based on current products
+  const availableSubCategories = useMemo(() => {
+    const subs = filteredProducts
+      .map((p) => p.subCategory?.subCategoryName)
       .filter(Boolean);
     return [...new Set(subs)] as string[];
-  }, [selectedCategory, categories]);
+  }, [filteredProducts]);
 
-  // 2. Filter Logic
-  const filteredData = useMemo(() => {
-    let result = categories;
+  const currentCategoryId = useMemo(
+    () => categories.find((c) => c.categoryName === selectedCategory)?.id,
+    [categories, selectedCategory],
+  );
+  const navigate = useNavigate();
 
-    // Filter by Category
-    if (selectedCategory) {
-      result = result.filter((c) => c.categoryName === selectedCategory);
-    }
+  if (isFilterActive && filteredProducts.length === 0) {
+    return (
+      <div className="grid grid-cols-1">
+        <div className="col-span-full flex flex-col items-center py-20">
+          <p>No products matched your filters</p>
+          <Button
+            variant="link"
+            onClick={() => {
+              setIsFilterActive(false);
+              navigate("/products");
+            }}
+          >
+            View All
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-    // Note: Sub-category filtering happens inside the CategorySection
-    // or by passing the array down
-    return result;
-  }, [categories, selectedCategory]);
   return (
     <div className="min-h-screen bg-[#f6f7f8] dark:bg-[#101922]">
       <main className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-          {/* Filters Sidebar */}
+          {/* Sidebar */}
           <aside className="lg:col-span-1">
             <div className="sticky top-28 bg-white dark:bg-[#182129] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex justify-between items-center mb-6">
@@ -195,6 +288,7 @@ const Products = () => {
                     setSelectedCategory(null);
                     setSelectedSubCategories([]);
                     setIsFilterActive(false);
+                    setCurrentPage(1);
                   }}
                   className="text-xs text-[#163859] font-bold hover:underline"
                 >
@@ -203,7 +297,9 @@ const Products = () => {
               </div>
 
               <div className="space-y-6">
-                {/* Main Category Filter (Radio-like behavior) */}
+                {/* Inside the sidebar space-y-6 div */}
+
+                {/* 1. Main Category Selector */}
                 <FilterGroup
                   title="Categories"
                   type="radio"
@@ -211,98 +307,102 @@ const Products = () => {
                   selected={selectedCategory}
                   onChange={(val: any) => {
                     setSelectedCategory(val);
-                    setSelectedSubCategories([]); // Reset subs when main cat changes
+                    setSelectedSubCategories([]);
+                    setCurrentPage(1);
                   }}
                 />
-                {selectedCategory && (
-                  <GeneratorFilterCard
-                    filters={filterValues}
-                    loading={filterLoading} // Use the specific filter loader
-                    categoryId={currentCategoryId}
-                    setProducts={setFilteredProducts}
-                    setIsFilterActive={setIsFilterActive}
-                  />
-                )}
-                {/* Dynamic Sub-Category Filter */}
-                {selectedCategory && availableSubCategories.length > 0 && (
+
+                {/* 2. Dynamic Generator Filters (The one causing the issue) */}
+
+                {/* 3. Sub-Category Checkboxes */}
+                {availableSubCategories.length > 0 && (
                   <FilterGroup
                     title="Sub-Categories"
                     type="checkbox"
                     items={availableSubCategories}
                     selected={selectedSubCategories}
-                    onChange={(val) => {
-                      if (Array.isArray(selectedSubCategories)) {
-                        setSelectedSubCategories((prev) =>
-                          prev.includes(val)
-                            ? prev.filter((i) => i !== val)
-                            : [...prev, val]
-                        );
-                      }
+                    onChange={(val: string) => {
+                      setSelectedSubCategories((prev) =>
+                        prev.includes(val)
+                          ? prev.filter((i) => i !== val)
+                          : [...prev, val],
+                      );
                     }}
                   />
                 )}
+
+                <GeneratorFilterCard
+                  // This is the filterValues we got from /search/product
+                  setFilterValues={setFilterValues}
+                  filters={filterValues}
+                  loading={filterLoading}
+                  categoryId={currentCategoryId}
+                  setProducts={setFilteredProducts}
+                  setIsFilterActive={setIsFilterActive}
+                  setCurrentPage={setCurrentPage}
+                  setActiveFilterPayload={setActiveFilterPayload}
+                />
               </div>
             </div>
           </aside>
 
           {/* Main Content Area */}
-          {/* Main Content Area */}
           <div className="lg:col-span-3">
-            {loading ? (
-              <Skeleton className="w-full h-[500px]" />
-            ) : isFilterActive ? (
-              // THIS SECTION SHOWS WHEN GeneratorFilterCard TRIGGERS success
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="flex justify-between items-end border-b border-gray-100 pb-4">
-                  <div>
-                    <h2 className="text-2xl font-black text-[#163859] italic uppercase">
-                      Filtered Results
-                    </h2>
-                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-wider">
-                      {filteredProducts.length} Products Found
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsFilterActive(false)}
-                    className="text-xs font-bold text-[#163859]"
-                  >
-                    BACK TO CATEGORIES
-                  </Button>
-                </div>
+            {filterLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 6].map((i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-12">
+                {Object.entries(groupedResults).map(
+                  ([catName, products]: [string, any[]]) => (
+                    <div key={catName} className="space-y-6">
+                      <div className="flex items-center justify-between border-b pb-4">
+                        <h2 className="text-2xl font-black text-[#163859] italic uppercase">
+                          {catName}
+                        </h2>
+                        <span className="text-xs font-bold text-muted-foreground">
+                          {products.length} Items
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {
+                          // ✅ NORMAL RENDERING
+                          products.map((product: any) => (
+                            <ProductCard key={product.id} product={product} />
+                          ))
+                        }
+                      </div>
+                    </div>
+                  ),
+                )}
 
-                {filteredProducts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-20 text-center bg-white rounded-xl border border-dashed">
-                    <p className="text-gray-400 font-medium">
-                      No products match your specific filters.
-                    </p>
+                {/* Global Pagination */}
+                {meta.totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 mt-12">
                     <Button
-                      variant="link"
-                      onClick={() => setIsFilterActive(false)}
-                      className="text-[#163859] mt-2"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => prev - 1)}
+                      className="text-white font-bold rounded-full bg-[#163859] h-3 w-3 p-5 hover:bg-[#163859] hover:text-white"
                     >
-                      Clear filters and try again
+                      <ChevronLeft className="h-4 w-4 mr-1 text-center font-bold" />
+                    </Button>
+                    <span className="text-sm font-bold">
+                      Page {currentPage} of {meta.totalPages}
+                    </span>
+                    <Button
+                      disabled={currentPage === meta.totalPages}
+                      // Change this line below:
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
+                      className="text-white font-bold rounded-full bg-[#163859] h-3 w-3 p-5 hover:bg-[#163859] hover:text-white"
+                    >
+                      <ChevronRight className="h-4 w-4 ml-1 text-center font-bold" />
                     </Button>
                   </div>
                 )}
               </div>
-            ) : (
-              // DEFAULT VIEW
-              filteredData.map((category) => (
-                <CategorySection
-                  key={category.id}
-                  category={category}
-                  activeSubFilters={selectedSubCategories}
-                  setFilterValues={setFilterValues}
-                />
-              ))
             )}
           </div>
         </div>
@@ -310,181 +410,13 @@ const Products = () => {
     </div>
   );
 };
-const CategorySection = ({
-  category,
-  activeSubFilters,
-  setFilterValues,
-}: {
-  category: any;
-  activeSubFilters: string[];
-  setFilterValues: React.Dispatch<React.SetStateAction<AnyMxRecord>>;
-}) => {
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [meta, setMeta] = useState({ totalPages: 1, total: 0 });
-  const PAGE_LIMIT = 10; // Your requested perPage limit
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        // Using the page and limit parameters from state
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/search/filter`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              categoryId: category.id,
-              page: currentPage,
-              limit: PAGE_LIMIT,
-            }),
-          }
-        );
-        const json = await res.json();
-
-        setProducts(json?.products || []);
-        // setFilterValues(json?.filterValues || {});
-
-        setMeta({
-          totalPages: json?.meta?.totalPages || 1,
-          total: json?.meta?.total || 0,
-        });
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, [category.id, currentPage]); // Re-fetch when page changes
-
-  // Group products by subCategoryName
-  const groupedProducts = useMemo(() => {
-    const filtered =
-      activeSubFilters.length > 0
-        ? products.filter((p) =>
-            activeSubFilters.includes(p.subCategory?.subCategoryName)
-          )
-        : products;
-
-    return filtered.reduce((acc: Record<string, any[]>, product) => {
-      // 1. Get the subcategory name
-      const subName =
-        product.subCategory?.subCategoryName || "General Equipment";
-
-      // 2. Corrected Logic: If the key doesn't exist, create it as an empty array
-      if (!acc[subName]) {
-        acc[subName] = [];
-      }
-
-      // 3. Push the product into that array
-      acc[subName].push(product);
-
-      return acc;
-    }, {});
-  }, [products, activeSubFilters]);
-
-  if (!loading && products.length === 0 && activeSubFilters.length === 0)
-    return null;
-
-  return (
-    <div className="mb-24 pb-12 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      {/* Category Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
-        <div>
-          <h2 className="text-3xl font-black text-[#163859] dark:text-white uppercase italic tracking-tighter">
-            {category.categoryName}
-          </h2>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
-            Total Results: {meta.total}
-          </p>
-        </div>
-        <div className="h-[2px] hidden md:block flex-1 mx-8 bg-gradient-to-r from-[#163859]/10 to-transparent"></div>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((n) => (
-            <ProductCardSkeleton key={n} />
-          ))}
-        </div>
-      ) : (
-        <>
-          {Object.entries(groupedProducts).map(
-            ([subName, subProducts]: [string, any]) => (
-              <div key={subName} className="mb-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="bg-[#163859] text-white text-[10px] font-black px-3 py-1 uppercase tracking-tighter">
-                    {subName}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {subProducts.map((product: any) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              </div>
-            )
-          )}
-
-          {/* Pagination Controls */}
-          {meta.totalPages > 1 && (
-            <div className="flex justify-center items-center gap-4 mt-12">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-                className="border-[#163859] text-[#163859] font-bold hover:bg-[#163859] hover:text-white transition-all"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> PREV
-              </Button>
-
-              <div className="flex items-center gap-2">
-                {[...Array(meta.totalPages)].map((_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded text-xs font-bold transition-colors ${
-                      currentPage === i + 1
-                        ? "bg-[#163859] text-white"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === meta.totalPages}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-                className="border-[#163859] text-[#163859] font-bold hover:bg-[#163859] hover:text-white transition-all"
-              >
-                NEXT <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
 export const ProductCard = ({ product }: { product: any }) => {
   const handleCompare = () => {
     // 1. Get existing data from localStorage
     const compareData = JSON.parse(
       localStorage.getItem("compare") ||
-        '{"productIds": [], "product": [], "productCategories": []}'
+        '{"productIds": [], "product": [], "productCategories": []}',
     );
 
     const {
@@ -511,7 +443,7 @@ export const ProductCard = ({ product }: { product: any }) => {
       productCategories[0] !== product.category?.categoryName
     ) {
       toast.warning(
-        "Please select products from the same category to compare."
+        "Please select products from the same category to compare.",
       );
       return;
     }
@@ -536,18 +468,20 @@ export const ProductCard = ({ product }: { product: any }) => {
       style: { background: "#163859", color: "#fff" },
     });
   };
+
   const getImageUrl = (path?: string) =>
     path ? `${import.meta.env.VITE_API_URL}/${path}` : "/placeholder.png";
   return (
     <div className="group bg-white dark:bg-[#182129] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 hover:shadow-2xl transition-all duration-300 flex flex-col">
       {/* Image Section */}
+
       <div className="aspect-square relative overflow-hidden bg-gray-50">
         {product.files
           ?.filter(
             (file: any) =>
               file.mimeType === "image/png" ||
               file.mimeType === "image/jpeg" ||
-              file.mimeType === "image/gif"
+              file.mimeType === "image/gif",
           )
           .slice(0, 1) // Ensure we only work with the first valid image found
           .map((image: any) => (

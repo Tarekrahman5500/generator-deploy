@@ -296,20 +296,11 @@ export class SearchService {
       };
     }
 
-    const categoryFields: string[] =
-      category?.groups
-        ?.flatMap((group) => group?.fields ?? [])
-        .map((field) => field?.fieldName) ?? [];
-
-    if (categoryFields.length === 0) {
-      return {
-        products: [],
-        meta: { total: 0, page, limit, totalPages: 0 },
-      };
-    }
     /* --------------------------------
      * 2️⃣ BASE QUERY
      * -------------------------------- */
+
+    //console.log(categoryId);
     const baseQb = this.productRepo
       .createQueryBuilder('product')
       .leftJoin('product.productValues', 'pv')
@@ -467,10 +458,12 @@ export class SearchService {
 
     // console.log('SINGLE PRODUCT SEARCH RESPONSE:', response);
     // 3️⃣ All categories ordered by serialNo
-    const categories = await this.categoryRepo.find({
-      select: ['id', 'categoryName', 'serialNo'],
-      order: { serialNo: 'ASC' },
-    });
+    const categories = dto.categoryId
+      ? [baseCategory]
+      : await this.categoryRepo.find({
+          select: ['id', 'categoryName', 'serialNo'],
+          order: { serialNo: 'ASC' },
+        });
 
     // 4️⃣ Fetch all filters in ONE query
     const rawFilters = await this.productRepo

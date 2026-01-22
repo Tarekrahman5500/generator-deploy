@@ -185,9 +185,13 @@ export class FieldService {
     // 1️⃣ PRE-TRANSACTION: Fetch current state
     const field = await this.fieldRepository.findOne({
       where: { id },
-      relations: ['group'],
+      relations: {
+        group: { category: true },
+      },
     });
     if (!field) throw new NotFoundException('Field not found');
+
+    const categoryId = field?.group?.category?.id;
 
     const oldGroupId = field.group.id;
     const targetGroupId = groupId || oldGroupId;
@@ -272,12 +276,17 @@ export class FieldService {
         field.serialNo = serialNo;
       }
 
-      if (order === true) {
-        await manager.update(
-          FieldEntity,
-          { group: { id: targetGroupId } },
-          { order: false },
-        );
+      if (order) {
+        await manager
+          .createQueryBuilder()
+          .update(FieldEntity)
+          .set({ order: false })
+          .where(
+            'group_id IN (SELECT g.id FROM `group` g WHERE g.category_id = :categoryId)',
+            { categoryId },
+          )
+          .andWhere('`order` = true')
+          .execute();
       }
 
       // Update remaining scalars

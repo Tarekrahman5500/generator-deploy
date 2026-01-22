@@ -106,7 +106,7 @@ const Footer = () => {
 
         <div className="flex flex-col md:flex-row items-center justify-center pt-8 border-t border-navy-foreground/20 m-auto">
           <p className="text-sm text-navy-foreground/80 mb-4 md:mb-0">
-            © 2025 Marexis All rights reserved.
+            © {new Date().getFullYear()} Marexis All rights reserved.
           </p>
         </div>
       </div>

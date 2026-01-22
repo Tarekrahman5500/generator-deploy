@@ -24,10 +24,47 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(false);
   const updateProducts = () => {
     const compareData = JSON.parse(
-      localStorage.getItem("compare") || '{"products": []}'
+      localStorage.getItem("compare") || '{"products": []}',
     );
     setProducts(compareData.products || []);
   };
+  const checkTokenValidity = async () => {
+    const accessToken = secureStorage.get("accessToken");
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/verify-token`,
+        {
+          method: "POST", // Or POST depending on your API
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      const data = await res.json();
+
+      if (data.isValid === false) {
+        // Token is invalid or expired
+        secureStorage.clear();
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      // On network error, decide if you want to clear or keep (usually clear for security)
+      secureStorage.clear();
+      return false;
+    }
+  };
+
+  const verifySync = async () => {
+    const isValid = await checkTokenValidity();
+    return isValid;
+  };
+
   // Debounce the search query with 100ms delay
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -45,15 +82,15 @@ const Navbar = () => {
 
   const handleRemove = (id: string) => {
     const compareData = JSON.parse(
-      localStorage.getItem("compare") || '{"products": [], "productIds": []}'
+      localStorage.getItem("compare") || '{"products": [], "productIds": []}',
     );
 
     const updatedProducts = compareData.products.filter(
-      (p: any) => p.id !== id
+      (p: any) => p.id !== id,
     );
 
     const updatedProductIds = compareData.productIds.filter(
-      (pid: string) => pid !== id
+      (pid: string) => pid !== id,
     );
 
     // 🔥 If nothing left → remove storage completely
@@ -70,7 +107,7 @@ const Navbar = () => {
         ...compareData,
         products: updatedProducts,
         productIds: updatedProductIds,
-      })
+      }),
     );
 
     updateProducts();
@@ -85,7 +122,7 @@ const Navbar = () => {
       setIsLoading(true);
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/search?q=${encodeURIComponent(query)}`
+        `${import.meta.env.VITE_API_URL}/search?q=${encodeURIComponent(query)}`,
       );
 
       if (!res.ok) throw new Error("Search failed");
@@ -252,7 +289,7 @@ const Navbar = () => {
               className="hidden md:inline-flex hover:bg-[#163859]"
             >
               <NavLink
-                to={accessToken ? "/dashboard" : "/login"}
+                to={verifySync() ? "/dashboard" : "/login"}
                 className="bg-inherit"
               >
                 Login
@@ -357,9 +394,12 @@ const Navbar = () => {
 
                   <CustomTranslate />
 
-
                   <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
-                    <Button asChild size="sm" className="md:inline-flex bg-[#163859] hover:bg-[#163859]">
+                    <Button
+                      asChild
+                      size="sm"
+                      className="md:inline-flex bg-[#163859] hover:bg-[#163859]"
+                    >
                       <Link to={products.length > 0 ? "/compare" : "#"}>
                         <>
                           <GitCompare />

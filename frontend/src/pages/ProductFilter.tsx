@@ -1,37 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-
-// Types
-export type RangeFilter = {
-  min: number;
-  max: number;
-  value: [number, number];
-};
-
-export type ValueFilter = {
-  values: string[];
-};
-
-export type Filters = Record<string, RangeFilter | ValueFilter>;
-type GeneratorFilterCardProps = {
-  filters: any;
-  setProducts: React.Dispatch<React.SetStateAction<any[]>>; // Type for useState setter
-  loading?: boolean;
-  categoryId: string;
-  subCategory: string[];
-};
 
 export default function GeneratorFilterCard({
   filters,
@@ -39,168 +13,251 @@ export default function GeneratorFilterCard({
   categoryId,
   setProducts,
   setIsFilterActive,
+  setCurrentPage,
+  setActiveFilterPayload,
 }: any) {
-  // 1. Local states for all filter types
   const [selectedValues, setSelectedValues] = useState<
     Record<string, string[]>
   >({});
   const [ranges, setRanges] = useState<Record<string, [number, number]>>({});
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>(
+    {},
+  );
+
   useEffect(() => {
     setSelectedValues({});
     setRanges({});
   }, [categoryId]);
-  // Initialize ranges if not set
+
+  // Initialize range values from backend
   useEffect(() => {
-    const initialRanges: any = {};
-    Object.entries(filters).forEach(([key, value]: any) => {
-      if (value.min !== undefined && value.max !== undefined) {
-        initialRanges[key] = [value.min, value.max];
-      }
+    const initialRanges: Record<string, [number, number]> = {};
+
+    Object.values(filters).forEach((filter: any) => {
+      if (!filter.values) return;
+
+      Object.values(filter.values).forEach((field: any) => {
+        if (
+          field.type === "range" &&
+          typeof field.min === "number" &&
+          typeof field.max === "number" &&
+          field.max > field.min
+        ) {
+          initialRanges[field.fieldId] = [field.min, field.max];
+        }
+      });
     });
+
     setRanges(initialRanges);
   }, [filters]);
 
-  const toggleValue = (key: string, value: string) => {
+  const toggleExpand = (fieldName: string) => {
+    setExpandedFields((prev) => ({ ...prev, [fieldName]: !prev[fieldName] }));
+  };
+
+  const toggleValue = (fieldName: string, value: string) => {
     setSelectedValues((prev) => {
-      const current = prev[key] || [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      return { ...prev, [key]: updated };
+      const current = prev[fieldName] || [];
+      if (fieldName.toLowerCase() === "model") {
+        return current.includes(value)
+          ? { ...prev, [fieldName]: current.filter((v) => v !== value) }
+          : { ...prev, [fieldName]: [...current, value] };
+      }
+      return current.includes(value)
+        ? { ...prev, [fieldName]: [] }
+        : { ...prev, [fieldName]: [value] };
     });
   };
 
   const handleApplyFilters = async () => {
+    if (!categoryId) return toast.error("Please select a category");
+
     try {
-      // 2. Construct the Request Body
       const requestBody: any = {
-        // subCategoryId: subCategory,
         categoryId,
         filters: {},
         page: 1,
         limit: 10,
-        sortBy: "modelName",
-        sortOrder: "ASC",
       };
 
-      Object.entries(filters).forEach(([key, schema]: any) => {
-        // Handle Ranges (PRP and LTP)
-        if (key === "prpRange") {
-          requestBody.prpMin = ranges[key]?.[0] ?? schema.min;
-          requestBody.prpMax = ranges[key]?.[1] ?? schema.max;
-        } else if (key === "ltpRange") {
-          requestBody.ltpMin = ranges[key]?.[0] ?? schema.min;
-          requestBody.ltpMax = ranges[key]?.[1] ?? schema.max;
-        }
-        // Handle Dynamic Field IDs
-        else if (schema.fieldId && selectedValues[key]?.length > 0) {
-          // Assuming API takes the first selected value for a fieldId
-          requestBody.filters[schema.fieldId] = selectedValues[key][0];
-        }
-        // Handle Standard values (like Model)
-        else if (key === "Model" && selectedValues[key]?.length > 0) {
-          requestBody.modelName = selectedValues[key][0];
-        }
+      Object.values(filters).forEach((filter: any) => {
+        if (!filter.values) return;
+
+        Object.entries(filter.values).forEach(
+          ([fieldName, field]: [string, any]) => {
+            // RANGE
+            if (field.type === "range") {
+              const range = ranges[field.fieldId];
+              if (range) {
+                requestBody.filters[field.fieldId] = {
+                  min: range[0],
+                  max: range[1],
+                };
+              }
+            }
+
+            // LIST
+            else if (selectedValues[fieldName]?.length > 0) {
+              requestBody.filters[field.fieldId] =
+                fieldName.toLowerCase() === "model"
+                  ? selectedValues[fieldName]
+                  : selectedValues[fieldName][0];
+            }
+          },
+        );
       });
 
-      // 3. API Call
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/search/filter`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
-        }
+        },
       );
 
       const data = await response.json();
-
-      if (data.statusCode === 200) {
-        setProducts(data.products || []); // Set the response to parent state
-        setIsFilterActive(true);
-        toast.success("Filters applied!");
-      }
-    } catch (error) {
+      setProducts(data?.products || []);
+      setActiveFilterPayload(requestBody); // ✅ STORE PAYLOAD
+      setCurrentPage(1);
+      setIsFilterActive(true);
+      toast.success("Filters applied!");
+    } catch {
       toast.error("Failed to fetch filtered products");
     }
   };
-
-  const renderRange = (label: string, key: string, schema: any) => (
-    <div className="space-y-3 w-full">
-      <h4 className="text-sm font-semibold uppercase text-muted-foreground">
-        {label}
-      </h4>
-      <Slider
-        value={ranges[key] || [schema.min, schema.max]}
-        min={schema.min}
-        max={schema.max}
-        step={1}
-        onValueChange={(val: [number, number]) =>
-          setRanges((prev) => ({ ...prev, [key]: val }))
-        }
-      />
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{ranges[key]?.[0] ?? schema.min} kVA</span>
-        <span>{ranges[key]?.[1] ?? schema.max} kVA</span>
-      </div>
-    </div>
-  );
 
   if (loading) return <Skeleton className="h-[400px] w-full" />;
 
   return (
     <Card className="border-none shadow-none w-full">
-      <CardContent className="space-y-6 bg-white">
-        {Object.entries(filters).map(([key, value]: any) => {
-          // Dynamic Range Detection
-          if (value.min !== undefined && value.max !== undefined) {
-            return <div key={key}>{renderRange(key, key, value)}</div>;
-          }
+      <CardContent className="space-y-6 bg-white p-4">
+        {Object.entries(filters).map(([groupKey, group]: any) => (
+          <div key={groupKey} className="space-y-6">
+            {Object.entries(group.values || {}).map(
+              ([fieldName, field]: [string, any]) => {
+                // ---------- RANGE ----------
+                if (field.type === "range") {
+                  const safeMin = Number(field.min);
+                  const safeMax = Number(field.max);
+                  if (safeMax <= safeMin) return null;
 
-          // Dynamic Values/Field Detection
-          if (value.values) {
-            return (
-              <div key={key} className="space-y-2">
-                <h4 className="text-sm font-semibold uppercase text-muted-foreground">
-                  {key}
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {value.values.map((v: string) => {
-                    const isSelected = selectedValues[key]?.includes(v);
-                    return (
-                      <Badge
-                        key={v}
-                        variant={isSelected ? "default" : "secondary"}
-                        className={`cursor-pointer ${
-                          isSelected ? "bg-[#163859]" : ""
-                        }`}
-                        onClick={() => toggleValue(key, v)}
-                      >
-                        {v}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })}
+                  const sliderValue = ranges[field.fieldId] ?? [
+                    safeMin,
+                    safeMax,
+                  ];
+
+                  const step = Math.max(
+                    Number(((safeMax - safeMin) / 100).toFixed(2)),
+                    0.1,
+                  );
+
+                  return (
+                    <div
+                      key={field.fieldId}
+                      className="space-y-4 border-b pb-6 last:border-0"
+                    >
+                      <h4 className="text-sm font-bold uppercase text-[#163859]">
+                        {fieldName}
+                      </h4>
+
+                      <Slider
+                        value={sliderValue}
+                        min={safeMin}
+                        max={safeMax}
+                        step={step}
+                        onValueChange={(val) =>
+                          setRanges((prev) => ({
+                            ...prev,
+                            [field.fieldId]: val,
+                          }))
+                        }
+                        className="w-full py-4"
+                      />
+
+                      <div className="flex justify-between bg-gray-50 p-2 rounded-md">
+                        <span className="text-xs font-bold">
+                          {sliderValue[0]}
+                        </span>
+                        <span className="text-xs font-bold">
+                          {sliderValue[1]}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ---------- LIST ----------
+                const hasSelection = selectedValues[fieldName]?.length > 0;
+
+                return (
+                  <div key={fieldName} className="space-y-3">
+                    <p className="text-sm font-medium text-gray-500 italic">
+                      {fieldName}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {field.values
+                        ?.slice(0, expandedFields[fieldName] ? undefined : 5)
+                        .map((v: string) => {
+                          const isSelected =
+                            selectedValues[fieldName]?.includes(v);
+                          const isDisabled =
+                            fieldName.toLowerCase() !== "model" &&
+                            hasSelection &&
+                            !isSelected;
+
+                          return (
+                            <Badge
+                              key={v}
+                              variant={isSelected ? "default" : "secondary"}
+                              className={`cursor-pointer ${isSelected ? "bg-[#163859]" : ""} ${
+                                isDisabled
+                                  ? "opacity-30 pointer-events-none"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                !isDisabled && toggleValue(fieldName, v)
+                              }
+                            >
+                              {v}
+                            </Badge>
+                          );
+                        })}
+
+                      {field.values?.length > 5 && (
+                        <button
+                          onClick={() => toggleExpand(fieldName)}
+                          className="text-[10px] font-bold text-[#163859]"
+                        >
+                          {expandedFields[fieldName]
+                            ? "SHOW LESS"
+                            : `+${field.values.length - 5} MORE`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              },
+            )}
+          </div>
+        ))}
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-3">
-        <Button
-          onClick={handleApplyFilters}
-          className="w-full bg-[#163859] hover:bg-[#0d233a]"
-        >
+      <CardFooter className="flex flex-col gap-3 p-4">
+        <Button onClick={handleApplyFilters} className="w-full bg-[#163859]">
           Apply Filters
         </Button>
+
         <Button
           variant="ghost"
-          className="text-xs"
+          className="text-xs w-full"
           onClick={() => {
             setSelectedValues({});
             setRanges({});
+            setCurrentPage(1); // ✅ RESET PAGINATION
+            setIsFilterActive(false); // optional (if you want default view)
+            setActiveFilterPayload(null);
           }}
         >
           Reset All

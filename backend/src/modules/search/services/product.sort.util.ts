@@ -4,34 +4,104 @@ import {
   ProductValueEntity,
 } from 'src/entities/product';
 
+type SortKey =
+  | { kind: 'empty' }
+  | { kind: 'num'; a: number }
+  | { kind: 'pair'; a: number; b: number } // A/B
+  | { kind: 'range'; a: number; b: number } // A-B as (min,max)
+  | { kind: 'str'; s: string };
+
+function parseNumberLoose(input: string): number | null {
+  const normalized = input.trim().replace(/,/g, '');
+  if (!normalized) return null;
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toSortKey(v: any): SortKey {
+  if (v === null || v === undefined) return { kind: 'empty' };
+
+  const sRaw = String(v).trim();
+  if (!sRaw) return { kind: 'empty' };
+
+  // A/B (supports spaces)
+  const slashParts = sRaw.split('/').map((x) => x.trim());
+  if (slashParts.length === 2) {
+    const a = parseNumberLoose(slashParts[0]);
+    const b = parseNumberLoose(slashParts[1]);
+    if (a !== null && b !== null) return { kind: 'pair', a, b };
+  }
+
+  // A-B (range; supports spaces) - also handles 50-30 -> (30,50)
+  const dashParts = sRaw.split('-').map((x) => x.trim());
+  if (dashParts.length === 2) {
+    const x = parseNumberLoose(dashParts[0]);
+    const y = parseNumberLoose(dashParts[1]);
+    if (x !== null && y !== null) {
+      return { kind: 'range', a: Math.min(x, y), b: Math.max(x, y) };
+    }
+  }
+
+  // plain number
+  const n = parseNumberLoose(sRaw);
+  if (n !== null) return { kind: 'num', a: n };
+
+  return { kind: 'str', s: sRaw.toLowerCase() };
+}
+
+function compareSortKeys(a: SortKey, b: SortKey): number {
+  // empty last
+  if (a.kind === 'empty' && b.kind === 'empty') return 0;
+  if (a.kind === 'empty') return 1;
+  if (b.kind === 'empty') return -1;
+
+  // numeric-like before strings (stable rule)
+  const rank = (k: SortKey) => {
+    switch (k.kind) {
+      case 'num':
+        return 0;
+      case 'pair':
+        return 1;
+      case 'range':
+        return 2;
+      case 'str':
+        return 3;
+      default:
+        return 4;
+    }
+  };
+
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
+
+  // same-kind compares
+  if (a.kind === 'num' && b.kind === 'num') return a.a - b.a;
+
+  // pair: sort by first number then second
+  if (a.kind === 'pair' && b.kind === 'pair') {
+    if (a.a !== b.a) return a.a - b.a;
+    return a.b - b.b;
+  }
+
+  // range: sort by min then max
+  if (a.kind === 'range' && b.kind === 'range') {
+    if (a.a !== b.a) return a.a - b.a;
+    return a.b - b.b;
+  }
+
+  if (a.kind === 'str' && b.kind === 'str') return a.s.localeCompare(b.s);
+
+  return 0;
+}
+
 type Product = {
   productValues?: Array<{
     field?: { id: string; order?: boolean };
     value?: string | number | null;
   }>;
 };
-
-function toSortableValue(v: any): {
-  isNumber: boolean;
-  num?: number;
-  str: string;
-} {
-  if (v === null || v === undefined) return { isNumber: false, str: '' };
-
-  const s = String(v).trim();
-  if (!s) return { isNumber: false, str: '' };
-
-  // Try numeric conversion (supports "12", "12.5", "  1,234 " etc.)
-  const normalized = s.replace(/,/g, '');
-  const n = Number(normalized);
-
-  // Only treat as number if it’s a valid finite number AND string is number-like
-  if (Number.isFinite(n) && /^-?\d+(\.\d+)?$/.test(normalized)) {
-    return { isNumber: true, num: n, str: s };
-  }
-
-  return { isNumber: false, str: s.toLowerCase() };
-}
 
 function getOrderFieldId(products: Product[]): string | null {
   for (const p of products) {
@@ -52,43 +122,17 @@ export function sortAndTransform(products: ProductEntity[]) {
   const orderFieldId = getOrderFieldId(products);
 
   if (!orderFieldId) {
-    // no ordering field found, just transform
-    return products.map((p) => this.transformProductDetailsFromRaw(p));
+    return products.map((p) => transformProductDetailsFromRaw(p));
   }
-
-  // Detect whether we should number-sort by checking if at least one value is numeric-like
-  // (If you prefer: require ALL values numeric-like, change the logic.)
-  const numericExists = products.some(
-    (p) => toSortableValue(getProductOrderValue(p, orderFieldId)).isNumber,
-  );
 
   products.sort((a, b) => {
     const avRaw = getProductOrderValue(a, orderFieldId);
     const bvRaw = getProductOrderValue(b, orderFieldId);
 
-    const av = toSortableValue(avRaw);
-    const bv = toSortableValue(bvRaw);
+    const ak = toSortKey(avRaw);
+    const bk = toSortKey(bvRaw);
 
-    // Keep null/empty at the end
-    const aEmpty =
-      avRaw === null || avRaw === undefined || String(avRaw).trim() === '';
-    const bEmpty =
-      bvRaw === null || bvRaw === undefined || String(bvRaw).trim() === '';
-    if (aEmpty && bEmpty) return 0;
-    if (aEmpty) return 1;
-    if (bEmpty) return -1;
-
-    if (numericExists) {
-      // If one side isn't numeric, push non-numeric after numeric
-      if (av.isNumber && bv.isNumber) return av.num! - bv.num!;
-      if (av.isNumber) return -1;
-      if (bv.isNumber) return 1;
-      // fallback string
-      return av.str.localeCompare(bv.str);
-    }
-
-    // Pure string sort
-    return av.str.localeCompare(bv.str);
+    return compareSortKeys(ak, bk);
   });
 
   return products.map((p) => transformProductDetailsFromRaw(p));

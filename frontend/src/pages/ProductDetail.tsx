@@ -206,10 +206,9 @@ const ProductDetail = () => {
                               className="h-14 w-12"
                             />
                             <span className="text-[10px] font-medium px-2 truncate w-full text-center">
-                              {`${file.fileName.slice(
-                                0,
-                                16
-                              )} (${file?.language?.toUpperCase()})`}
+                              {`${
+                                file.originalName
+                              } (${file?.language?.toUpperCase()})`}
                             </span>
                           </div>
                         </div>

@@ -58,114 +58,6 @@ export class ProductService {
     private readonly productFieldHelperService: ProductFieldHelperService,
   ) {}
 
-  // async createProduct(createProductDto: CreateProductDto) {
-  //   const {
-  //     categoryId,
-  //     subCategoryId,
-  //     serialNo,
-  //     modelName,
-  //     description,
-  //     information,
-  //     fileIds,
-  //   } = createProductDto;
-
-  //   // 1️⃣ CATEGORY VALIDATION
-  //   const category = await this.categoryService.findCategoryById(categoryId);
-  //   if (!category) {
-  //     throw new NotFoundException(`Category not found`);
-  //   }
-
-  //   const exists = await this.productRepository.exists({
-  //     where: { modelName },
-  //   });
-
-  //   if (exists) {
-  //     throw new ConflictException(`Product with model name already exists`);
-  //   }
-
-  //   // 2️⃣ FIELD VALIDATION
-  //   const fieldIds = information.map((i) => i.fieldId);
-  //   await this.fieldService.findFieldsByIdsOrFail(fieldIds);
-
-  //   // 3️⃣ FILE VALIDATION
-  //   const files = await this.fileService.getFileByIds(fileIds);
-  //   if (files.length !== fileIds.length) {
-  //     const foundIds = files.map((f) => f.id);
-  //     const missing = fileIds.filter((id) => !foundIds.includes(id));
-  //     throw new NotFoundException(
-  //       `These file IDs do not exist: ${missing.join(', ')}`,
-  //     );
-  //   }
-
-  //   // check this sub-category exists
-  //   if (subCategoryId) {
-  //     const subCategory =
-  //       await this.subCategoryService.getSubCategoryById(subCategoryId);
-
-  //     if (!subCategory || subCategory.category.id !== categoryId) {
-  //       throw new NotFoundException(`Sub-category not found`);
-  //     }
-  //   }
-  //   // 4️⃣ TRANSACTION
-  //   return await this.dataSource.transaction(async (manager) => {
-  //     // A. Create product
-
-  //     const newProduct = manager.create(ProductEntity, {
-  //       modelName,
-  //       description,
-  //       category: { id: categoryId },
-  //       subCategory: subCategoryId ? { id: subCategoryId } : null,
-  //     });
-  //     const savedProduct = await manager.save(ProductEntity, newProduct);
-
-  //     //   console.log('savedProduct', savedProduct.id);
-  //     // --------------------------------------------------------
-  //     // B. BULK INSERT PRODUCT VALUES
-  //     // --------------------------------------------------------
-
-  //     if (information.length) {
-  //       const valuePayload = information.map((info) => ({
-  //         value: info.value,
-  //         field: { id: info.fieldId },
-  //         product: { id: savedProduct.id },
-  //       }));
-
-  //       //   console.log('information', valuePayload);
-  //       const valueEntities = manager.create(ProductValueEntity, valuePayload);
-
-  //       //   console.log('valueEntities', valueEntities);
-  //       await manager.save(ProductValueEntity, valueEntities);
-
-  //       // --------------------------------------------------------
-  //       // C. BULK INSERT PRODUCT - FILE RELATIONS
-  //       // --------------------------------------------------------
-
-  //       const fileRelationPayload = fileIds.map((fileId) => ({
-  //         product: { id: savedProduct.id },
-  //         file: { id: fileId },
-  //       }));
-
-  //       const fileRelationEntities = manager.create(
-  //         ProductFileRelationEntity,
-  //         fileRelationPayload,
-  //       );
-
-  //       await manager.save(ProductFileRelationEntity, fileRelationEntities);
-  //     }
-
-  //     // 5️⃣ UPDATE FILE USED DATE
-  //     await this.fileService.usedAtUpdate(fileIds, manager);
-
-  //     // --------------------------------------------------------
-  //     // D. RETURN PRODUCT WITH RELATIONS
-  //     // --------------------------------------------------------
-
-  //     return manager.findOne(ProductEntity, {
-  //       where: { id: savedProduct.id },
-  //     });
-  //   });
-  // }
-
   async createProduct(createProductDto: CreateProductDto) {
     const {
       categoryId,
@@ -201,6 +93,12 @@ export class ProductService {
       .getRawOne();
     const nextAutoSerial = (Number(maxSerialObj?.max) || 0) + 1;
 
+    if (fileIds && fileIds.length > 0) {
+      const files = await this.fileService.getFileByIds(fileIds);
+      if (files.length !== fileIds.length) {
+        throw new NotFoundException(`File not found`);
+      }
+    }
     // 2️⃣ START TRANSACTION: WRITE operations
     return await this.dataSource.transaction(async (manager) => {
       /// get category filds
@@ -249,11 +147,7 @@ export class ProductService {
       }
 
       // D. BULK INSERT PRODUCT - FILE RELATIONS
-      if (fileIds.length) {
-        const files = await this.fileService.getFileByIds(fileIds);
-        if (files.length !== fileIds.length) {
-          throw new NotFoundException(`File not found`);
-        }
+      if (fileIds.length > 0) {
         const fileRelationPayload = fileIds.map((fileId) => ({
           product: { id: savedProduct.id },
           file: { id: fileId },
@@ -279,8 +173,6 @@ export class ProductService {
       });
     });
   }
-
-  // async upsertProduct(productUpsertDto: ProductUpsertDto) {
 
   async upsertProduct(productUpsertDto: ProductUpsertDto) {
     const {
@@ -329,21 +221,28 @@ export class ProductService {
     }
 
     // 3️⃣ PREPARE FILE RELATIONS
-    const existingRelations = await this.productFileRelationRepository.find({
-      where: { product: { id: productId } },
-      relations: ['file'],
-    });
-    const existingFileIds = existingRelations.map((r) => r.file.id);
-    const sameIds =
-      fileIds?.length === existingFileIds.length &&
-      fileIds?.every((id) => existingFileIds.includes(id));
-    const fileRelationPayload =
-      fileIds && !sameIds
-        ? fileIds.map((fileId) => ({
-            product: { id: productId },
-            file: { id: fileId },
-          }))
-        : [];
+    let fileRelationPayload: Array<{
+      product: { id: string };
+      file: { id: string };
+    }> = [];
+
+    if (fileIds.length > 0) {
+      const existingRelations = await this.productFileRelationRepository.find({
+        where: { product: { id: productId } },
+        relations: ['file'],
+      });
+      const existingFileIds = existingRelations.map((r) => r.file.id);
+      const sameIds =
+        fileIds?.length === existingFileIds.length &&
+        fileIds?.every((id) => existingFileIds.includes(id));
+      fileRelationPayload =
+        fileIds && !sameIds
+          ? fileIds.map((fileId) => ({
+              product: { id: productId },
+              file: { id: fileId },
+            }))
+          : [];
+    }
 
     // 4️⃣ TRANSACTION (Writes Only)
     await this.dataSource.transaction(async (manager) => {
@@ -441,251 +340,6 @@ export class ProductService {
     return this.getProductDetails(productId);
   }
 
-  //   const {
-  //     id: productId,
-  //     description,
-  //     fileIds = [],
-  //     modelName,
-  //     information,
-  //   } = productUpsertDto;
-
-  //   // 1️⃣ Load product with category + fields (NO transaction)
-  //   const product = await this.productRepository.findOne({
-  //     where: { id: productId },
-  //     relations: ['category', 'category.groups', 'category.groups.fields'],
-  //   });
-
-  //   if (!product) {
-  //     throw new NotFoundException('Product not found');
-  //   }
-
-  //   // -----------------------------
-  //   // Preparation (only if information exists)
-  //   // -----------------------------
-  //   let toUpdate: typeof information = [];
-  //   let toInsert: typeof information = [];
-  //   let existingMap = new Map<string, ProductValueEntity>();
-
-  //   if (information?.length) {
-  //     // 2️⃣ Extract valid fieldIds for category
-  //     const validFieldIds = new Set(
-  //       product.category.groups.flatMap((g) => g.fields.map((f) => f.id)),
-  //     );
-
-  //     // 3️⃣ Validate incoming fieldIds
-  //     const invalid = information.find((i) => !validFieldIds.has(i.fieldId));
-
-  //     if (invalid) {
-  //       throw new BadRequestException(
-  //         `Field ${invalid.fieldId} does not belong to product's category`,
-  //       );
-  //     }
-
-  //     // 4️⃣ Load existing product values
-  //     const fieldIds = information.map((i) => i.fieldId);
-
-  //     const existingValues = await this.productValueRepository.find({
-  //       where: {
-  //         product: { id: productId },
-  //         field: { id: In(fieldIds) },
-  //       },
-  //       relations: ['field'],
-  //     });
-
-  //     existingMap = new Map(existingValues.map((pv) => [pv.field.id, pv]));
-
-  //     // 5️⃣ Partition payload
-  //     toUpdate = information.filter((i) => existingMap.has(i.fieldId));
-  //     toInsert = information.filter((i) => !existingMap.has(i.fieldId));
-  //   }
-  //   const existingRelations = await this.productFileRelationRepository.find({
-  //     where: { product: { id: productId } },
-  //     relations: ['file'],
-  //   });
-
-  //   const existingFileIds = existingRelations.map((r) => r.file.id);
-
-  //   const sameIds =
-  //     fileIds?.length === existingFileIds.length &&
-  //     fileIds?.every((id) => existingFileIds.includes(id));
-
-  //   const fileRelationPayload =
-  //     fileIds && !sameIds
-  //       ? fileIds.map((fileId) => ({
-  //           product: { id: productId },
-  //           file: { id: fileId },
-  //         }))
-  //       : [];
-
-  //   // -----------------------------
-  //   // Transaction (writes only)
-  //   // -----------------------------
-  //   await this.dataSource.transaction(async (manager) => {
-  //     const productRepo = manager.getRepository(ProductEntity);
-  //     const pvRepo = manager.getRepository(ProductValueEntity);
-  //     const pfrRepo = manager.getRepository(ProductFileRelationEntity);
-
-  //     // 6️⃣ Update product basic info
-  //     if (modelName !== undefined || description !== undefined) {
-  //       await productRepo.update(productId, {
-  //         ...(modelName !== undefined && { modelName }),
-  //         ...(description !== undefined && { description }),
-  //       });
-  //     }
-
-  //     // 7️⃣ Update existing values
-  //     if (toUpdate.length) {
-  //       const entities = toUpdate.map((i) => {
-  //         const entity = existingMap.get(i.fieldId)!;
-  //         entity.value = i.value;
-  //         return entity;
-  //       });
-
-  //       await pvRepo.save(entities);
-  //     }
-
-  //     // 8️⃣ Insert new values
-  //     if (toInsert.length) {
-  //       const insertPayload = toInsert.map((i) => ({
-  //         value: i.value,
-  //         product: { id: productId },
-  //         field: { id: i.fieldId },
-  //       }));
-
-  //       await pvRepo
-  //         .createQueryBuilder()
-  //         .insert()
-  //         .into(ProductValueEntity)
-  //         .values(insertPayload)
-  //         .orIgnore()
-  //         .execute();
-  //     }
-
-  //     // 5️⃣ Handle file relations
-  //     if (fileRelationPayload.length) {
-  //       // 5.1 mark files as used
-  //       await this.fileService.usedAtUpdate(fileIds, manager);
-
-  //       // 5.2 create product-file relations
-  //       await pfrRepo
-  //         .createQueryBuilder()
-  //         .insert()
-  //         .into(ProductFileRelationEntity)
-  //         .values(fileRelationPayload)
-  //         .orIgnore()
-  //         .execute();
-  //     }
-  //   });
-
-  //   // 9️⃣ Return updated product
-  //   return this.getProductDetails(productId);
-  // }
-
-  //     id: productId,
-  //     description,
-  //     modelName,
-  //     information = [],
-  //   } = productUpsertDto;
-
-  //   if (!information.length) {
-  //     return this.productRepository.findOne({
-  //       where: { id: productId },
-  //       relations: ['productValues', 'productValues.field'],
-  //     });
-  //   }
-
-  //   // 1️⃣ Load product with all category/field relations (NO transaction)
-  //   const product = await this.productRepository.findOne({
-  //     where: { id: productId },
-  //     relations: ['category', 'category.groups', 'category.groups.fields'],
-  //   });
-
-  //   if (!product) throw new NotFoundException('Product not found');
-
-  //   // 2️⃣ Extract valid fieldIds for this product's category
-  //   const validFieldIds = new Set(
-  //     product.category.groups.flatMap((g) => g.fields.map((f) => f.id)),
-  //   );
-
-  //   // 3️⃣ Validate provided fieldIds
-  //   const invalid = information.find((it) => !validFieldIds.has(it.fieldId));
-  //   if (invalid) {
-  //     throw new BadRequestException(
-  //       `Field ${invalid.fieldId} does not belong to product's category`,
-  //     );
-  //   }
-
-  //   // 4️⃣ Find existing ProductValue rows for the provided fieldIds
-  //   const fieldIds = information.map((i) => i.fieldId);
-
-  //   const existingValues = await this.productValueRepository.find({
-  //     where: {
-  //       product: { id: productId },
-  //       field: { id: In(fieldIds) },
-  //     },
-  //     relations: ['field'],
-  //   });
-
-  //   // 5️⃣ Create fast lookup table
-  //   const existingMap = new Map(existingValues.map((pv) => [pv.field.id, pv]));
-
-  //   // 6️⃣ Partition incoming data
-  //   const toUpdate = information.filter((i) => existingMap.has(i.fieldId));
-  //   const toInsert = information.filter((i) => !existingMap.has(i.fieldId));
-
-  //   // 7️⃣ Now run writes inside a transaction
-  //   await this.dataSource.transaction(async (manager) => {
-  //     const productRepo = manager.getRepository(ProductEntity);
-  //     const pvRepo = manager.getRepository(ProductValueEntity);
-
-  //     if (modelName !== undefined || description !== undefined) {
-  //       await productRepo.update(productId, {
-  //         ...(modelName !== undefined && { modelName }),
-  //         ...(description !== undefined && { description }),
-  //       });
-  //     }
-  //     // Update batch
-  //     if (toUpdate.length) {
-  //       const updateEntities = toUpdate.map((i) => {
-  //         const entity = existingMap.get(i.fieldId)!;
-  //         entity.value = i.value;
-  //         return entity;
-  //       });
-
-  //       // console.log('Updating entities:', updateEntities);
-  //       await pvRepo.save(updateEntities);
-  //     }
-
-  //     // Insert batch
-  //     if (toInsert.length) {
-  //       const insertPayload = toInsert.map((i) => ({
-  //         value: i.value,
-  //         product: { id: productId },
-  //         field: { id: i.fieldId },
-  //       }));
-
-  //       // console.log('Inserting entities:', insertPayload);
-  //       await pvRepo
-  //         .createQueryBuilder()
-  //         .insert()
-  //         .into(ProductValueEntity)
-  //         .values(insertPayload)
-  //         .orIgnore()
-  //         .execute();
-  //     }
-
-  //     // return updated product
-  //     // return manager.getRepository(ProductEntity).findOne({
-  //     //   where: { id: productId },
-  //     //   relations: ['productValues', 'productValues.field'],
-  //     // });
-  //   });
-  //   return await this.getProductDetails(productId);
-  // }
-
-  // Transform raw product entity with joined relations
-
-  // Single product fetch (uses single query)
   async getProductDetails(productId: string) {
     const product = await this.productRepository
       .createQueryBuilder('product')

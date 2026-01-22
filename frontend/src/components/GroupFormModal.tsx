@@ -95,6 +95,9 @@ export function GroupFormModal({
       // Generate a unique ID for the field, NOT the group ID
       id: crypto.randomUUID(),
       fieldName: "",
+      serialNo: fields.length + 1,
+      order: false, // Toggle 1
+      filter: false, // Toggle 2
     };
 
     setFields([...fields, newField]);
@@ -104,17 +107,20 @@ export function GroupFormModal({
   const updateField = async (updatedField: Field) => {
     // optimistic UI update (correct)
     setFields((prev) =>
-      prev.map((f) => (f.id === updatedField.id ? updatedField : f))
+      prev.map((f) => (f.id === updatedField.id ? updatedField : f)),
     );
     if (!group) {
       setEditingFieldId(null); // Just close the edit mode
       return;
     }
     const body = {
+      serialNo: updatedField.serialNo,
       id: updatedField.id,
       fieldName: updatedField.fieldName,
+      filter: updatedField.filter,
+      order: updatedField.order,
     };
-
+    console.log(updateField);
     try {
       const accessToken = await secureStorage.getValidToken();
       const url = `${import.meta.env.VITE_API_URL}/field`;
@@ -219,12 +225,26 @@ export function GroupFormModal({
       });
       return;
     }
+    const validFields = fields.filter((f) => f.fieldName.trim() !== "");
 
+    // 2. Check if we have any valid fields
+    if (validFields.length === 0) {
+      toast.error("Please Insert at least one Field Name", {
+        style: { background: "#ff0000", color: "#fff" },
+      });
+      return;
+    }
     const body = {
       groupName: name.trim(),
       categoryId: selectedCategoryId,
-      fieldNames: fields.map((f) => f.fieldName.trim()).filter((f) => f !== ""),
+      fieldNames: validFields.map((f) => ({
+        name: f.fieldName.trim(),
+        serialNo: f.serialNo,
+        filter: f.filter,
+        order: f.order,
+      })),
     };
+    console.log("body", body);
     if (body.fieldNames.length === 0) {
       toast.error("Please Insert Field Name", {
         style: {
@@ -333,7 +353,7 @@ export function GroupFormModal({
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
       fetchCategories();
     } catch (error) {
@@ -351,8 +371,8 @@ export function GroupFormModal({
   const handleFieldChange = (id: string, value: string) => {
     setFields((prevFields) =>
       prevFields.map((field) =>
-        field.id === id ? { ...field, fieldName: value } : field
-      )
+        field.id === id ? { ...field, fieldName: value } : field,
+      ),
     );
     setUpsert(true); // Mark that changes have been made
   };
@@ -456,7 +476,7 @@ export function GroupFormModal({
                     isEditing={editingFieldId === field.id}
                     onEdit={() =>
                       setEditingFieldId(
-                        editingFieldId === field.id ? null : field.id
+                        editingFieldId === field.id ? null : field.id,
                       )
                     }
                     onRemove={() => removeField(field.id)}

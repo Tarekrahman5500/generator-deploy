@@ -70,7 +70,7 @@ export default function AddProducts() {
     if (categories.length === 0) return;
 
     const matched = categories.find(
-      (c) => c.label.toLowerCase() === category.categoryName.toLowerCase()
+      (c) => c.label.toLowerCase() === category.categoryName.toLowerCase(),
     );
 
     setActiveCategory(category?.categoryName);
@@ -85,7 +85,7 @@ export default function AddProducts() {
     const fetchGroups = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/group/category/${category.id}`
+          `${import.meta.env.VITE_API_URL}/group/category/${category.id}`,
         );
 
         const json = await res.json();
@@ -101,7 +101,7 @@ export default function AddProducts() {
 
   const handleCategoryChange = (categoryName: string) => {
     const matched = categories.find(
-      (c) => c.label.toLowerCase() === categoryName.toLowerCase()
+      (c) => c.label.toLowerCase() === categoryName.toLowerCase(),
     );
 
     if (matched) {
@@ -131,8 +131,8 @@ export default function AddProducts() {
 
         setMediaFiles((prev) =>
           prev.map((f) =>
-            f.id === fileObj.id ? { ...f, progress: percent } : f
-          )
+            f.id === fileObj.id ? { ...f, progress: percent } : f,
+          ),
         );
       }
     };
@@ -146,8 +146,8 @@ export default function AddProducts() {
           prev.map((f) =>
             f.id === fileObj.id
               ? { ...f, status: "complete", backendId, progress: 100 }
-              : f
-          )
+              : f,
+          ),
         );
 
         setFileIds((prev) => [...prev, backendId]);
@@ -158,7 +158,7 @@ export default function AddProducts() {
 
     xhr.onerror = () => {
       setMediaFiles((prev) =>
-        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f))
+        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f)),
       );
       setIsUploading(false);
     };
@@ -287,8 +287,8 @@ export default function AddProducts() {
           const percent = Math.round((event.loaded / event.total) * 100);
           setDocFiles((prev) =>
             prev.map((f) =>
-              f.id === fileObj.id ? { ...f, progress: percent } : f
-            )
+              f.id === fileObj.id ? { ...f, progress: percent } : f,
+            ),
           );
         }
       };
@@ -308,8 +308,8 @@ export default function AddProducts() {
               prev.map((f) =>
                 f.id === fileObj.id
                   ? { ...f, status: "complete", progress: 100 }
-                  : f
-              )
+                  : f,
+              ),
             );
             setRemoveFileId(backendId);
             setFileIds((prev) => [...prev, backendId]);
@@ -333,9 +333,10 @@ export default function AddProducts() {
       xhr.send(formData);
     });
   };
+
   const handleUploadError = (id: string) => {
     setDocFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f)),
     );
   };
   return (

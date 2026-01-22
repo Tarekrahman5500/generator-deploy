@@ -39,10 +39,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { secureStorage } from "@/security/SecureStorage";
 import { handleLogout } from "@/Util/LogOut";
 import { Category, CategoryResponse } from "./Products";
+import { set } from "date-fns";
+import { SubCategoryInput } from "./SubCategory";
 const AddCategory = () => {
   const navigate = useNavigate();
 
   const [categoryName, setCategory] = useState("");
+  const [serialNo, setSerialNo] = useState(null);
   const [description, setDescription] = useState("");
 
   const [fileIds, setFileIds] = useState<string[]>([]);
@@ -62,7 +65,7 @@ const AddCategory = () => {
 
   const removeTag = (indexToRemove: number) => {
     setSubCategoryNames(
-      subCategoryNames.filter((_, index) => index !== indexToRemove)
+      subCategoryNames.filter((_, index) => index !== indexToRemove),
     );
   };
   // Product state
@@ -148,11 +151,12 @@ const AddCategory = () => {
       return;
     }
     const payload: any = {
+      serialNo: serialNo ? Number(serialNo) : null,
       categoryName,
       description,
     };
 
-    if (subCategoryNames && subCategoryNames.length > 0) {
+    if (subCategoryNames && subCategoryNames?.length > 0) {
       payload.subCategoryNames = subCategoryNames;
     }
 
@@ -171,7 +175,7 @@ const AddCategory = () => {
         body: JSON.stringify(payload),
       };
       const res = await fetch(url, options);
-
+      const data = await res.json();
       if (res.status === 401) {
         toast.error("Session expired. Please login again.", {
           style: {
@@ -190,7 +194,7 @@ const AddCategory = () => {
           `${
             res.status === 409
               ? "Duplicate Entry.Category Already Exists"
-              : "Something went wrong!"
+              : `${data.errors[0].message}`
           }`,
           {
             style: {
@@ -199,7 +203,7 @@ const AddCategory = () => {
               borderRadius: "10px",
               padding: "12px 16px",
             },
-          }
+          },
         );
         return;
       }
@@ -209,6 +213,8 @@ const AddCategory = () => {
       setFileIds([]);
       setUploadedFile(null);
       setSubCategoryNames(null);
+      setSerialNo(null);
+
       toast.success("Category saved successfully!", {
         style: {
           background: "#326e12", // your custom red
@@ -231,7 +237,7 @@ const AddCategory = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
     }
   };
@@ -265,7 +271,7 @@ const AddCategory = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
       setCategories({
         statusCode: 500,
@@ -281,7 +287,7 @@ const AddCategory = () => {
   const removeFile = async (id: string) => {
     const accessToken = await secureStorage.getValidToken();
     try {
-      console.log("Removing file:", id);
+      //console.log("Removing file:", id);
       const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
       const options = {
         method: "DELETE",
@@ -315,7 +321,7 @@ const AddCategory = () => {
             color: "#fff",
             borderRadius: "10px",
           },
-        }
+        },
       );
       console.error("Failed to delete file:", error);
     }
@@ -329,6 +335,18 @@ const AddCategory = () => {
           <div className="lg:col-span-2 space-y-6 h-80">
             <div className="bg-background rounded-xl border border-border p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="category">
+                    Serial No <span className="text-destructive"></span>
+                  </Label>
+                  <Input
+                    id="category"
+                    value={serialNo}
+                    onChange={(e) => setSerialNo(e.target.value)}
+                    placeholder="Enter Serial Number"
+                    required
+                  />
+                </div>
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="category">
                     Category Name <span className="text-destructive">*</span>
@@ -350,28 +368,29 @@ const AddCategory = () => {
 
                 <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background focus-within:ring-2 ring-ring ring-offset-2">
                   {/* Render the Tags/Chips */}
-                  {subCategoryNames.map((name, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-1 px-3 py-1 text-white bg-[#001f3f] rounded-full text-sm"
-                    >
-                      {name}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(index)}
-                        className="hover:text-red-400 transition-colors"
+                  {subCategoryNames &&
+                    subCategoryNames?.map((name, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-1 px-3 py-1 text-white bg-[#001f3f] rounded-full text-sm"
                       >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(index)}
+                          className="hover:text-red-400 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
 
                   {/* The actual input field */}
                   <input
                     id="subcategories"
                     className="flex-1 bg-transparent outline-none min-w-[120px] text-sm py-1"
                     placeholder={
-                      subCategoryNames.length === 0
+                      SubCategoryInput && subCategoryNames?.length === 0
                         ? "Type and press Enter..."
                         : ""
                     }
@@ -469,7 +488,7 @@ const AddCategory = () => {
       </div>
       <Button
         onClick={handleSaveCategory}
-        className="mt-28 ml-5 sm:mt-25 bg-[#163859] hover:bg-[#163859]"
+        className="mt-48 ml-5 sm:mt-25 bg-[#163859] hover:bg-[#163859]"
       >
         Save Category
       </Button>

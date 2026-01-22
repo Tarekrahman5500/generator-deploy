@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { secureStorage } from "@/security/SecureStorage";
+import { toast } from "sonner";
 
 export interface UploadedFile {
   id: string; // local UI id
@@ -20,7 +22,7 @@ export interface ProductMediaUploadProps {
   files: UploadedFile[];
   onFilesChange: (files: UploadedFile[]) => void;
   onUpload: (file: UploadedFile) => void;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, productId: string) => void;
 }
 
 export function ProductMediaUpload({
@@ -97,10 +99,11 @@ export function ProductMediaUpload({
       <CardContent>
         {/* Upload Area */}
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${isDragging
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+            isDragging
               ? "border-primary bg-primary/5"
               : "border-border hover:border-primary/50 hover:bg-muted/50"
-            }`}
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -131,7 +134,7 @@ export function ProductMediaUpload({
             or drag and drop
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            PNG, JPG, WEBP (max 10MB)
+            PNG, JPG, WEBP (max 5MB)
           </p>
         </div>
 
@@ -159,7 +162,9 @@ export function ProductMediaUpload({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name.slice(0, 6)}</p>
+                    <p className="text-sm font-medium truncate">
+                      {file.name.slice(0, 6)}
+                    </p>
                     <p className="text-xs text-muted-foreground">{file.size}</p>
 
                     {file.status === "uploading" && (
@@ -183,7 +188,7 @@ export function ProductMediaUpload({
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRemove(file.id);
+                      onRemove(file.id, file.backendId);
                     }}
                   >
                     <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />

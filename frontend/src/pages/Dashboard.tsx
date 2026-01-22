@@ -47,6 +47,7 @@ const Dashboard = () => {
   const userName = secureStorage.get("userInfo") || "";
   const navigate = useNavigate();
   const formattedName = userName.charAt(0).toUpperCase();
+
   const handleLogout = async () => {
     if (!accessToken) {
       toast.error("No user logged in", {

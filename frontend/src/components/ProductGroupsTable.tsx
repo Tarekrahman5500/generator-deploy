@@ -13,6 +13,7 @@ import { ProductGroup } from "@/types/group";
 import { useEffect, useState } from "react";
 
 interface ProductGroupsTableProps {
+  serialNo?: number;
   categoryId: string;
   groups: ProductGroup[];
   onViewDetails: (group: ProductGroup) => void;
@@ -34,7 +35,7 @@ export function ProductGroupsTable({
     const fetchGroups = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/group/category/${categoryId}`
+          `${import.meta.env.VITE_API_URL}/group/category/${categoryId}`,
         );
         const data = await res.json();
 

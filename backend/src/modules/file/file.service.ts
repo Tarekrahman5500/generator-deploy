@@ -116,7 +116,6 @@ export class FileService {
       defval: null,
       raw: false,
     });
-
     // 🔹 Skip first 5 data rows (not header)
     // return rows.slice(0, 3);
     return rows;

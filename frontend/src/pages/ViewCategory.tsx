@@ -11,7 +11,15 @@ import {
 import { secureStorage } from "@/security/SecureStorage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Check, X, ImagePlus, Pencil } from "lucide-react";
+import {
+  SquareChartGantt,
+  Edit,
+  Trash2,
+  Check,
+  X,
+  Table2,
+  Pencil,
+} from "lucide-react";
 import { Category, CategoryResponse } from "./Products";
 import { useNavigate, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -27,6 +35,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { UploadedFile } from "@/components/ProductMediaUpload";
+import { CreateSheetModal } from "./SheetProduct";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const ViewCategory = () => {
   const [categories, setCategories] = useState<CategoryResponse>({
@@ -40,6 +55,7 @@ const ViewCategory = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editForm, setEditForm] = useState({
+    serialNo: null,
     categoryName: "",
     description: "",
     imageFile: null as File | null,
@@ -48,6 +64,15 @@ const ViewCategory = () => {
     filesId: "",
   });
 
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
+
+  const handleOpenSheetModal = (id: string) => {
+    setSelectedCategoryId(id);
+    setIsSheetModalOpen(true);
+  };
   const fetchCategories = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
@@ -90,10 +115,11 @@ const ViewCategory = () => {
   const handleEditClick = (category: Category) => {
     setEditingCategory(category);
     setEditForm({
+      serialNo: category?.serialNo,
       categoryName: category?.categoryName,
       description: category?.description || "",
       imageFile: null,
-      imagePreview: category.categoryFiles[0]?.file?.url || "",
+      imagePreview: editForm.imagePreview,
       subCategories: category?.subCategories || [],
       filesId: category?.categoryFiles[0]?.file?.id || "",
     });
@@ -131,7 +157,7 @@ const ViewCategory = () => {
       setEditForm((prev) => ({
         ...prev,
         imageFile: file,
-        imagePreview: previewUrl,
+        imagePreview: result.response.url,
         filesId: fileId, // ✅ THIS is what you wanted
       }));
       setFileIds(fileId);
@@ -169,6 +195,8 @@ const ViewCategory = () => {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
+          serialNo: Number(editForm.serialNo),
+          subCategoryName: editForm.serialNo,
           id: editingCategory.id,
           categoryName: editForm.categoryName,
           description: editForm.description,
@@ -198,7 +226,7 @@ const ViewCategory = () => {
                 categoryName: editForm.categoryName,
                 description: editForm.description,
               }
-            : cat
+            : cat,
         ),
       }));
 
@@ -256,7 +284,7 @@ const ViewCategory = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
     } finally {
       setLoading(false);
@@ -268,8 +296,7 @@ const ViewCategory = () => {
   const removeFile = async (id: string) => {
     const accessToken = await secureStorage.getValidToken();
     try {
-      console.log("Removing file:", id);
-      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const url = `${import.meta.env.VITE_API_URL}/file?id=${id}`;
       const options = {
         method: "DELETE",
         headers: {
@@ -288,6 +315,8 @@ const ViewCategory = () => {
       }
 
       setMediaFiles((prev) => prev.filter((f) => f.id !== id));
+      editForm.imagePreview = "";
+
       toast.success("Image deleted successfully");
       fetchCategories();
     } catch (error) {
@@ -303,7 +332,7 @@ const ViewCategory = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
     }
   };
@@ -346,7 +375,7 @@ const ViewCategory = () => {
           body: JSON.stringify({
             subCategoryName: tempValue,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -379,16 +408,52 @@ const ViewCategory = () => {
             borderRadius: "10px",
             padding: "12px 16px",
           },
-        }
+        },
       );
     } finally {
       setIsUpdating(false);
     }
   };
+  const handleDeleteSub = async (itemId: string) => {
+    const accessToken = await secureStorage.getValidToken();
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/sub-category/${itemId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      if (res.ok) {
+        toast.success("Deleted successfully", {
+          style: {
+            background: "#326e12",
+            color: "#fff",
+            borderRadius: "10px",
+          },
+        });
+
+        // 3. Refresh the data from server
+        fetchCategories();
+      } else {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete Error:", err);
+      toast.error(err.message, {
+        style: { background: "#ff0000", color: "#fff" },
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">All Categories</h1>
 
         <div className="bg-card rounded-lg border border-border overflow-hidden">
@@ -399,7 +464,7 @@ const ViewCategory = () => {
                 <TableHead className="w-24">Image</TableHead>
                 <TableHead>Category Name</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -434,7 +499,9 @@ const ViewCategory = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                            <ImagePlus className="w-6 h-6" />
+                            <Table2 className="w-6 h-6" />
+                            <br />
+                            Add Sheet
                           </div>
                         )}
                       </div>
@@ -449,37 +516,84 @@ const ViewCategory = () => {
                       {category.description || "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(category)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                      <TooltipProvider delayDuration={200}>
+                        <div className="inline-flex items-center gap-2">
+                          {/* EDIT CATEGORY */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditClick(category)}
+                                className="hover:bg-[#163959] text-black hover:text-white"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit Category</TooltipContent>
+                          </Tooltip>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            navigate("/dashboard/add-product", {
-                              state: { category },
-                            })
-                          }
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Product
-                        </Button>
+                          {/* ADD PRODUCT */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hover:bg-[#163959] text-black hover:text-white"
+                                onClick={() =>
+                                  navigate("/dashboard/add-product", {
+                                    state: { category },
+                                  })
+                                }
+                              >
+                                <SquareChartGantt className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Add Product</TooltipContent>
+                          </Tooltip>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(category.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                          {/* ADD SHEET */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="hover:bg-[#163959] text-black hover:text-white"
+                                onClick={() =>
+                                  handleOpenSheetModal(category.id)
+                                }
+                              >
+                                <Table2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Add Sheet</TooltipContent>
+                          </Tooltip>
+
+                          {/* DELETE */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/20"
+                                onClick={() => handleDelete(category.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Category</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
+
+                      {/* Modal moved outside the button container for better stability */}
+                      {selectedCategoryId === category.id && (
+                        <CreateSheetModal
+                          isOpen={isSheetModalOpen}
+                          onOpenChange={setIsSheetModalOpen}
+                          categoryId={selectedCategoryId}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -524,7 +638,7 @@ const ViewCategory = () => {
                       </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <ImagePlus className="w-8 h-8" />
+                        <Table2 className="w-8 h-8" />
                       </div>
                     )}
                   </div>
@@ -537,13 +651,35 @@ const ViewCategory = () => {
                     className="max-w-[200px]"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    PNG, JPG up to 5MB
+                    PNG, JPG up to 2MB
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Category Name */}
+            <div className="space-y-2">
+              <Label htmlFor="categorySerial">Category Serial</Label>
+              <Input
+                id="categorySerial"
+                type="number" // 1. Changes keyboard on mobile and adds native arrows
+                min="0" // 2. Sets the minimum value allowed for native validation
+                value={editForm.serialNo}
+                onChange={(e) => {
+                  const val = e.target.value;
+
+                  // 3. Logic: Allow empty string (so they can delete)
+                  // AND ensure the number is positive by checking it isn't negative
+                  if (val === "" || (Number(val) >= 0 && !val.includes("-"))) {
+                    setEditForm((prev) => ({
+                      ...prev,
+                      serialNo: val,
+                    }));
+                  }
+                }}
+                placeholder="Enter Serial Number"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="categoryName">Category Name</Label>
               <Input
@@ -598,13 +734,25 @@ const ViewCategory = () => {
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleEditClickSub(item)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleEditClickSub(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+
+                          {/* Delete Button */}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteSub(item.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

@@ -29,6 +29,7 @@ interface DocumentsUploadProps {
   onFilesChange: (files: UploadedDoc[]) => void;
   onUpload: (files: UploadedDoc[]) => void;
   fileRemoveId?: string;
+  newCategory?: boolean;
 }
 
 const getFileIcon = (filename: string) => {
@@ -44,14 +45,20 @@ export function DocumentsUpload({
   onFilesChange,
   onUpload,
   fileRemoveId,
+  newCategory = false,
 }: DocumentsUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const acceptedTypes = ["application/pdf"];
+  const acceptedTypes = newCategory
+    ? [
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ]
+    : ["application/pdf"];
   const handleLanguageChange = (id: string, lang: string) => {
     // 1. Update the local file object with the language
     const updatedFiles = files.map((f) =>
-      f.id === id ? { ...f, language: lang, status: "uploading" as const } : f
+      f.id === id ? { ...f, language: lang, status: "uploading" as const } : f,
     );
     onFilesChange(updatedFiles);
 
@@ -76,17 +83,17 @@ export function DocumentsUpload({
     e.preventDefault();
     setIsDragging(false);
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      (file) => acceptedTypes.includes(file.type) || file.name.endsWith(".pdf")
+      (file) => acceptedTypes.includes(file.type) || file.name.endsWith(".pdf"),
     );
     handleFiles(droppedFiles);
   };
 
   const handleFiles = (newFiles: File[]) => {
-    const MAX_FILE_SIZE = 2 * 1024 * 1024;
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
     const validFiles = newFiles.filter((file) => {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} is too large. Max size is 2MB.`);
+        toast.error(`${file.name} is too large. Max size is 5MB.`);
         return false;
       }
       return true;
@@ -94,19 +101,25 @@ export function DocumentsUpload({
 
     if (validFiles.length === 0) return;
 
-    // Map files to state but set status to "idle" (waiting for language)
     const newPendingFiles: UploadedDoc[] = validFiles.map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: formatFileSize(file.size),
       progress: 0,
-      status: "idle" as any, // Change status to idle
+      // Change: If newCategory is true, start as "uploading", else "idle"
+      status: newCategory ? ("uploading" as const) : ("idle" as const),
       type: file.type,
       file,
+      // Change: Assign a default language value if it's a newCategory
+      language: newCategory ? "N/A" : undefined,
     }));
 
-    // ONLY update state, do NOT call onUpload yet
     onFilesChange([...files, ...newPendingFiles]);
+
+    // NEW: If it's a new category, trigger onUpload immediately for these specific files
+    if (newCategory) {
+      onUpload(newPendingFiles);
+    }
 
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -119,7 +132,7 @@ export function DocumentsUpload({
   const removeFile = async (id: string) => {
     const accessToken = await secureStorage.getValidToken();
     //console.log("Removing file:", id);
-    const url = `${import.meta.env.VITE_API_URL}/file/${fileRemoveId}`;
+    const url = `${import.meta.env.VITE_API_URL}/file?id=${fileRemoveId}`;
     const options = {
       method: "DELETE",
       headers: {
@@ -142,7 +155,7 @@ export function DocumentsUpload({
           </div>
           Documents
           <Badge variant="secondary" className="ml-auto font-normal">
-            PDF, DOC, XLS
+            {newCategory ? "XLS" : "PDF"}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -179,7 +192,9 @@ export function DocumentsUpload({
             </span>{" "}
             or drag and drop
           </p>
-          <p className="text-sm text-muted-foreground mt-1">PDF(max. 2MB)</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {newCategory ? "XLS(max. 2MB)" : "PDF(max. 2MB)"}
+          </p>
         </div>
 
         {files.length > 0 && (
@@ -194,35 +209,46 @@ export function DocumentsUpload({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {file.status === "idle"
+                      {/* Logic change here */}
+                      {file.status === "idle" && !newCategory
                         ? "Waiting for language..."
-                        : file.status}
+                        : file.status === "uploading"
+                          ? `Uploading... ${file.progress}%`
+                          : file.status}
                     </p>
                   </div>
 
                   {/* LANGUAGE SELECT - Selection triggers the upload */}
                   <div className="flex items-center gap-2">
-                    <select
-                      disabled={file.status !== "idle"} // Disable once uploading starts
-                      value={file.language || ""}
-                      onChange={(e) =>
-                        handleLanguageChange(file.id, e.target.value)
-                      }
-                      className={`text-xs border rounded px-2 py-1 outline-none ${
-                        !file.language
-                          ? "border-orange-400 bg-orange-50"
-                          : "bg-background"
-                      }`}
-                    >
-                      <option value="" disabled>
-                        Select Language
-                      </option>
-                      {LANGUAGES.map((lang) => (
-                        <option key={lang.value} value={lang.value}>
-                          {lang.label}
+                    {/* Only show language select if NOT a newCategory */}
+                    {!newCategory ? (
+                      <select
+                        disabled={file.status !== "idle"}
+                        value={file.language || ""}
+                        onChange={(e) =>
+                          handleLanguageChange(file.id, e.target.value)
+                        }
+                        className={`text-xs border rounded px-2 py-1 outline-none ${
+                          !file.language
+                            ? "border-orange-400 bg-orange-50"
+                            : "bg-background"
+                        }`}
+                      >
+                        <option value="" disabled>
+                          Select Language
                         </option>
-                      ))}
-                    </select>
+                        {LANGUAGES.map((lang) => (
+                          <option key={lang.value} value={lang.value}>
+                            {lang.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      // Optional: Show a small badge or text indicating it's auto-uploading
+                      <span className="text-xs text-muted-foreground italic">
+                        Auto-uploading...
+                      </span>
+                    )}
 
                     <Button
                       variant="ghost"

@@ -77,7 +77,7 @@ export const InfoRequestsTable = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       if (!res.ok) throw new Error("Failed to fetch info requests");
@@ -130,18 +130,21 @@ export const InfoRequestsTable = () => {
           body: JSON.stringify({
             ...formData,
             parentId: selectedReq.id,
+            fileIds,
           }),
-        }
+        },
       );
+      const data = await response.json();
 
       if (response.ok) {
-        toast.success("Reply sent successfully!");
+        toast.success(`${data.message}`);
         setIsModalOpen(false);
+        await fetchRequests();
       } else {
-        throw new Error("Failed to send reply");
+        throw new Error(`${data.message}`);
       }
     } catch (error) {
-      toast.error("Error sending reply");
+      toast.error(`${error.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -161,8 +164,8 @@ export const InfoRequestsTable = () => {
 
         setMediaFiles((prev) =>
           prev.map((f) =>
-            f.id === fileObj.id ? { ...f, progress: percent } : f
-          )
+            f.id === fileObj.id ? { ...f, progress: percent } : f,
+          ),
         );
       }
     };
@@ -176,8 +179,8 @@ export const InfoRequestsTable = () => {
           prev.map((f) =>
             f.id === fileObj.id
               ? { ...f, status: "complete", backendId, progress: 100 }
-              : f
-          )
+              : f,
+          ),
         );
 
         setFileIds((prev) => [...prev, backendId]);
@@ -188,7 +191,7 @@ export const InfoRequestsTable = () => {
 
     xhr.onerror = () => {
       setMediaFiles((prev) =>
-        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f))
+        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f)),
       );
       setIsUploading(false);
     };
@@ -235,8 +238,8 @@ export const InfoRequestsTable = () => {
           const percent = Math.round((event.loaded / event.total) * 100);
           setDocFiles((prev) =>
             prev.map((f) =>
-              f.id === fileObj.id ? { ...f, progress: percent } : f
-            )
+              f.id === fileObj.id ? { ...f, progress: percent } : f,
+            ),
           );
         }
       };
@@ -256,8 +259,8 @@ export const InfoRequestsTable = () => {
               prev.map((f) =>
                 f.id === fileObj.id
                   ? { ...f, status: "complete", progress: 100 }
-                  : f
-              )
+                  : f,
+              ),
             );
             console.log("uploaded backendId", backendId);
 
@@ -286,21 +289,21 @@ export const InfoRequestsTable = () => {
   };
   const handleUploadError = (id: string) => {
     setDocFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f)),
     );
   };
   const handleDelete = async (id: string) => {
     try {
       const accessToken = await secureStorage.getValidToken();
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/contact-form/${id}`,
+        `${import.meta.env.VITE_API_URL}/contact-form/info-request/${id}`,
         {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {

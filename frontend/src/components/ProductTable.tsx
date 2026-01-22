@@ -95,6 +95,7 @@ interface ProductTableProps {
     totalPages: number;
   };
   onPageChange?: (page: number) => void;
+  onRefresh: () => void; // <--- Add this to your interface
 }
 
 const ProductTable = ({
@@ -102,6 +103,7 @@ const ProductTable = ({
   products,
   meta,
   onPageChange,
+  onRefresh,
 }: ProductTableProps) => {
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -130,7 +132,7 @@ const ProductTable = ({
     setDeleteProduct(product);
   };
   const [missingFields, setMissingFields] = useState<{ [key: string]: any }>(
-    {}
+    {},
   );
   const handleAddField = async (productId: string) => {
     try {
@@ -142,7 +144,7 @@ const ProductTable = ({
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -162,7 +164,7 @@ const ProductTable = ({
   const handleRemoveField = async (
     groupName: string,
     index: number,
-    fields: any
+    fields: any,
   ) => {
     setEditedGroups((prev) => ({
       ...prev,
@@ -191,7 +193,7 @@ const ProductTable = ({
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Failed to delete field value:", errorData);
-        toast.error("Failed to delete field");
+        toast.error(`${errorData.message}`);
         return;
       }
 
@@ -199,25 +201,26 @@ const ProductTable = ({
       // Optionally refresh your state after deletion
     } catch (err) {
       console.error("Error deleting field value:", err);
+      toast.error(`${err.message}`);
     }
   };
   const handleFieldChange = (
     groupName: string,
     index: number,
     field: "fieldName" | "value",
-    newValue: string
+    newValue: string,
   ) => {
     setEditedGroups((prev) => ({
       ...prev,
       [groupName]: prev[groupName].map((item, i) =>
-        i === index ? { ...item, [field]: newValue } : item
+        i === index ? { ...item, [field]: newValue } : item,
       ),
     }));
   };
   const handleMissingFieldChange = (
     groupId: string,
     fieldIndex: number,
-    newValue: string
+    newValue: string,
   ) => {
     setMissingFields((prev: any) => {
       // 1. Deep clone or map to find the correct group
@@ -226,7 +229,7 @@ const ProductTable = ({
 
         // 2. Map to update the specific field at the index
         const updatedFields = group.fields.map((field: any, i: number) =>
-          i === fieldIndex ? { ...field, value: newValue } : field
+          i === fieldIndex ? { ...field, value: newValue } : field,
         );
 
         return { ...group, fields: updatedFields };
@@ -269,9 +272,9 @@ const ProductTable = ({
         body: JSON.stringify(updatedProduct),
       };
       const res = await fetch(url, options);
-
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error("Failed to update product");
+        throw new Error(`${data.message}`);
       }
 
       toast.success("Product updated successfully", {
@@ -285,8 +288,9 @@ const ProductTable = ({
 
       // close modal after success
       setEditProduct(null);
+      onRefresh();
     } catch (error) {
-      toast.error("Failed to update product", {
+      toast.error(`${error.message || "Failed to update product"}`, {
         style: {
           background: "#ff0000",
           color: "#fff",
@@ -312,9 +316,9 @@ const ProductTable = ({
         },
       };
       const res = await fetch(url, options);
-
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error("Failed to delete product");
+        throw new Error(`${data.message}`);
       }
 
       toast.success("Product deleted successfully", {
@@ -328,8 +332,9 @@ const ProductTable = ({
 
       // close delete modal / reset state
       setDeleteProduct(null);
+      onRefresh();
     } catch (error) {
-      toast.error("Failed to delete product", {
+      toast.error(`${error.message || "Failed to delete product"}`, {
         style: {
           background: "#ff0000", // your custom red
           color: "#fff",
@@ -348,11 +353,11 @@ const ProductTable = ({
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [removeFileId, setRemoveFileId] = useState<any>();
-  const removeFile = async (id: string) => {
+  const removeFile = async (id: string, productId: string) => {
     try {
       const accessToken = await secureStorage.getValidToken();
       //console.log("Removing file:", id);
-      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const url = `${import.meta.env.VITE_API_URL}/file?id=${id}&productId=${productId}`;
       const options = {
         method: "DELETE",
         headers: {
@@ -375,6 +380,7 @@ const ProductTable = ({
       setMediaFiles((prev) => prev.filter((f) => f.id !== id));
       setDocFiles((prev) => prev.filter((f) => f.id !== id));
       toast.success(`File Deleted Successfully`);
+      onRefresh();
     } catch (error) {
       console.error("Failed to delete file:", error);
       toast.error(error.message || "Failed to delete file");
@@ -396,8 +402,8 @@ const ProductTable = ({
 
         setMediaFiles((prev) =>
           prev.map((f) =>
-            f.id === fileObj.id ? { ...f, progress: percent } : f
-          )
+            f.id === fileObj.id ? { ...f, progress: percent } : f,
+          ),
         );
       }
     };
@@ -411,8 +417,8 @@ const ProductTable = ({
           prev.map((f) =>
             f.id === fileObj.id
               ? { ...f, status: "complete", backendId, progress: 100 }
-              : f
-          )
+              : f,
+          ),
         );
 
         setFileIds((prev) => [...prev, backendId]);
@@ -423,7 +429,7 @@ const ProductTable = ({
 
     xhr.onerror = () => {
       setMediaFiles((prev) =>
-        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f))
+        prev.map((f) => (f.id === fileObj.id ? { ...f, status: "error" } : f)),
       );
       setIsUploading(false);
     };
@@ -439,7 +445,7 @@ const ProductTable = ({
           .map((field: any) => ({
             fieldId: field.id, // The ID shown in your JSON
             value: field.value, // The value typed by user
-          }))
+          })),
       ) || [];
 
     if (information.length === 0) {
@@ -489,8 +495,8 @@ const ProductTable = ({
           const percent = Math.round((event.loaded / event.total) * 100);
           setDocFiles((prev) =>
             prev.map((f) =>
-              f.id === fileObj.id ? { ...f, progress: percent } : f
-            )
+              f.id === fileObj.id ? { ...f, progress: percent } : f,
+            ),
           );
         }
       };
@@ -510,8 +516,8 @@ const ProductTable = ({
               prev.map((f) =>
                 f.id === fileObj.id
                   ? { ...f, status: "complete", progress: 100 }
-                  : f
-              )
+                  : f,
+              ),
             );
             console.log("uploaded backendId", backendId);
 
@@ -540,7 +546,7 @@ const ProductTable = ({
   };
   const handleUploadError = (id: string) => {
     setDocFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f))
+      prev.map((f) => (f.id === id ? { ...f, status: "error" } : f)),
     );
   };
 
@@ -581,7 +587,7 @@ const ProductTable = ({
                           (file: any) =>
                             file.mimeType === "image/png" ||
                             file.mimeType === "image/jpeg" ||
-                            file.mimeType === "image/gif"
+                            file.mimeType === "image/gif",
                         )
                         .slice(0, 1) // Ensure we only work with the first valid image found
                         .map((image: any) => (
@@ -627,7 +633,7 @@ const ProductTable = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        className="hover:bg-[#163959] text-black hover:text-white"
                         onClick={() => handleView(product)}
                       >
                         <Eye className="h-4 w-4" />
@@ -635,7 +641,7 @@ const ProductTable = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        className="hover:bg-[#163959] text-black hover:text-white"
                         onClick={() => handleEdit(product)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -643,7 +649,7 @@ const ProductTable = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="hover:bg-[#163959] text-black hover:text-white"
                         onClick={() => handleDelete(product)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -678,7 +684,7 @@ const ProductTable = ({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             {Array.from({ length: meta.totalPages }, (_, i) => i + 1)
-              .slice(0, 3)
+
               .map((page) => (
                 <Button
                   key={page}
@@ -826,7 +832,7 @@ const ProductTable = ({
                                     groupName,
                                     index,
                                     "fieldName",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                               />
@@ -838,7 +844,7 @@ const ProductTable = ({
                                     groupName,
                                     index,
                                     "value",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                               />
@@ -855,7 +861,7 @@ const ProductTable = ({
                             </Button>
                           </div>
                         ))}
-                        <Button
+                        {/* <Button
                           variant="outline"
                           size="sm"
                           className="w-full border-dashed bg-[#163859] hover:bg-[#163859] text-white hover:text-white"
@@ -863,78 +869,11 @@ const ProductTable = ({
                           disabled={loading}
                         >
                           {`Add Field to ${groupName}`}
-                        </Button>
+                        </Button> */}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
-
-                {missingFields.id === missingId
-                  ? missingFields.category?.groups?.map((group: any) => (
-                      <AccordionItem
-                        key={group.id}
-                        value={group.groupName}
-                        className="border-border"
-                      >
-                        <h1>Missing Fields For Existing Group(Optional)</h1>
-                        <AccordionTrigger className="text-foreground hover:no-underline flex justify-between items-center">
-                          <span>{group.groupName}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {group.fields.length} fields
-                          </Badge>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-3 pt-2 p-2 max-h-96 overflow-y-auto">
-                            {group.fields.map((field: any, index: number) => (
-                              <div
-                                key={field.id}
-                                className="flex items-start gap-2"
-                              >
-                                <div className="flex-1 grid grid-cols-2 gap-2">
-                                  <Input
-                                    placeholder="Field name"
-                                    value={field.fieldName}
-                                    disabled
-                                    className="w-full"
-                                  />
-                                  <Input
-                                    placeholder="Value"
-                                    value={field.value || ""}
-                                    onChange={(e) =>
-                                      handleMissingFieldChange(
-                                        group.id,
-                                        index,
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full"
-                                  />
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-10 w-10 text-muted-foreground hover:text-destructive flex-shrink-0"
-                                  onClick={() =>
-                                    handleRemoveField(group.id, index, fileIds)
-                                  }
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <div className="flex justify-end mt-4">
-                              <Button
-                                onClick={saveProductInformation}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                Save Field Values
-                              </Button>
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))
-                  : ""}
               </Accordion>
 
               <div>
@@ -979,7 +918,7 @@ const ProductTable = ({
                             onClick={() => {
                               // 1. Find the specific file to remove
                               const fileToRemove = editProduct.files.find(
-                                (f) => f.id === file.id
+                                (f) => f.id === file.id,
                               );
 
                               if (fileToRemove) {
@@ -987,12 +926,12 @@ const ProductTable = ({
                                 setEditProduct((prev: any) => ({
                                   ...prev,
                                   files: prev.files.filter(
-                                    (f: any) => f.id !== file.id
+                                    (f: any) => f.id !== file.id,
                                   ),
                                 }));
 
                                 // 3. Call backend removal logic
-                                removeFile(fileToRemove.id);
+                                removeFile(fileToRemove.id, editProduct.id);
                                 console.log("Removing file:", fileToRemove.id);
                               }
                             }}
@@ -1025,8 +964,16 @@ const ProductTable = ({
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button onClick={() => setEditProduct(null)}>Cancel</Button>
-            <Button onClick={handleSaveEdit} className="bg-accent">
+            <Button
+              onClick={() => setEditProduct(null)}
+              className="bg-transparent hover:bg-transparent text-black hover:text-black"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              className="bg-[#163859] hover:bg-[#163859] text-white hover:text-white"
+            >
               Save Changes
             </Button>
           </DialogFooter>
