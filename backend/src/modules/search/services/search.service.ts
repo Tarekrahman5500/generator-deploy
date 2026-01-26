@@ -458,7 +458,12 @@ export class SearchService {
 
     // console.log('SINGLE PRODUCT SEARCH RESPONSE:', response);
     // 3️⃣ All categories ordered by serialNo
-    const categories = [baseCategory];
+    const categories = dto.categoryId
+      ? [baseCategory]
+      : await this.categoryRepo.find({
+          select: ['id', 'categoryName', 'serialNo'],
+          order: { serialNo: 'ASC' },
+        });
 
     // 4️⃣ Fetch all filters in ONE query
     const rawFilters = await this.productRepo
