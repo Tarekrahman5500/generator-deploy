@@ -1,14 +1,14 @@
 import { z } from 'zod';
 
 export const fieldSchema = z.object({
-  id: z.uuidv4(),
+  id: z.uuidv4({ message: 'Invalid UUID format for id' }).optional(),
   serialNo: z
     .number({ message: 'Serial number must be a positive number' })
     .nullable()
     .optional(),
   order: z.boolean().default(false).optional(),
   filter: z.boolean().default(false).optional(),
-  fieldName: z.string().nonempty('Field name cannot be empty'),
+  fieldName: z.string().nonempty('Field name cannot be empty').optional(),
   groupId: z.uuidv4(),
   createdAt: z.date(),
   updatedAt: z.date(),

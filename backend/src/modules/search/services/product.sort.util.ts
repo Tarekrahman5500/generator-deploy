@@ -146,6 +146,19 @@ export function transformProductDetailsFromRaw(
 ) {
   // 1️⃣ Group fields by groupName
 
+  const groupMetadata = new Map<string, number>();
+  (product?.productValues || []).forEach((pv) => {
+    const group = pv?.field?.group;
+    if (group && !groupMetadata.has(group.groupName)) {
+      groupMetadata.set(group.groupName, group.serialNo || 0);
+    }
+  });
+
+  // 2. Sort the group names by their serialNo
+  const sortedGroupNames = Array.from(groupMetadata.keys()).sort((a, b) => {
+    return (groupMetadata.get(a) || 0) - (groupMetadata.get(b) || 0);
+  });
+
   //console.log(product);
   const groupedFields: Record<
     string,
@@ -159,6 +172,10 @@ export function transformProductDetailsFromRaw(
       filter: boolean;
     }[]
   > = {};
+
+  sortedGroupNames.forEach((name) => {
+    groupedFields[name] = [];
+  });
   (product?.productValues || []).forEach((pv) => {
     const groupName = pv?.field?.group?.groupName;
     if (!groupedFields[groupName]) groupedFields[groupName] = [];

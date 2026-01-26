@@ -51,11 +51,16 @@ export function FieldRow({
       onEdit();
       return;
     }
-
+    //console.log(group, group.id);
+    //console.log(group);
+    // console.log(field);
     // 2. Pass the toggle values in the update body
     onUpdate({
-      ...field,
-      id: field.id,
+      id: group?.fields?.find((f: any) => f.id === field.id)
+        ? field.id
+        : group?.id
+          ? group.id
+          : field.id,
       fieldName: value.trim(),
       serialNo: Number(serialNo),
       order: order,

@@ -45,9 +45,7 @@ export class BulkProductService {
     if (!file) throw new NotFoundException('Excel file not found');
 
     // 2️⃣ Check image field exists
-    const imageField = await this.fieldRepository.findOne({
-      where: { id: imageFileId },
-    });
+    const imageField = await this.fileService.findById(imageFileId);
 
     if (!imageField) {
       throw new BadRequestException('Image field not found');
@@ -84,7 +82,7 @@ export class BulkProductService {
 
       for (const [index, row] of chunk.entries()) {
         const currentModelName = String(
-          row['Model'] || row['model'] || 'Unknown Model',
+          row['Model'] || row['model'] || row['MODEL'] || 'Unknown Model',
         );
 
         try {
@@ -260,7 +258,9 @@ export class BulkProductService {
 
     return {
       categoryId,
-      modelName: String(row['Model'] || row['model'] || 'Unknown'),
+      modelName: String(
+        row['Model'] || row['model'] || row['MODEL'] || 'Unknown',
+      ),
       description: String(row['Description'] || row['description'] || ''),
       information,
       fileIds: [imageId], // One image for all
@@ -375,7 +375,7 @@ export class BulkProductService {
       if (!key) continue;
 
       // OPTIONAL: skip non-attribute headers (adjust as you want)
-      // if (['model', 'description'].includes(key)) continue;
+      if (['model', 'description'].includes(key)) continue;
 
       if (!fieldMap.has(key)) {
         const newField = fieldRepo.create({

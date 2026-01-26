@@ -184,7 +184,7 @@ export default function ProductsAdd() {
     setIsFormOpen(true);
     fetchGroups();
   };
-  console.log(selectedGroup);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -211,16 +211,7 @@ export default function ProductsAdd() {
 
           <CardContent className="space-y-6">
             {/* Search */}
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by group name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <div className="relative max-w-md"></div>
             <div className="mt-4">
               <Select
                 value={selectedCategoryId}
@@ -258,6 +249,7 @@ export default function ProductsAdd() {
           onOpenChange={setIsFormOpen}
           group={selectedGroup}
           onSave={handleSaveGroup}
+          refetch={fetchGroups}
         />
 
         {/* Details Modal */}

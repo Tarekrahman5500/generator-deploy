@@ -67,23 +67,50 @@ export interface CategoryProductsResponse {
   };
 }
 
+interface CategoryOption {
+  id: string;
+  categoryName: string;
+}
+
 const ViewProducts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     // console.log("Fetching page:", page);
   };
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
+      const json = await res.json();
+      setCategories(json.categories || []);
+    };
+    fetchCategories();
+  }, []);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const fetchCategoryProducts = async (
     page = 1,
     limit = 10,
+    categoryId = selectedCategory,
+    search = searchQuery,
   ): Promise<CategoryProductsResponse> => {
     const url = new URL(`${import.meta.env.VITE_API_URL}/category/products`);
 
     url.searchParams.set("page", page.toString());
     url.searchParams.set("limit", limit.toString());
+    if (categoryId && categoryId !== "all") {
+      url.searchParams.set("categoryId", categoryId);
+    }
+    if (search) {
+      url.searchParams.set("modelName", search);
+    }
 
     const res = await fetch(url.toString());
 
@@ -97,7 +124,12 @@ const ViewProducts = () => {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const data = await fetchCategoryProducts(currentPage, 10);
+        const data = await fetchCategoryProducts(
+          currentPage,
+          10,
+          selectedCategory,
+          searchQuery,
+        );
 
         setProducts(data.category.products);
         setMeta(data.category.meta);
@@ -107,11 +139,16 @@ const ViewProducts = () => {
     };
 
     loadProducts();
-  }, [currentPage]);
+  }, [currentPage, selectedCategory, searchQuery]);
   const handleRefresh = async () => {
     try {
       setLoading(true); // Show loading state
-      const data = await fetchCategoryProducts(currentPage, 10);
+      const data = await fetchCategoryProducts(
+        currentPage,
+        10,
+        selectedCategory,
+        searchQuery,
+      );
 
       // 2. IMPORTANT: You MUST update the state here
       setProducts(data.category.products);
@@ -141,6 +178,15 @@ const ViewProducts = () => {
           meta={{ ...meta, page: currentPage }}
           onPageChange={handlePageChange}
           onRefresh={handleRefresh} // <--- Add this prop
+          categories={categories}
+          onCategoryChange={(id) => {
+            setSelectedCategory(id);
+            setCurrentPage(1);
+          }}
+          onSearch={(query) => {
+            setSearchQuery(query);
+            setCurrentPage(1);
+          }}
         />
       </main>
     </div>

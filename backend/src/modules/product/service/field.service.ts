@@ -1,10 +1,10 @@
 import {
-  ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { FieldCreateDto, FieldUpdateDto, GroupFieldsDto } from '../dto';
 import {
   FieldEntity,
@@ -47,85 +47,221 @@ export class FieldService {
   //   return this.fieldRepository.save(field);
   // }
 
-  async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
-    const { id: groupId, fieldName, serialNo, filter, order } = createFieldDto;
+  // async createField(createFieldDto: FieldCreateDto): Promise<FieldEntity> {
+  //   const { id, groupId, fieldName, serialNo, filter, order } = createFieldDto;
 
-    // 1️⃣ PRE-TRANSACTION: GET operations
-    const group = await this.groupRepository.findOne({
-      where: { id: groupId },
-      relations: {
-        category: true,
-      },
+  //   // 1️⃣ PRE-TRANSACTION: GET operations
+  //   const group = await this.groupRepository.findOne({
+  //     where: { id: groupId },
+  //     relations: {
+  //       category: true,
+  //     },
+  //   });
+  //   if (!group) throw new NotFoundException('Group not found');
+
+  //   const categoryId = group?.category?.id;
+
+  //   // Check if field name already exists in this group
+  //   const nameExists = await this.fieldRepository.findOne({
+  //     where: { fieldName, group: { id: groupId } },
+  //   });
+  //   if (nameExists) {
+  //     throw new ConflictException(
+  //       `Field ${fieldName} already exists in this group`,
+  //     );
+  //   }
+
+  //   // Get MAX serial if no serialNo is provided
+  //   const maxSerialObj = await this.fieldRepository
+  //     .createQueryBuilder('f')
+  //     .where('f.group_id = :groupId', { groupId })
+  //     .select('MAX(f.serial_no)', 'max')
+  //     .getRawOne();
+  //   const nextSerial = (Number(maxSerialObj?.max) || 0) + 1;
+
+  //   // 2️⃣ START TRANSACTION: WRITE operations
+  //   return this.dataSource.transaction(async (manager) => {
+  //     let finalSerial: number;
+  //     // get all product ids in this category
+  //     const productsIds =
+  //       await this.productFieldHelperService.getProductIdsByCategoryId(
+  //         categoryId,
+  //         manager,
+  //       );
+
+  //     if (serialNo !== undefined && serialNo !== null) {
+  //       // SHIFT LOGIC: Move existing fields in this group up by 1
+  //       await manager
+  //         .createQueryBuilder()
+  //         .update(FieldEntity)
+  //         .set({ serialNo: () => 'serial_no + 1' })
+  //         .where('group_id = :groupId AND serial_no >= :serialNo', {
+  //           groupId,
+  //           serialNo,
+  //         })
+  //         .orderBy('serial_no', 'DESC') // Clear path from top down
+  //         .execute();
+
+  //       finalSerial = serialNo;
+  //     } else {
+  //       finalSerial = nextSerial;
+  //     }
+
+  //     // 3️⃣ CREATE & SAVE
+  //     const field = manager.create(FieldEntity, {
+  //       fieldName,
+  //       serialNo: finalSerial,
+  //       filter,
+  //       order,
+  //       group,
+  //     });
+
+  //     const response = await manager.save(FieldEntity, field);
+  //     // After field is created, create product values for all products in this category
+  //     await this.productFieldHelperService.ensureProductValuesExist(
+  //       productsIds,
+  //       [response.id],
+  //       manager,
+  //     );
+
+  //     return response;
+  //   });
+  // }
+
+  async createField(dto: FieldCreateDto): Promise<FieldEntity> {
+    const { id, fieldName, serialNo, filter, order } = dto;
+
+    // 1️⃣ ID Discovery & Context Recovery
+    let targetField = await this.fieldRepository.findOne({
+      where: { id },
+      relations: { group: { category: true } },
     });
-    if (!group) throw new NotFoundException('Group not found');
 
-    const categoryId = group?.category?.id;
+    let targetGroup: GroupEntity | null = null;
+    let isUpdate = false;
 
-    // Check if field name already exists in this group
-    const nameExists = await this.fieldRepository.findOne({
-      where: { fieldName, group: { id: groupId } },
-    });
-    if (nameExists) {
-      throw new ConflictException(
-        `Field ${fieldName} already exists in this group`,
-      );
+    if (targetField) {
+      isUpdate = true;
+      targetGroup = targetField.group;
+    } else {
+      targetGroup = await this.groupRepository.findOne({
+        where: { id },
+        relations: { category: true },
+      });
+      if (!targetGroup)
+        throw new NotFoundException(`Valid Field or Group ID required.`);
     }
 
-    // Get MAX serial if no serialNo is provided
-    const maxSerialObj = await this.fieldRepository
-      .createQueryBuilder('f')
-      .where('f.group_id = :groupId', { groupId })
-      .select('MAX(f.serial_no)', 'max')
-      .getRawOne();
-    const nextSerial = (Number(maxSerialObj?.max) || 0) + 1;
+    const groupId = targetGroup.id;
+    const categoryId = targetGroup.category?.id;
 
-    // 2️⃣ START TRANSACTION: WRITE operations
+    // 2️⃣ Duplicate Name Check (Skip if fieldName is not provided in update)
+    if (fieldName) {
+      const whereClause: any = { fieldName, group: { id: groupId } };
+      if (isUpdate && id) whereClause.id = Not(id);
+
+      const nameConflict = await this.fieldRepository.findOne({
+        where: whereClause,
+      });
+      if (nameConflict) {
+        // Switch to updating the conflicting field instead of the one passed by ID
+        targetField = nameConflict;
+        isUpdate = true;
+      }
+    }
+
+    // 3️⃣ TRANSACTION: Safe Writing
     return this.dataSource.transaction(async (manager) => {
-      let finalSerial: number;
-      // get all product ids in this category
+      let savedField: FieldEntity;
+
+      if (order === true) {
+        await manager
+          .createQueryBuilder()
+          .update(FieldEntity)
+          .set({ order: false })
+          .where('group_id = :groupId', { groupId })
+          .execute();
+      }
+
+      if (isUpdate && targetField) {
+        // CORNER CASE: Only shift if the serialNo is actually CHANGING
+        if (typeof serialNo === 'number' && targetField.serialNo !== serialNo) {
+          await this.handleSerialShift(manager, groupId, serialNo);
+        }
+
+        targetField.fieldName = fieldName ?? targetField.fieldName;
+        targetField.filter = filter ?? targetField.filter;
+        targetField.order = order ?? targetField.order;
+        targetField.serialNo = serialNo ?? targetField.serialNo;
+
+        savedField = await manager.save(FieldEntity, targetField);
+      } else {
+        // CORNER CASE: Creation must have a name
+        if (!fieldName)
+          throw new BadRequestException('fieldName is required for new field.');
+
+        const maxSerialObj = await manager
+          .createQueryBuilder(FieldEntity, 'f')
+          .where('f.group_id = :groupId', { groupId })
+          .select('MAX(f.serial_no)', 'max')
+          .getRawOne();
+
+        const nextSerial = (Number(maxSerialObj?.max) || 0) + 1;
+        const finalSerial =
+          typeof serialNo === 'number' ? serialNo : nextSerial;
+
+        // Only shift if user provided a specific serial (not using the default max)
+        if (typeof serialNo === 'number') {
+          await this.handleSerialShift(manager, groupId, serialNo);
+        }
+
+        const newField = manager.create(FieldEntity, {
+          fieldName,
+          serialNo: finalSerial,
+          filter,
+          order: order ?? false,
+          group: targetGroup as GroupEntity,
+        });
+
+        savedField = await manager.save(FieldEntity, newField);
+      }
+
       const productsIds =
         await this.productFieldHelperService.getProductIdsByCategoryId(
           categoryId,
           manager,
         );
 
-      if (serialNo !== undefined && serialNo !== null) {
-        // SHIFT LOGIC: Move existing fields in this group up by 1
-        await manager
-          .createQueryBuilder()
-          .update(FieldEntity)
-          .set({ serialNo: () => 'serial_no + 1' })
-          .where('group_id = :groupId AND serial_no >= :serialNo', {
-            groupId,
-            serialNo,
-          })
-          .orderBy('serial_no', 'DESC') // Clear path from top down
-          .execute();
-
-        finalSerial = serialNo;
-      } else {
-        finalSerial = nextSerial;
-      }
-
-      // 3️⃣ CREATE & SAVE
-      const field = manager.create(FieldEntity, {
-        fieldName,
-        serialNo: finalSerial,
-        filter,
-        order,
-        group,
-      });
-
-      const response = await manager.save(FieldEntity, field);
-      // After field is created, create product values for all products in this category
+      // 4️⃣ SYNC PRODUCT VALUES
       await this.productFieldHelperService.ensureProductValuesExist(
         productsIds,
-        [response.id],
+        [savedField.id],
         manager,
       );
 
-      return response;
+      return savedField;
     });
+  }
+
+  /**
+   * FIXED Helper: Shifting logic with DESC order to avoid unique constraint collisions
+   */
+  private async handleSerialShift(
+    manager: EntityManager,
+    groupId: string,
+    serialNo: number,
+  ) {
+    await manager
+      .createQueryBuilder()
+      .update(FieldEntity)
+      .set({ serialNo: () => 'serial_no + 1' })
+      .where('group_id = :groupId AND serial_no >= :serialNo', {
+        groupId,
+        serialNo,
+      })
+      // CRITICAL: Update from highest to lowest to prevent temporary duplicates
+      .orderBy('serial_no', 'DESC')
+      .execute();
   }
   // ------------------------------------------------------------
   // Find All Fields
@@ -313,11 +449,38 @@ export class FieldService {
   // ------------------------------------------------------------
   // Delete Field by ID
   // ------------------------------------------------------------
+  // async deleteField(id: string): Promise<void> {
+  //   const field = await this.fieldRepository.findOne({ where: { id } });
+  //   if (!field) throw new NotFoundException('Field not found');
+
+  //   await this.fieldRepository.delete({ id });
+  // }
+
   async deleteField(id: string): Promise<void> {
-    const field = await this.fieldRepository.findOne({ where: { id } });
+    const field = await this.fieldRepository.findOne({
+      where: { id },
+      relations: ['group'], // Ensure we know which group the field belongs to
+    });
+
     if (!field) throw new NotFoundException('Field not found');
 
-    await this.fieldRepository.delete({ id });
+    const groupId = field.group.id;
+    const deletedSerial = field.serialNo;
+
+    await this.dataSource.transaction(async (manager) => {
+      // 1. Delete the targeted field
+      await manager.delete(FieldEntity, { id });
+
+      // 2. Shift all fields with a higher serialNo down by 1
+      // Logic: UPDATE fields SET serialNo = serialNo - 1 WHERE groupId = X AND serialNo > deletedSerial
+      await manager
+        .createQueryBuilder()
+        .update(FieldEntity)
+        .set({ serialNo: () => 'serial_no - 1' })
+        .where('group_id = :groupId', { groupId })
+        .andWhere('serial_no > :deletedSerial', { deletedSerial })
+        .execute();
+    });
   }
 
   async findFieldsByIdsOrFail(ids: string[]): Promise<FieldEntity[]> {

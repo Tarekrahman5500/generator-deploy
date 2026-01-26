@@ -10,7 +10,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProductGroup } from "@/types/group";
-import { useEffect, useState } from "react";
 
 interface ProductGroupsTableProps {
   serialNo?: number;
@@ -22,36 +21,17 @@ interface ProductGroupsTableProps {
 }
 
 export function ProductGroupsTable({
-  categoryId,
+  groups,
   onViewDetails,
   onEdit,
   onDelete,
 }: ProductGroupsTableProps) {
-  const [groups, setGroups] = useState<ProductGroup[]>([]);
-
-  useEffect(() => {
-    if (!categoryId) return;
-
-    const fetchGroups = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/group/category/${categoryId}`,
-        );
-        const data = await res.json();
-
-        setGroups(data.groups || []);
-      } catch (error) {
-        console.error("Failed to fetch groups:", error);
-      }
-    };
-
-    fetchGroups();
-  }, [categoryId]);
   return (
     <Card className="overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+            <TableHead className="font-semibold">Serial Name</TableHead>
             <TableHead className="font-semibold">Group Name</TableHead>
             <TableHead className="font-semibold">Actions</TableHead>
           </TableRow>
@@ -60,7 +40,7 @@ export function ProductGroupsTable({
           {groups.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={2}
+                colSpan={3}
                 className="text-center py-12 text-muted-foreground"
               >
                 No product groups found. Create your first group to get started.
@@ -69,6 +49,7 @@ export function ProductGroupsTable({
           ) : (
             groups.map((group) => (
               <TableRow key={group.id} className="group">
+                <TableCell className="font-medium">{group.serialNo}</TableCell>
                 <TableCell className="font-medium">{group.groupName}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">

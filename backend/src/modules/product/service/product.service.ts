@@ -571,6 +571,9 @@ export class ProductService {
 
     const [productsRaw, total] = await qb.getManyAndCount();
 
+    const categories =
+      await this.categoryService.getAllCategoriesNameAndDescription();
+
     return {
       meta: {
         total,
@@ -580,6 +583,7 @@ export class ProductService {
         totalPages: Math.ceil(total / limit),
       },
       products: sortAndTransform(productsRaw),
+      categories,
     };
   }
 

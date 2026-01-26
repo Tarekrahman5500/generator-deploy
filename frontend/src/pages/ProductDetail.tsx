@@ -25,6 +25,12 @@ import {
 } from "@/components/ui/carousel";
 import { ProductGallery } from "./ProductGalery";
 import pdfIcon from "../assets/PDF_file_icon.png";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 const features = [
   "Ultra-bright LED modules with 360° visibility",
   "IP65 rated water and dust resistant housing",
@@ -37,17 +43,16 @@ const ProductDetail = () => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pdfImage, setPdfImage] = useState<string | null>(null);
-  // Use state instead of useRef to ensure the element is "ready"
   const [brochureElement, setBrochureElement] = useState<HTMLDivElement | null>(
-    null
+    null,
   );
+
   async function toBase64(url: string): Promise<string> {
     const res = await fetch(url);
     const blob = await res.blob();
 
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-
       reader.onloadend = () => {
         if (typeof reader.result === "string") {
           resolve(reader.result);
@@ -55,7 +60,6 @@ const ProductDetail = () => {
           reject("Failed to convert image to base64");
         }
       };
-
       reader.onerror = () => reject("FileReader error");
       reader.readAsDataURL(blob);
     });
@@ -68,7 +72,7 @@ const ProductDetail = () => {
       try {
         setLoading(true);
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/product/${id}`
+          `${import.meta.env.VITE_API_URL}/product/${id}`,
         );
         const json = await res.json();
         setProduct(json?.productDetails || null);
@@ -112,7 +116,6 @@ const ProductDetail = () => {
     }
 
     try {
-      // html2canvas captures the text exactly as Google Translate has modified it
       const canvas = await html2canvas(brochureElement, {
         scale: 2,
         useCORS: true,
@@ -134,145 +137,159 @@ const ProductDetail = () => {
       console.error("PDF Generation Error:", error);
     }
   };
+
   const getImageUrl = (path: string) => {
-    if (!path) return "/placeholder.png"; // Fallback
+    if (!path) return "/placeholder.png";
     return `${import.meta.env.VITE_API_URL}/${path}`;
   };
+
   return (
-    <div className="min-h-screen relative">
-      {/* Breadcrumb */}
-      <div className="container px-6 py-8">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
-          <NavLink to="/products" className="hover:text-foreground">
-            Products
-          </NavLink>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-foreground">
-            {product.category?.categoryName}
-          </span>
-        </nav>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      {/* MAIN CONTENT WRAPPER 
+          flex-1 ensures this div grows to fill space, 
+          keeping the footer at the bottom.
+      */}
+      <main className="flex-1">
+        {/* Breadcrumb */}
+        <div className="container px-6 py-8">
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+            <NavLink to="/products" className="hover:text-foreground">
+              Products
+            </NavLink>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-foreground">
+              {product.category?.categoryName}
+            </span>
+          </nav>
+        </div>
 
-      {/* Product Content */}
-      <section className="pb-20">
-        <div className="container px-6">
-          <div className="grid lg:grid-cols-2 gap-12 mb-12">
-            <ProductGallery product={product} />
+        {/* Product Content */}
+        <section className="pb-20">
+          <div className="container px-6">
+            <div className="grid lg:grid-cols-2 gap-12 mb-12">
+              <ProductGallery product={product} />
 
-            <div>
-              <h1 className="text-4xl font-heading font-bold mb-2">
-                {product.modelName}
-              </h1>
+              <div>
+                <h1 className="text-4xl font-heading font-bold mb-2">
+                  {product.modelName}
+                </h1>
 
-              <p className="text-sm text-muted-foreground mb-4">
-                {product.category?.categoryName}
-              </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {product.category?.categoryName}
+                </p>
 
-              <p className="text-muted-foreground leading-relaxed">
-                {product.description}
-              </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  {product.description}
+                </p>
 
-              <div className="flex flex-col gap-3 mt-6">
-                <Button
-                  asChild
-                  size="lg"
-                  className="w-full mt-4 bg-[#163859] hover:bg-[#163859]"
-                >
-                  <NavLink to="/quote" state={{ product: product }}>
-                    Request a Quote
-                  </NavLink>
-                </Button>
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {product?.files
-                    // 1. Filter the array to include ONLY PDFs
-                    ?.filter((file: any) => file.mimeType === "application/pdf")
-                    // 2. Map over the filtered results
-                    .map((file: any) => (
-                      <a
-                        href={getImageUrl(file.url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        key={file.id}
-                        download={file.originalName || "document.pdf"}
-                      >
-                        <div
+                <div className="flex flex-col gap-3 mt-6">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-full mt-4 bg-[#163859] hover:bg-[#163859]"
+                  >
+                    <NavLink to="/quote" state={{ product: product }}>
+                      Request a Quote
+                    </NavLink>
+                  </Button>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                    {product?.files
+                      ?.filter(
+                        (file: any) => file.mimeType === "application/pdf",
+                      )
+                      .map((file: any) => (
+                        <a
+                          href={getImageUrl(file.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           key={file.id}
-                          className="relative rounded-lg bg-muted overflow-hidden h-24 w-48 flex items-center justify-center border border-border"
+                          className="group block"
+                          download={file.originalName || "document.pdf"}
                         >
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <img
-                              src={pdfIcon}
-                              alt="pdf"
-                              className="h-14 w-12"
-                            />
-                            <span className="text-[10px] font-medium px-2 truncate w-full text-center">
-                              {`${
-                                file.originalName
-                              } (${file?.language?.toUpperCase()})`}
-                            </span>
+                          <div className="text-[10px] font-bold text-muted-foreground mb-1 group-hover:text-primary transition-colors">
+                            {file?.language?.toUpperCase()}
                           </div>
-                        </div>
-                      </a>
-                    ))}
+                          <div className="relative rounded-lg bg-muted overflow-hidden h-24 flex items-center justify-center border border-border group-hover:border-primary/50 transition-all">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <img
+                                src={pdfIcon}
+                                alt="pdf"
+                                className="h-10 w-auto"
+                              />
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-[10px] font-medium px-2 truncate w-32 text-center cursor-default">
+                                      {file.originalName}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{file.originalName}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                  </div>
                 </div>
-                {/* DOWNLOAD BUTTON */}
-                {/* <Button
-                  onClick={downloadBrochure}
-                  variant="outline"
-                  size="lg"
-                  className="w-full border-[#163859] text-[#163859] font-bold"
-                >
-                  Download Brochure (PDF)
-                </Button> */}
               </div>
             </div>
-          </div>
 
-          {/* Specifications Accordion */}
-          <div className="max-w-3xl">
-            <Accordion
-              type="single"
-              collapsible
-              defaultValue={specificationGroups[0]?.[0]}
-              className="w-full"
-            >
-              {specificationGroups.map(([groupName, specs]: any) => (
-                <AccordionItem
-                  key={groupName}
-                  value={groupName}
-                  className="border-border"
-                >
-                  <AccordionTrigger className="text-base font-extrabold hover:no-underline border-b-2">
-                    {groupName}
-                  </AccordionTrigger>
+            {/* Specifications Accordion */}
+            <div className="max-w-3xl">
+              <Accordion
+                type="single"
+                collapsible
+                defaultValue={specificationGroups[0]?.[0]}
+                className="w-full"
+              >
+                {specificationGroups.map(([groupName, specs]: any) => (
+                  <AccordionItem
+                    key={groupName}
+                    value={groupName}
+                    className="border-border"
+                  >
+                    <AccordionTrigger className="text-base font-extrabold hover:no-underline border-b-2">
+                      {groupName}
+                    </AccordionTrigger>
 
-                  <AccordionContent>
-                    <div className="space-y-0">
-                      {specs.map((spec: any, index: number) => (
-                        <div
-                          key={index}
-                          className="grid grid-cols-2 py-3 border-b border-border last:border-b-0"
-                        >
-                          <span className="font-medium text-foreground capitalize">
-                            {spec.fieldName}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {spec.value || "-"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                    <AccordionContent>
+                      <div className="space-y-0">
+                        {specs.map((spec: any, index: number) => (
+                          <div
+                            key={index}
+                            className="grid grid-cols-2 py-3 border-b border-border last:border-b-0"
+                          >
+                            <span className="font-medium text-foreground capitalize">
+                              {spec.fieldName}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {spec.value || "-"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       {/* --- HIDDEN BROCHURE TEMPLATE --- */}
-      {/* We move this off-screen so the user can't see it, but Google Translate can find it */}
-      <div style={{ position: "absolute", left: "-9999px", top: "0" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: "0",
+          pointerEvents: "none",
+        }}
+      >
         <div
           ref={(el) => setBrochureElement(el)}
           style={{

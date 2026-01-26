@@ -317,6 +317,7 @@ export class CategoryService {
         'category.description',
       ])
       .andWhere('category.isDeleted = false')
+      .orderBy('category.serialNo', 'ASC')
       .getMany();
   }
 

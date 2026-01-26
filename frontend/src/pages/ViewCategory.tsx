@@ -119,7 +119,7 @@ const ViewCategory = () => {
       categoryName: category?.categoryName,
       description: category?.description || "",
       imageFile: null,
-      imagePreview: editForm.imagePreview,
+      imagePreview: category?.categoryFiles[0]?.file?.url || "",
       subCategories: category?.subCategories || [],
       filesId: category?.categoryFiles[0]?.file?.id || "",
     });

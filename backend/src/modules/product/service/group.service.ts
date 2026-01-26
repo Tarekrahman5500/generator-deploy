@@ -295,11 +295,40 @@ export class GroupService {
   // ------------------------------------------------------------
   // Delete Group by ID
   // ------------------------------------------------------------
+  // async deleteGroup(id: string): Promise<void> {
+  //   const group = await this.groupRepository.findOne({ where: { id } });
+  //   if (!group) throw new NotFoundException('Group not found');
+
+  //   await this.groupRepository.delete({ id });
+  // }
   async deleteGroup(id: string): Promise<void> {
-    const group = await this.groupRepository.findOne({ where: { id } });
+    // 1. Find the group and its category association
+    const group = await this.groupRepository.findOne({
+      where: { id },
+      relations: ['category'],
+    });
+
     if (!group) throw new NotFoundException('Group not found');
 
-    await this.groupRepository.delete({ id });
+    const categoryId = group.category.id;
+    const deletedSerial = group.serialNo;
+
+    // 2. Execute deletion and reorder in a transaction
+    await this.dataSource.transaction(async (manager) => {
+      // A. Delete the group
+      // Note: Ensure your GroupEntity has 'onDelete: CASCADE' for its fields,
+      // or delete fields manually here first.
+      await manager.delete('group', { id });
+
+      // B. Shift subsequent groups in the same category down by 1
+      await manager
+        .createQueryBuilder()
+        .update('group')
+        .set({ serialNo: () => 'serial_no - 1' })
+        .where('category_id = :categoryId', { categoryId })
+        .andWhere('serial_no > :deletedSerial', { deletedSerial })
+        .execute();
+    });
   }
 
   async findOrCreateGroup(

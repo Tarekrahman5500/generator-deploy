@@ -35,6 +35,7 @@ interface GroupFormModalProps {
   onOpenChange: (open: boolean) => void;
   group: ProductGroup | null;
   onSave: (group: ProductGroup) => void;
+  refetch: () => void;
 }
 
 function generateId() {
@@ -46,9 +47,11 @@ export function GroupFormModal({
   onOpenChange,
   group,
   onSave,
+  refetch,
 }: GroupFormModalProps) {
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [serialNo, setSerialNo] = useState(null);
   const [fields, setFields] = useState<Field[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [categoryName, setCategory] = useState("");
@@ -60,6 +63,7 @@ export function GroupFormModal({
   const navigate = useNavigate();
   useEffect(() => {
     if (group) {
+      setSerialNo(group.serialNo);
       setName(group.groupName);
       setFields(group.fields);
     } else {
@@ -114,18 +118,20 @@ export function GroupFormModal({
       return;
     }
     const body = {
-      serialNo: updatedField.serialNo,
       id: updatedField.id,
+      serialNo: updatedField.serialNo,
+
       fieldName: updatedField.fieldName,
       filter: updatedField.filter,
       order: updatedField.order,
     };
-    console.log(updateField);
+
     try {
       const accessToken = await secureStorage.getValidToken();
       const url = `${import.meta.env.VITE_API_URL}/field`;
+
       const options = {
-        method: `${upsert ? "POST" : "PATCH"}`,
+        method: `POST`,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
@@ -152,7 +158,7 @@ export function GroupFormModal({
           padding: "12px 16px",
         },
       });
-      fetchCategories();
+      refetch();
     } catch (error) {
       toast.error(`${error.message}`, {
         style: {
@@ -196,7 +202,7 @@ export function GroupFormModal({
             padding: "12px 16px",
           },
         });
-        fetchCategories();
+        refetch();
       }
     }
   };
@@ -244,7 +250,7 @@ export function GroupFormModal({
         order: f.order,
       })),
     };
-    console.log("body", body);
+
     if (body.fieldNames.length === 0) {
       toast.error("Please Insert Field Name", {
         style: {
@@ -277,7 +283,7 @@ export function GroupFormModal({
         return;
       }
       if (res.ok) {
-        toast.success(`${name}" group created successfully.`, {
+        toast.success(`"${name}" group created successfully.`, {
           style: {
             background: "#326e12",
             color: "#fff",
@@ -302,7 +308,7 @@ export function GroupFormModal({
         return;
       }
       onOpenChange(false);
-      fetchCategories();
+      refetch();
     } catch (err) {
       console.error(err);
       toast.error(`${err.message}`, {
@@ -318,12 +324,14 @@ export function GroupFormModal({
 
   /*******update group*********** */
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
+  const [isEditingSerialNo, setIsEditingSerialNo] = useState(false);
   const updateGroupName = async () => {
     if (!group || !name.trim()) return;
 
     const body = {
       id: group.id,
       groupName: name.trim(),
+      serialNo: Number(serialNo),
     };
     const accessToken = await secureStorage.getValidToken();
 
@@ -355,7 +363,7 @@ export function GroupFormModal({
           },
         },
       );
-      fetchCategories();
+      refetch();
     } catch (error) {
       toast.error(`${error.message}`, {
         style: {
@@ -412,8 +420,40 @@ export function GroupFormModal({
         <div className="space-y-6 py-4">
           {/* Group Name */}
           <div className="space-y-2">
-            <Label htmlFor="group-name">Group Name</Label>
+            <div className="flex gap-2 items-center">
+              <Input
+                id="serial-no"
+                value={serialNo}
+                onChange={(e) => setSerialNo(e.target.value)}
+                placeholder="Enter Serial No"
+                disabled={!!group && !isEditingSerialNo}
+                className="flex-1"
+              />
 
+              {group &&
+                (!isEditingSerialNo ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setIsEditingSerialNo(true)}
+                    aria-label="Edit Serial No"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      updateGroupName();
+                      setIsEditingSerialNo(false);
+                    }}
+                    aria-label="Save group name"
+                  >
+                    <Check className="h-4 w-4 text-green-600" />
+                  </Button>
+                ))}
+            </div>
             <div className="flex gap-2 items-center">
               <Input
                 id="group-name"
