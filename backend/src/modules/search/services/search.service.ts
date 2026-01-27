@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, Not, IsNull } from 'typeorm';
 import {
   CategoryEntity,
   FieldEntity,
@@ -439,6 +439,7 @@ export class SearchService {
           where: { id: dto.categoryId },
         })
       : await this.categoryRepo.findOne({
+          where: { serialNo: Not(IsNull()) },
           order: { serialNo: 'ASC' },
         });
 
@@ -450,12 +451,6 @@ export class SearchService {
       };
     }
 
-    // 2️⃣ Product search (unchanged)
-    const response = await this.dynamicProductSearch({
-      ...dto,
-      categoryId: baseCategory.id,
-    });
-
     // console.log('SINGLE PRODUCT SEARCH RESPONSE:', response);
     // 3️⃣ All categories ordered by serialNo
     const categories = dto.categoryId
@@ -464,6 +459,23 @@ export class SearchService {
           select: ['id', 'categoryName', 'serialNo'],
           order: { serialNo: 'ASC' },
         });
+    let response: any | null = null;
+    // let usedCategory = null;
+    for (const category of categories) {
+      response = await this.dynamicProductSearch({
+        ...dto,
+        categoryId: category.id,
+      });
+
+      if (
+        response?.products &&
+        Array.isArray(response.products) &&
+        response.products.length > 0
+      ) {
+        //  usedCategory = category;
+        break; // STOP at first valid category
+      }
+    }
 
     // 4️⃣ Fetch all filters in ONE query
     const rawFilters = await this.productRepo

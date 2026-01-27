@@ -322,20 +322,36 @@ export class CategoryService {
   }
 
   async categorySoftDelete(id: string) {
-    // // 1️⃣ Check if category exists
-    // const category = await this.categoryRepository.findOne({
-    //   where: { id },
-    // });
+    // 1. Find the category to get its current serialNo
+    const category = await this.categoryRepository.findOne({ where: { id } });
 
-    // if (!category) {
-    //   throw new NotFoundException('Category not found');
-    // }
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
 
-    // // 2️⃣ Soft delete by setting isDeleted to true
-    // category.isDeleted = true;
-    // await this.categoryRepository.save(category);
-    await this.categoryRepository.delete({ id });
+    const deletedSerial = category.serialNo;
 
-    return { message: 'Category permanently deleted successfully' };
+    // 2. Execute deletion and shifting in a transaction
+    await this.dataSource.transaction(async (manager) => {
+      // A. Delete the category
+      // If you actually want Soft Delete, change this to:
+      // await manager.update(CategoryEntity, id, { isDeleted: true, serialNo: 0 });
+      await manager.delete(CategoryEntity, { id });
+
+      // B. Reshift: Decrement all categories that had a higher serialNo
+      // UPDATE categories SET serialNo = serialNo - 1 WHERE serialNo > deletedSerial
+      await manager
+        .createQueryBuilder()
+        .update(CategoryEntity)
+        .set({ serialNo: () => 'serial_no - 1' })
+        .where('serial_no > :deletedSerial', { deletedSerial })
+        // CRITICAL: When subtracting, update from lowest to highest
+        .orderBy('serial_no', 'ASC')
+        .execute();
+    });
+
+    return {
+      message: 'Category deleted and serial numbers reshuffled successfully',
+    };
   }
 }
