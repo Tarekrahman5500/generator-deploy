@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { noCodeDescription } from 'src/common/schema';
 
 export const categorySchema = z.object({
   id: z.uuidv4(),
@@ -16,7 +15,7 @@ export const categorySchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, {
       message: 'Sub-category names must be unique',
     }),
-  description: noCodeDescription,
+  description: z.string({ message: 'Description is required' }),
   fileIds: z
     .array(
       z.uuidv4({
@@ -52,7 +51,7 @@ export const categoryUpdateSchema = z
       .nullable()
       .optional(),
     categoryName: z.string().optional(),
-    description: noCodeDescription.optional(),
+    description: z.string({ message: 'Description is required' }).optional(),
     fileIds: z.array(z.uuidv4()).min(1).optional(),
   })
   .refine((data) => data.description || data.fileIds, {

@@ -288,7 +288,7 @@ const AddCategory = () => {
     const accessToken = await secureStorage.getValidToken();
     try {
       //console.log("Removing file:", id);
-      const url = `${import.meta.env.VITE_API_URL}/file/${id}`;
+      const url = `${import.meta.env.VITE_API_URL}/file?id=${id}`;
       const options = {
         method: "DELETE",
         headers: {
