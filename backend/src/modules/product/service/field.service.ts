@@ -184,15 +184,52 @@ export class FieldService {
       }
 
       if (isUpdate && targetField) {
-        // CORNER CASE: Only shift if the serialNo is actually CHANGING
-        if (typeof serialNo === 'number' && targetField.serialNo !== serialNo) {
-          await this.handleSerialShift(manager, groupId, serialNo);
+        const oldSerial = targetField.serialNo;
+        const newSerial = serialNo;
+
+        if (typeof newSerial === 'number' && oldSerial !== newSerial) {
+          if (newSerial < oldSerial) {
+            // 🔽 SCENARIO: Moving UP (e.g., 5 -> 2)
+            // Shift everything between the new and old position (+1)
+            await manager
+              .createQueryBuilder()
+              .update(FieldEntity)
+              .set({ serialNo: () => 'serial_no + 1' })
+              .where(
+                'group_id = :groupId AND serial_no >= :newSerial AND serial_no < :oldSerial',
+                {
+                  groupId,
+                  newSerial,
+                  oldSerial,
+                },
+              )
+              .orderBy('serial_no', 'DESC') // Avoid collisions
+              .execute();
+          } else {
+            // 🔼 SCENARIO: Moving DOWN (e.g., 2 -> 5)
+            // Shift everything between the old and new position (-1)
+            await manager
+              .createQueryBuilder()
+              .update(FieldEntity)
+              .set({ serialNo: () => 'serial_no - 1' })
+              .where(
+                'group_id = :groupId AND serial_no > :oldSerial AND serial_no <= :newSerial',
+                {
+                  groupId,
+                  oldSerial,
+                  newSerial,
+                },
+              )
+              .orderBy('serial_no', 'ASC') // Avoid collisions
+              .execute();
+          }
         }
 
+        // Apply other updates
         targetField.fieldName = fieldName ?? targetField.fieldName;
         targetField.filter = filter ?? targetField.filter;
         targetField.order = order ?? targetField.order;
-        targetField.serialNo = serialNo ?? targetField.serialNo;
+        targetField.serialNo = newSerial ?? targetField.serialNo;
 
         savedField = await manager.save(FieldEntity, targetField);
       } else {
