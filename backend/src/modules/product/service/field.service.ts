@@ -179,7 +179,11 @@ export class FieldService {
           .createQueryBuilder()
           .update(FieldEntity)
           .set({ order: false })
-          .where('group_id = :groupId', { groupId })
+          .where(
+            'group_id IN (SELECT g.id FROM `group` g WHERE g.category_id = :categoryId)',
+            { categoryId },
+          )
+          .andWhere('`order` = true')
           .execute();
       }
 
