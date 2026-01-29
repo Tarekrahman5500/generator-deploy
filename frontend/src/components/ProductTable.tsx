@@ -62,6 +62,7 @@ import ProductTableSkeleton from "./Skeleton/AdminProductSkeleton";
 import { ProductMediaUpload, UploadedFile } from "./ProductMediaUpload";
 import { DocumentsUpload, UploadedDoc } from "./DocumentsUpload";
 import { DocFile } from "@/pages/AddProducts";
+import { Checkbox } from "@/components/ui/checkbox";
 import { set } from "date-fns";
 
 interface ProductFile {
@@ -130,6 +131,8 @@ const ProductTable = ({
   >({});
   const [missingId, setMissingId] = useState("");
   const [docFiles, setDocFiles] = useState<UploadedDoc[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const handleView = (product: Product) => {
     setViewProduct(product);
   };
@@ -192,9 +195,8 @@ const ProductTable = ({
     }
     const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${
-        import.meta.env.VITE_API_URL
-      }/product/delete-field-value/${matchedId}`;
+      const url = `${import.meta.env.VITE_API_URL
+        }/product/delete-field-value/${matchedId}`;
       const options = {
         method: "DELETE",
         headers: {
@@ -319,9 +321,8 @@ const ProductTable = ({
     //  console.log("Deleting product:", deleteProduct);
     const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${
-        deleteProduct?.id
-      }`;
+      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${deleteProduct?.id
+        }`;
       const options = {
         method: "PATCH",
         headers: {
@@ -357,6 +358,65 @@ const ProductTable = ({
         },
       });
       console.error(error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const accessToken = await secureStorage.getValidToken();
+    try {
+      const url = `${import.meta.env.VITE_API_URL}/product`;
+      const options = {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      };
+      const res = await fetch(url, options);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(`${data.message}`);
+      }
+
+      toast.success("Products deleted successfully", {
+        style: {
+          background: "#326e12",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
+
+      setSelectedIds([]);
+      setIsBulkDeleteDialogOpen(false);
+      onRefresh();
+    } catch (error) {
+      toast.error(`${error.message || "Failed to delete products"}`, {
+        style: {
+          background: "#ff0000",
+          color: "#fff",
+          borderRadius: "10px",
+          padding: "12px 16px",
+        },
+      });
+      console.error(error);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(products.map((p) => p.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((i) => i !== id));
     }
   };
 
@@ -590,6 +650,16 @@ const ProductTable = ({
             </SelectContent>
           </Select>
         </div>
+        {selectedIds.length > 0 && (
+          <Button
+            variant="destructive"
+            className="flex items-center gap-2"
+            onClick={() => setIsBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Selected ({selectedIds.length})
+          </Button>
+        )}
       </div>
       {loading ? (
         <ProductTableSkeleton />
@@ -598,6 +668,17 @@ const ProductTable = ({
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      products.length > 0 &&
+                      selectedIds.length === products.length
+                    }
+                    onCheckedChange={(checked) =>
+                      handleSelectAll(!!checked)
+                    }
+                  />
+                </TableHead>
                 <TableHead className="text-muted-foreground font-medium">
                   PRODUCT NAME
                 </TableHead>
@@ -619,6 +700,14 @@ const ProductTable = ({
                   key={product.id}
                   className="border-border hover:bg-muted/50"
                 >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(product.id)}
+                      onCheckedChange={(checked) =>
+                        handleSelectRow(product.id, !!checked)
+                      }
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {product.files
@@ -747,6 +836,35 @@ const ProductTable = ({
           </div>
         </div>
       )}
+      {/* Bulk Delete Alert Dialog */}
+      <AlertDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+      >
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">
+              Are you absolutely sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This action will permanently delete {selectedIds.length} selected
+              products. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-muted text-foreground border-border hover:bg-muted/80">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* View Modal */}
       <Dialog open={!!viewProduct} onOpenChange={() => setViewProduct(null)}>
         <DialogContent className="max-w-2xl bg-card border-border">
@@ -928,9 +1046,8 @@ const ProductTable = ({
                           {/* CONDITIONAL RENDERING BASED ON MIMETYPE */}
                           {file.mimeType.startsWith("image/") ? (
                             <img
-                              src={`${import.meta.env.VITE_API_URL}/${
-                                file.url
-                              }`}
+                              src={`${import.meta.env.VITE_API_URL}/${file.url
+                                }`}
                               alt={file.originalName}
                               className="object-cover h-full w-full"
                             />

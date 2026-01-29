@@ -287,6 +287,8 @@ export class SearchService {
 
     // console.log(dto);
 
+    // PRIME POWER (PRP) KW DG SET
+
     // console.log(filters);
     /* --------------------------------
      * 1️⃣ CATEGORY → FIELD MAP

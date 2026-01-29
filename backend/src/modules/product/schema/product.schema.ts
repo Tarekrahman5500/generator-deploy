@@ -118,3 +118,9 @@ export const productUpsertSchema = productSchema
     information: z.array(productValueSchema).optional(),
   })
   .strict();
+
+export const bulkDeleteProductSchema = z.object({
+  ids: z
+    .array(z.uuid({ message: 'Each product ID must be a valid UUID' }))
+    .min(1, 'At least one product ID must be provided for deletion'),
+});

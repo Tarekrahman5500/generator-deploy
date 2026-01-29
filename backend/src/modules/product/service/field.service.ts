@@ -13,6 +13,10 @@ import {
 } from 'src/entities/product';
 import { GroupEntity } from 'src/entities/product/group.entity';
 import { ProductFieldHelperService } from 'src/modules/product/service/product-field.helper.service';
+import {
+  moveSerial,
+  normalizeSerials,
+} from 'src/modules/product/service/field.util';
 
 @Injectable()
 export class FieldService {
@@ -267,6 +271,14 @@ export class FieldService {
         savedField = await manager.save(FieldEntity, newField);
       }
 
+      await moveSerial({
+        manager,
+        groupId,
+        fieldId: savedField.id,
+        newSerialNo: savedField.serialNo,
+      });
+      await normalizeSerials({ manager, groupId });
+
       const productsIds =
         await this.productFieldHelperService.getProductIdsByCategoryId(
           categoryId,
@@ -483,7 +495,7 @@ export class FieldService {
   async findFieldsByGroupId(groupId: string): Promise<FieldEntity[]> {
     return this.fieldRepository.find({
       where: { group: { id: groupId } },
-      // relations: ['group'],
+      order: { serialNo: 'ASC' },
     });
   }
 

@@ -97,7 +97,7 @@ const ViewProducts = () => {
   const [meta, setMeta] = useState<Meta | null>(null);
   const fetchCategoryProducts = async (
     page = 1,
-    limit = 10,
+    limit = 20,
     categoryId = selectedCategory,
     search = searchQuery,
   ): Promise<CategoryProductsResponse> => {
@@ -126,7 +126,7 @@ const ViewProducts = () => {
       try {
         const data = await fetchCategoryProducts(
           currentPage,
-          10,
+          20,
           selectedCategory,
           searchQuery,
         );
@@ -145,7 +145,7 @@ const ViewProducts = () => {
       setLoading(true); // Show loading state
       const data = await fetchCategoryProducts(
         currentPage,
-        10,
+        20,
         selectedCategory,
         searchQuery,
       );

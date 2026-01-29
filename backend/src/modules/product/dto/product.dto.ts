@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import {
+  bulkDeleteProductSchema,
   createProductSchema,
   groupFieldsSchema,
   productCompareScheme,
@@ -23,3 +24,7 @@ export class ProductFilterDto extends createZodDto(productQuerySchema) {}
 export class ProductCompareDto extends createZodDto(productCompareScheme) {}
 
 export class ProductUpsertDto extends createZodDto(productUpsertSchema) {}
+
+export class BulkDeleteProductDto extends createZodDto(
+  bulkDeleteProductSchema,
+) {}

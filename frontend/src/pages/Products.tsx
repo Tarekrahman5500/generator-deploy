@@ -200,7 +200,7 @@ const Products = () => {
               body: JSON.stringify({
                 categoryId: catId || undefined,
                 page: currentPage,
-                limit: 10,
+                limit: 12,
               }),
             },
           );
@@ -229,8 +229,8 @@ const Products = () => {
     const visibleProducts =
       selectedSubCategories.length > 0
         ? filteredProducts.filter((p) =>
-            selectedSubCategories.includes(p.subCategory?.subCategoryName),
-          )
+          selectedSubCategories.includes(p.subCategory?.subCategoryName),
+        )
         : filteredProducts;
 
     return visibleProducts.reduce((acc: Record<string, any[]>, product) => {
@@ -416,7 +416,7 @@ export const ProductCard = ({ product }: { product: any }) => {
     // 1. Get existing data from localStorage
     const compareData = JSON.parse(
       localStorage.getItem("compare") ||
-        '{"productIds": [], "product": [], "productCategories": []}',
+      '{"productIds": [], "product": [], "productCategories": []}',
     );
 
     const {
@@ -583,20 +583,18 @@ const FilterGroup = ({
                   : selected === item
               }
               onChange={() => onChange(item)}
-              className={`w-4 h-4 border-gray-300 text-[#163859] focus:ring-[#163859] ${
-                type === "radio" ? "rounded-full" : "rounded"
-              }`}
+              className={`w-4 h-4 border-gray-300 text-[#163859] focus:ring-[#163859] ${type === "radio" ? "rounded-full" : "rounded"
+                }`}
             />
             <span
-              className={`text-sm font-medium transition-colors ${
-                (
+              className={`text-sm font-medium transition-colors ${(
                   Array.isArray(selected)
                     ? selected.includes(item)
                     : selected === item
                 )
                   ? "text-[#163859] font-bold"
                   : "text-gray-600 dark:text-gray-300 group-hover:text-[#163859]"
-              }`}
+                }`}
             >
               {item}
             </span>

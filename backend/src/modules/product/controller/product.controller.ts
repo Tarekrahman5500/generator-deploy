@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  BulkDeleteProductDto,
   CreateProductDto,
   ProductCompareDto,
   ProductCreateGroupDto,
@@ -122,6 +123,15 @@ export class ProductController {
     return apiResponse({
       statusCode: HttpStatus.OK,
       payload: { result },
+    });
+  }
+
+  @Delete()
+  async deleteSelectedProducts(@Body() dto: BulkDeleteProductDto) {
+    const result = await this.productService.deleteProductByIds(dto.ids);
+    return apiResponse({
+      statusCode: HttpStatus.OK,
+      payload: result,
     });
   }
 }

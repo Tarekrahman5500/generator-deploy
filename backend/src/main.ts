@@ -25,6 +25,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:8080',
+      'http://localhost:8081',
       'http://localhost:5000',
       'http://localhost:3000',
       'https://marexisitaly.com',
@@ -72,6 +73,7 @@ async function bootstrap() {
     // Allow all origins for static files, or be specific:
     const allowedOrigins = [
       'http://localhost:8080',
+      'http://localhost:8081',
       'http://localhost:5000',
       'https://marexisitaly.com',
       'https://relaxation-standards-nashville-flexible.trycloudflare.com',

@@ -1009,4 +1009,13 @@ export class ProductService {
       missingFields: missingFieldsPerRow,
     };
   }
+
+  async deleteProductByIds(productIds: string[]) {
+    // hard delete products
+    await this.productRepository.delete(productIds);
+
+    return {
+      message: 'Products deleted successfully',
+    };
+  }
 }
