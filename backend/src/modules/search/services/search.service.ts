@@ -263,6 +263,18 @@ export class SearchService {
     return Array.from(suggestions).slice(0, 10);
   }
 
+  async getOrderFieldIdForCategory(categoryId: string): Promise<string | null> {
+    const row = await this.fieldRepo
+      .createQueryBuilder('field')
+      .innerJoin('field.group', 'group')
+      .where('group.category_id = :categoryId', { categoryId })
+      .andWhere('field.order = true')
+      .select('field.id', 'id')
+      .getRawOne();
+
+    return row?.id ?? null;
+  }
+
   async dynamicProductSearch(dto: DynamicFilterDto) {
     const {
       categoryId,
@@ -271,9 +283,9 @@ export class SearchService {
       filters,
       page = 1,
       limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
     } = dto;
+
+    // console.log(dto);
 
     // console.log(filters);
     /* --------------------------------
@@ -286,6 +298,7 @@ export class SearchService {
       .leftJoinAndSelect('group.fields', 'field', 'field.filter = :filter', {
         filter: true,
       })
+
       .where('category.id = :categoryId', { categoryId })
       .getOne();
 
@@ -301,6 +314,8 @@ export class SearchService {
      * -------------------------------- */
 
     //console.log(categoryId);
+    const orderFieldId = await this.getOrderFieldIdForCategory(categoryId);
+    //   console.log({ orderFieldId });
     const baseQb = this.productRepo
       .createQueryBuilder('product')
       .leftJoin('product.productValues', 'pv')
@@ -319,31 +334,6 @@ export class SearchService {
         modelNames: modelNames.map((name) => name.toLowerCase()),
       });
     }
-    /* --------------------------------
-     * 3️⃣ DYNAMIC FILTERS
-     * -------------------------------- */
-    // const addFilter = (qb, idx, fieldName: string, value: string) => {
-    //   const alias = `pv_filter_${idx}`;
-    //   qb.innerJoin(
-    //     'product.productValues',
-    //     alias,
-    //     `${alias}.field_id = (SELECT id FROM field WHERE LOWER(field_name) = :field_${idx} LIMIT 1) AND ${alias}.value = :val_${idx}`,
-    //     { [`field_${idx}`]: fieldName.toLowerCase(), [`val_${idx}`]: value },
-    //   );
-    // };
-
-    // if (filters && Object.keys(filters).length > 0) {
-    //   // solve the range problem but no input style change
-    //   Object.entries(filters).forEach(([fieldName, value], idx) => {
-    //     if (
-    //       categoryFields
-    //         .map((f) => f.toLowerCase())
-    //         .includes(fieldName.toLowerCase())
-    //     ) {
-    //       addFilter(baseQb, idx, fieldName, value);
-    //     }
-    //   });
-    // }
 
     const addFilter = (
       qb,
@@ -400,14 +390,33 @@ export class SearchService {
     /* --------------------------------
      * 5️⃣ GET PRODUCT IDS
      * -------------------------------- */
-    const [rows, total] = await baseQb
-      .select(['product.id', `product.${sortBy}`])
-      .orderBy(`product.${sortBy}`, sortOrder)
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+    let qb = baseQb.clone().select('product.id', 'id').groupBy('product.id');
 
+    if (orderFieldId) {
+      qb = qb
+        .leftJoin(
+          'product.productValues',
+          'pv_order',
+          'pv_order.product_id = product.id AND pv_order.field_id = :orderFieldId',
+          { orderFieldId },
+        )
+        .addSelect('CAST(pv_order.value AS DECIMAL(18,6))', 'orderNum')
+        .orderBy('orderNum', 'ASC')
+        .addOrderBy('product.id', 'ASC'); // stable
+    } else {
+      qb = qb.orderBy('product.id', 'ASC');
+    }
+
+    qb = qb.limit(limit).offset((page - 1) * limit);
+
+    const rows = await qb.getRawMany();
     const productIds = rows.map((r) => r.id);
+
+    const total = await baseQb
+      .clone()
+      .select('product.id')
+      .distinct(true)
+      .getCount();
 
     if (!productIds.length) {
       return {

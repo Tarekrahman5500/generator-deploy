@@ -242,27 +242,26 @@ export default function GeneratorFilterCard({
             )}
           </div>
         ))}
+        <div className="flex flex-col gap-3 pt-4 border-t">
+          <Button onClick={handleApplyFilters} className="w-full bg-[#163859]">
+            Apply Filters
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="text-xs w-full"
+            onClick={() => {
+              setSelectedValues({});
+              setRanges({});
+              setCurrentPage(1); // ✅ RESET PAGINATION
+              setIsFilterActive(false); // optional (if you want default view)
+              setActiveFilterPayload(null);
+            }}
+          >
+            Reset All
+          </Button>
+        </div>
       </CardContent>
-
-      <CardFooter className="flex flex-col gap-3 p-4">
-        <Button onClick={handleApplyFilters} className="w-full bg-[#163859]">
-          Apply Filters
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="text-xs w-full"
-          onClick={() => {
-            setSelectedValues({});
-            setRanges({});
-            setCurrentPage(1); // ✅ RESET PAGINATION
-            setIsFilterActive(false); // optional (if you want default view)
-            setActiveFilterPayload(null);
-          }}
-        >
-          Reset All
-        </Button>
-      </CardFooter>
     </Card>
   );
 }

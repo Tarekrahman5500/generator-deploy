@@ -128,7 +128,7 @@ const Products = () => {
             body: JSON.stringify({
               categoryId: catId || undefined,
               page: 1,
-              limit: 10,
+              limit: 12,
             }),
           },
         );
@@ -280,7 +280,7 @@ const Products = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           {/* Sidebar */}
           <aside className="lg:col-span-1">
-            <div className="sticky top-28 bg-white dark:bg-[#182129] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="sticky top-28 bg-white dark:bg-[#182129] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 max-h-[calc(100vh-8rem)] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg">Filters</h3>
                 <button

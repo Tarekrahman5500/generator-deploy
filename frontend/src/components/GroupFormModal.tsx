@@ -120,7 +120,6 @@ export function GroupFormModal({
     const body = {
       id: updatedField.id,
       serialNo: updatedField.serialNo,
-
       fieldName: updatedField.fieldName,
       filter: updatedField.filter,
       order: updatedField.order,
