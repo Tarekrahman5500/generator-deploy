@@ -122,11 +122,6 @@ const Index = ({ data }) => {
       // If reloaded, bypass cache
       const cached = isReloaded ? null : sessionStorage.getItem(CACHE_KEY);
 
-      if (cached) {
-        setCategories(JSON.parse(cached));
-        setLoading(false);
-        return;
-      }
 
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
@@ -211,9 +206,8 @@ const Index = ({ data }) => {
                       <PageLoader />
                     ) : (
                       <ImageLoader
-                        src={`${import.meta.env.VITE_API_URL}/${
-                          category.categoryFiles[0].file.url
-                        }`}
+                        src={`${import.meta.env.VITE_API_URL}/${category.categoryFiles[0].file.url
+                          }`}
                         alt={category?.categoryName}
                       />
                     )}

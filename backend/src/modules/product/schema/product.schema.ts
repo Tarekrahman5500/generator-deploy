@@ -2,7 +2,7 @@ import z from 'zod';
 
 const productValueSchema = z.object({
   fieldId: z.uuid(),
-  value: z.string().min(1),
+  value: z.string(),
 });
 
 export const productSchema = z.object({
