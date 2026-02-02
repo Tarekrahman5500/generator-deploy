@@ -30,7 +30,7 @@ const LoginForm = () => {
         localStorage.setItem("isLoggedIn", "true");
       }
       localStorage.setItem("userIn", "true");
-      navigate("/home");
+      navigate("/");
       toast.success("Login successful!");
     } else {
       toast.error("Invalid email or password");

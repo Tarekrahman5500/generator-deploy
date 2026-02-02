@@ -118,7 +118,7 @@ const Dashboard = () => {
         <div className="p-2 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#163859] rounded-xl flex items-center justify-center">
-              <NavLink to="/home" className="block">
+              <NavLink to="/" className="block">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"

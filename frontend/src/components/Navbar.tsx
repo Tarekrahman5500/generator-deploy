@@ -167,7 +167,7 @@ const Navbar = () => {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <NavLink
-            to="/home"
+            to="/"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <img src={logo} className="h-22 w-32" />
@@ -175,7 +175,7 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-8">
             <NavLink
-              to="/home"
+              to="/"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-foreground font-semibold"
             >
@@ -352,7 +352,7 @@ const Navbar = () => {
               <SheetContent side="right" className="w-[300px] sm:w-[400px]">
                 <nav className="flex flex-col gap-6 mt-6">
                   <NavLink
-                    to="/home"
+                    to="/"
                     className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
                     activeClassName="text-foreground font-semibold"
                     onClick={() => setOpen(false)}

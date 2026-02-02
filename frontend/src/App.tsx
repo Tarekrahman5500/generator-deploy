@@ -27,7 +27,6 @@ import ProductsAdd from "./pages/ProductsAdd";
 import Compare from "./pages/Compare";
 import FloatingCompareButton from "./components/FloatingCompareButton";
 import InfoRequestsTable from "./pages/GetQuote";
-import LoginForm from "./pages/IndexLogoin";
 import { AdministratorsTable } from "./pages/AdministratorList";
 import { ImageManagement } from "./pages/Cms";
 import { BackgroundManagement } from "./pages/BackgroundImageManagement";
@@ -66,16 +65,11 @@ const App = () => {
   }, []);
   // Hide UI for dashboard routes
   const hideNavbar =
-    location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname.startsWith("/dashboard");
   const hideLogin = location.pathname.startsWith("/login");
 
   //const hideFloatingCompare = location.pathname.startsWith("/dashboard");
-  const isLoggedIn = localStorage.getItem("userIn") === "true";
-  if (!isLoggedIn) {
-    return <LoginForm />;
-  }
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -87,12 +81,7 @@ const App = () => {
 
         {/* Routes */}
         <Routes>
-          <Route path="/" element={<LoginForm />} />
-
-          <Route
-            path="/home"
-            element={<Index data={cmsData?.["Hero"] || []} />}
-          />
+          <Route path="/" element={<Index data={cmsData?.["Hero"] || []} />} />
           <Route path="/products" element={<Products />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/compare" element={<Compare />} />
