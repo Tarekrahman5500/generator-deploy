@@ -195,8 +195,9 @@ const ProductTable = ({
     }
     const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${import.meta.env.VITE_API_URL
-        }/product/delete-field-value/${matchedId}`;
+      const url = `${
+        import.meta.env.VITE_API_URL
+      }/product/delete-field-value/${matchedId}`;
       const options = {
         method: "DELETE",
         headers: {
@@ -304,6 +305,8 @@ const ProductTable = ({
 
       // close modal after success
       setEditProduct(null);
+      setDocFiles([]);
+      setMediaFiles([]);
       onRefresh();
     } catch (error) {
       toast.error(`${error.message || "Failed to update product"}`, {
@@ -321,8 +324,9 @@ const ProductTable = ({
     //  console.log("Deleting product:", deleteProduct);
     const accessToken = await secureStorage.getValidToken();
     try {
-      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${deleteProduct?.id
-        }`;
+      const url = `${import.meta.env.VITE_API_URL}/product/soft-delete/${
+        deleteProduct?.id
+      }`;
       const options = {
         method: "PATCH",
         headers: {
@@ -674,9 +678,7 @@ const ProductTable = ({
                       products.length > 0 &&
                       selectedIds.length === products.length
                     }
-                    onCheckedChange={(checked) =>
-                      handleSelectAll(!!checked)
-                    }
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
                   />
                 </TableHead>
                 <TableHead className="text-muted-foreground font-medium">
@@ -1046,8 +1048,9 @@ const ProductTable = ({
                           {/* CONDITIONAL RENDERING BASED ON MIMETYPE */}
                           {file.mimeType.startsWith("image/") ? (
                             <img
-                              src={`${import.meta.env.VITE_API_URL}/${file.url
-                                }`}
+                              src={`${import.meta.env.VITE_API_URL}/${
+                                file.url
+                              }`}
                               alt={file.originalName}
                               className="object-cover h-full w-full"
                             />
