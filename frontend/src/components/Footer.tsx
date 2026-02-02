@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NavLink } from "@/components/NavLink";
 import { Factory } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -8,15 +9,29 @@ const Footer = () => {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    const cached = sessionStorage.getItem("cachedCategories");
-    if (cached) {
+    const fetchCategories = async () => {
       try {
-        const parsedCategories = JSON.parse(cached);
-        setCategories(parsedCategories.slice(0, 3));
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
+        const json = await res.json();
+        const mappedCategories: Category[] = (json.categories || []).map(
+          (cat: any) => ({
+            id: cat.id,
+            categoryName: cat.categoryName,
+            description: cat.description,
+            categoryFiles: (cat.categoryFiles || []).map((fileObj: any) => ({
+              id: fileObj.id,
+              file: { url: fileObj.file?.url || "" },
+            })),
+            products: Array.isArray(cat.products) ? cat.products : [],
+          }),
+        );
+        setCategories(mappedCategories);
       } catch (error) {
-        console.error("Error parsing cached categories in Footer:", error);
+        console.error("Failed to fetch categories", error);
       }
-    }
+    };
+
+    fetchCategories();
   }, []);
 
   return (
@@ -39,15 +54,16 @@ const Footer = () => {
             <h3 className="font-heading font-semibold mb-4">Products</h3>
             <ul className="space-y-2 text-sm">
               {categories.length > 0 ? (
-                categories.map((category) => (
+                categories.slice(0, 3).map((category) => (
                   <li key={category.id} className="flex flex-col gap-1">
-
                     <Link
                       to="/products"
                       state={{ category: category }}
                       className="text-navy-foreground/60 hover:text-white transition-colors text-sm"
                     >
-                      <span className="text-navy-foreground/80 hover:text-navy-foreground transition-colors">{category.categoryName}</span>
+                      <span className="text-navy-foreground/80 hover:text-navy-foreground transition-colors">
+                        {category.categoryName}
+                      </span>
                     </Link>
                   </li>
                 ))
@@ -58,7 +74,7 @@ const Footer = () => {
                       to="/products"
                       className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
                     >
-                      Heavy Machinery
+                      Generator Sets
                     </NavLink>
                   </li>
                   <li>
@@ -66,7 +82,7 @@ const Footer = () => {
                       to="/products"
                       className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
                     >
-                      Automation & Robotics
+                      Air compressors
                     </NavLink>
                   </li>
                   <li>
@@ -74,7 +90,7 @@ const Footer = () => {
                       to="/products"
                       className="text-navy-foreground/80 hover:text-navy-foreground transition-colors"
                     >
-                      Precision Tools
+                      Forklifts
                     </NavLink>
                   </li>
                 </>

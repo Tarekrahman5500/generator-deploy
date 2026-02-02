@@ -69,7 +69,7 @@ const ContactForm = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
 
       if (!res.ok) throw new Error("Failed to load data");
@@ -104,7 +104,7 @@ const ContactForm = () => {
             ...formData,
             parentId: selectedReq.id,
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -146,7 +146,7 @@ const ContactForm = () => {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
@@ -278,7 +278,13 @@ const ContactForm = () => {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="body">Message Body</Label>
+              <Label>Client Message</Label>
+              <p className="text-sm text-muted-foreground border p-2 rounded-md bg-gray-50 max-w-md">
+                {selectedReq?.message}
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="body">Reply</Label>
               <Textarea
                 id="body"
                 rows={5}
