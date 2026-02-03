@@ -93,11 +93,9 @@ export class ProductService {
       .getRawOne();
     const nextAutoSerial = (Number(maxSerialObj?.max) || 0) + 1;
 
+    let finalFileIds: string[] = [];
     if (fileIds && fileIds.length > 0) {
-      const files = await this.fileService.getFileByIds(fileIds);
-      if (files.length !== fileIds.length) {
-        throw new NotFoundException(`File not found`);
-      }
+      finalFileIds = await this.fileService.getSmartFileSelection(fileIds);
     }
     // 2️⃣ START TRANSACTION: WRITE operations
     return await this.dataSource.transaction(async (manager) => {
@@ -147,8 +145,8 @@ export class ProductService {
       }
 
       // D. BULK INSERT PRODUCT - FILE RELATIONS
-      if (fileIds.length > 0) {
-        const fileRelationPayload = fileIds.map((fileId) => ({
+      if (finalFileIds.length > 0) {
+        const fileRelationPayload = finalFileIds.map((fileId) => ({
           product: { id: savedProduct.id },
           file: { id: fileId },
         }));
@@ -220,6 +218,7 @@ export class ProductService {
       toInsert = information.filter((i) => !existingMap.has(i.fieldId));
     }
 
+    let finalFileIds: string[] = [];
     // 3️⃣ PREPARE FILE RELATIONS
     let fileRelationPayload: Array<{
       product: { id: string };
@@ -227,21 +226,24 @@ export class ProductService {
     }> = [];
 
     if (fileIds.length > 0) {
+      finalFileIds = await this.fileService.getSmartFileSelection(fileIds);
+
       const existingRelations = await this.productFileRelationRepository.find({
         where: { product: { id: productId } },
         relations: ['file'],
       });
       const existingFileIds = existingRelations.map((r) => r.file.id);
+
       const sameIds =
-        fileIds?.length === existingFileIds.length &&
-        fileIds?.every((id) => existingFileIds.includes(id));
-      fileRelationPayload =
-        fileIds && !sameIds
-          ? fileIds.map((fileId) => ({
-              product: { id: productId },
-              file: { id: fileId },
-            }))
-          : [];
+        finalFileIds.length === existingFileIds.length &&
+        finalFileIds.every((id) => existingFileIds.includes(id));
+
+      if (!sameIds) {
+        fileRelationPayload = finalFileIds.map((fileId) => ({
+          product: { id: productId },
+          file: { id: fileId },
+        }));
+      }
     }
 
     // 4️⃣ TRANSACTION (Writes Only)
@@ -326,7 +328,7 @@ export class ProductService {
 
       // --- D. HANDLE FILE RELATIONS ---
       if (fileRelationPayload.length) {
-        await this.fileService.usedAtUpdate(fileIds, manager);
+        await this.fileService.usedAtUpdate(finalFileIds, manager);
         await pfrRepo
           .createQueryBuilder()
           .insert()

@@ -56,6 +56,15 @@ export function DocumentsUpload({
       ]
     : ["application/pdf"];
   const handleLanguageChange = (id: string, lang: string) => {
+    const isDuplicate = files.some((f) => f.id !== id && f.language === lang);
+
+    if (isDuplicate) {
+      toast.warning(
+        `"${lang.toUpperCase()}" is already added.Please select another language`,
+      );
+      return;
+    }
+
     // 1. Update the local file object with the language
     const updatedFiles = files.map((f) =>
       f.id === id ? { ...f, language: lang, status: "uploading" as const } : f,

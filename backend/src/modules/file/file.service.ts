@@ -129,4 +129,37 @@ export class FileService {
     const filePath = path.resolve(process.cwd(), file.url);
     return await fs.readFile(filePath);
   }
+
+  async getSmartFileSelection(fileIds: string[]): Promise<string[]> {
+    if (!fileIds.length) return [];
+
+    // 1. Fetch all files from the list, ordered by newest first
+    const files = await this.fileRepo
+      .createQueryBuilder('file')
+      .where('file.id IN (:...fileIds)', { fileIds })
+      .andWhere('file.usedAt IS NULL')
+      .orderBy('file.createdAt', 'DESC')
+      .getMany();
+
+    const finalFileIds: string[] = [];
+    const seenPdfLanguages = new Set<string>();
+
+    for (const file of files) {
+      if (file.mimeType === 'application/pdf') {
+        // PDF LOGIC: Only add if we haven't seen this language yet (newest first)
+        if (file.language && !seenPdfLanguages.has(file.language)) {
+          seenPdfLanguages.add(file.language);
+          finalFileIds.push(file.id);
+        } else if (!file.language) {
+          // If PDF has no language, we usually keep it or apply same logic to "null"
+          finalFileIds.push(file.id);
+        }
+      } else {
+        // NON-PDF LOGIC: Keep all images, gifs, etc.
+        finalFileIds.push(file.id);
+      }
+    }
+
+    return finalFileIds;
+  }
 }

@@ -308,6 +308,7 @@ const ProductTable = ({
       setDocFiles([]);
       setMediaFiles([]);
       onRefresh();
+      setFileIds([]);
     } catch (error) {
       toast.error(`${error.message || "Failed to update product"}`, {
         style: {
@@ -513,46 +514,6 @@ const ProductTable = ({
     };
 
     xhr.send(formData);
-  };
-  const saveProductInformation = async () => {
-    // Extract all fields that have a value entered
-    const information =
-      missingFields.category?.groups?.flatMap((group: any) =>
-        group.fields
-          .filter((field: any) => field.value && field.value.trim() !== "")
-          .map((field: any) => ({
-            fieldId: field.id, // The ID shown in your JSON
-            value: field.value, // The value typed by user
-          })),
-      ) || [];
-
-    if (information.length === 0) {
-      toast.error("Please enter at least one value.");
-      return;
-    }
-
-    const body = { id: missingFields.id, information };
-
-    try {
-      const accessToken = await secureStorage.getValidToken();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/product`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success("Product updated successfully");
-      } else {
-        toast.error(`${data.message}`);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error(`${error}`);
-    }
   };
 
   const uploadPdf = async (files: UploadedDoc[]) => {
@@ -1124,7 +1085,12 @@ const ProductTable = ({
           </ScrollArea>
           <DialogFooter>
             <Button
-              onClick={() => setEditProduct(null)}
+              onClick={() => {
+                setEditProduct(null);
+                setDocFiles([]);
+                setMediaFiles([]);
+                setFileIds([]);
+              }}
               className="bg-transparent hover:bg-transparent text-black hover:text-black"
             >
               Cancel
