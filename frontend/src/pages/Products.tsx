@@ -82,14 +82,34 @@ const Products = () => {
   const [isFilterActive, setIsFilterActive] = useState(false);
 
   // 3. Selection & Pagination States
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    location.state?.category?.categoryName || null,
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
+    const saved = sessionStorage.getItem("selectedCategoryName");
+    return saved || location.state?.category?.categoryName || null;
+  });
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
     [],
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1, total: 0, page: 1 });
+
+  // Sync session storage when selectedCategory changes
+  useEffect(() => {
+    if (selectedCategory) {
+      sessionStorage.setItem("selectedCategoryName", selectedCategory);
+    } else {
+      sessionStorage.removeItem("selectedCategoryName");
+      sessionStorage.removeItem("activeFilterPayload"); // Clear filters if category cleared
+    }
+  }, [selectedCategory]);
+
+  // Sync session storage when activeFilterPayload changes
+  useEffect(() => {
+    if (activeFilterPayload) {
+      sessionStorage.setItem("activeFilterPayload", JSON.stringify(activeFilterPayload));
+    } else {
+      sessionStorage.removeItem("activeFilterPayload");
+    }
+  }, [activeFilterPayload]);
 
   // Fetch initial Category List (once)
   useEffect(() => {
@@ -98,7 +118,16 @@ const Products = () => {
         setLoading(true);
         const res = await fetch(`${import.meta.env.VITE_API_URL}/category`);
         const json = await res.json();
-        setCategories(json.categories || []);
+        const cats = json.categories || [];
+        setCategories(cats);
+
+        // Recover active filter payload if it exists
+        const savedPayload = sessionStorage.getItem("activeFilterPayload");
+        if (savedPayload) {
+          const payload = JSON.parse(savedPayload);
+          setActiveFilterPayload(payload);
+          setIsFilterActive(true);
+        }
       } catch (err) {
         console.error("Category fetch error", err);
       } finally {
@@ -289,6 +318,9 @@ const Products = () => {
                     setSelectedSubCategories([]);
                     setIsFilterActive(false);
                     setCurrentPage(1);
+                    setActiveFilterPayload(null); // Fix: also clear payload
+                    sessionStorage.removeItem("selectedCategoryName");
+                    sessionStorage.removeItem("activeFilterPayload");
                   }}
                   className="text-xs text-[#163859] font-bold hover:underline"
                 >
@@ -588,12 +620,12 @@ const FilterGroup = ({
             />
             <span
               className={`text-sm font-medium transition-colors ${(
-                  Array.isArray(selected)
-                    ? selected.includes(item)
-                    : selected === item
-                )
-                  ? "text-[#163859] font-bold"
-                  : "text-gray-600 dark:text-gray-300 group-hover:text-[#163859]"
+                Array.isArray(selected)
+                  ? selected.includes(item)
+                  : selected === item
+              )
+                ? "text-[#163859] font-bold"
+                : "text-gray-600 dark:text-gray-300 group-hover:text-[#163859]"
                 }`}
             >
               {item}

@@ -57,15 +57,16 @@ export default function GeneratorFilterCard({
 
   const toggleValue = (fieldName: string, value: string) => {
     setSelectedValues((prev) => {
-      const current = prev[fieldName] || [];
-      if (fieldName.toLowerCase() === "model") {
+      const key = fieldName.toLowerCase() === "model" ? "model" : fieldName;
+      const current = prev[key] || [];
+      if (key === "model") {
         return current.includes(value)
-          ? { ...prev, [fieldName]: current.filter((v) => v !== value) }
-          : { ...prev, [fieldName]: [...current, value] };
+          ? { ...prev, [key]: current.filter((v) => v !== value) }
+          : { ...prev, [key]: [...current, value] };
       }
       return current.includes(value)
-        ? { ...prev, [fieldName]: [] }
-        : { ...prev, [fieldName]: [value] };
+        ? { ...prev, [key]: [] }
+        : { ...prev, [key]: [value] };
     });
   };
 
@@ -85,6 +86,9 @@ export default function GeneratorFilterCard({
 
         Object.entries(filter.values).forEach(
           ([fieldName, field]: [string, any]) => {
+            const key = fieldName.toLowerCase() === "model" ? "model" : fieldName;
+            const values = selectedValues[key];
+
             // RANGE
             if (field.type === "range") {
               const range = ranges[field.fieldId];
@@ -97,11 +101,12 @@ export default function GeneratorFilterCard({
             }
 
             // LIST
-            else if (selectedValues[fieldName]?.length > 0) {
-              requestBody.filters[field.fieldId] =
-                fieldName.toLowerCase() === "model"
-                  ? selectedValues[fieldName]
-                  : selectedValues[fieldName][0];
+            else if (values?.length > 0) {
+              if (key === "model") {
+                requestBody.modelNames = values;
+              } else {
+                requestBody.filters[field.fieldId] = values[0];
+              }
             }
           },
         );
@@ -129,6 +134,8 @@ export default function GeneratorFilterCard({
 
   if (loading) return <Skeleton className="h-[400px] w-full" />;
 
+  const renderedFieldNames = new Set<string>();
+
   return (
     <Card className="border-none shadow-none w-full">
       <CardContent className="space-y-6 bg-white p-4">
@@ -136,6 +143,10 @@ export default function GeneratorFilterCard({
           <div key={groupKey} className="space-y-6">
             {Object.entries(group.values || {}).map(
               ([fieldName, field]: [string, any]) => {
+                const normalizedName = fieldName.toLowerCase();
+                if (renderedFieldNames.has(normalizedName)) return null;
+                renderedFieldNames.add(normalizedName);
+
                 // ---------- RANGE ----------
                 if (field.type === "range") {
                   const safeMin = Number(field.min);
@@ -188,7 +199,9 @@ export default function GeneratorFilterCard({
                 }
 
                 // ---------- LIST ----------
-                const hasSelection = selectedValues[fieldName]?.length > 0;
+                const key = normalizedName === "model" ? "model" : fieldName;
+                const fieldValues = selectedValues[key] || [];
+                const hasSelection = fieldValues.length > 0;
 
                 return (
                   <div key={fieldName} className="space-y-3">
@@ -200,10 +213,9 @@ export default function GeneratorFilterCard({
                       {field.values
                         ?.slice(0, expandedFields[fieldName] ? undefined : 5)
                         .map((v: string) => {
-                          const isSelected =
-                            selectedValues[fieldName]?.includes(v);
+                          const isSelected = fieldValues.includes(v);
                           const isDisabled =
-                            fieldName.toLowerCase() !== "model" &&
+                            normalizedName !== "model" &&
                             hasSelection &&
                             !isSelected;
 
@@ -211,11 +223,10 @@ export default function GeneratorFilterCard({
                             <Badge
                               key={v}
                               variant={isSelected ? "default" : "secondary"}
-                              className={`cursor-pointer ${isSelected ? "bg-[#163859]" : ""} ${
-                                isDisabled
+                              className={`cursor-pointer ${isSelected ? "bg-[#163859]" : ""} ${isDisabled
                                   ? "opacity-30 pointer-events-none"
                                   : ""
-                              }`}
+                                }`}
                               onClick={() =>
                                 !isDisabled && toggleValue(fieldName, v)
                               }
