@@ -89,8 +89,16 @@ const Products = () => {
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
     [],
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem("currentPage");
+    return saved ? parseInt(saved) : 1;
+  });
   const [meta, setMeta] = useState({ totalPages: 1, total: 0, page: 1 });
+
+  // Sync session storage when currentPage changes
+  useEffect(() => {
+    sessionStorage.setItem("currentPage", currentPage.toString());
+  }, [currentPage]);
 
   // Sync session storage when selectedCategory changes
   useEffect(() => {
@@ -156,7 +164,7 @@ const Products = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               categoryId: catId || undefined,
-              page: 1,
+              page: currentPage,
               limit: 12,
             }),
           },
@@ -166,7 +174,6 @@ const Products = () => {
 
         setFilteredProducts(json?.products?.length > 0 ? json?.products : []);
         setFilterValues(json?.filterValues || {}); // ✅ ONLY HERE
-        setCurrentPage(1);
 
         setMeta({
           totalPages: json?.meta?.totalPages || 1,
@@ -321,6 +328,7 @@ const Products = () => {
                     setActiveFilterPayload(null); // Fix: also clear payload
                     sessionStorage.removeItem("selectedCategoryName");
                     sessionStorage.removeItem("activeFilterPayload");
+                    sessionStorage.removeItem("currentPage");
                   }}
                   className="text-xs text-[#163859] font-bold hover:underline"
                 >
