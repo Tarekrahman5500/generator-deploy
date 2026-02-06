@@ -12,7 +12,7 @@ import { NavLink } from "@/components/NavLink";
 import Footer from "@/components/Footer";
 import { useEffect, useMemo, useState } from "react";
 import { SkeletonCard } from "@/components/Skeleton/SkeletonLoading";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigationType } from "react-router-dom";
 import empty from "../assets/no-data-found.png";
 import ImageLoader from "@/components/Skeleton/ImageLoader";
 import ProductCardSkeleton from "@/components/Skeleton/ProductSkeleton";
@@ -67,6 +67,7 @@ export interface CategoryResponse {
 
 const Products = () => {
   const location = useLocation();
+  const navType = useNavigationType();
 
   // 1. Data States
   const [categories, setCategories] = useState<any[]>([]);
@@ -83,13 +84,17 @@ const Products = () => {
 
   // 3. Selection & Pagination States
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => {
+    const fromState = location.state?.category?.categoryName;
     const saved = sessionStorage.getItem("selectedCategoryName");
-    return saved || location.state?.category?.categoryName || null;
+    // Priority: 1. Navigation State, 2. Session Storage
+    return fromState || saved || null;
   });
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(
     [],
   );
   const [currentPage, setCurrentPage] = useState<number>(() => {
+    // If we're coming from Index with a category (PUSH/REPLACE), reset to page 1
+    if (location.state?.category && navType !== "POP") return 1;
     const saved = sessionStorage.getItem("currentPage");
     return saved ? parseInt(saved) : 1;
   });
@@ -110,6 +115,20 @@ const Products = () => {
     }
   }, [selectedCategory]);
 
+  // Sync session storage when currentPage changes
+  useEffect(() => {
+    sessionStorage.setItem("currentPage", currentPage.toString());
+  }, [currentPage]);
+
+  // Sync session storage when selectedCategory changes
+  useEffect(() => {
+    if (selectedCategory) {
+      sessionStorage.setItem("selectedCategoryName", selectedCategory);
+    } else {
+      sessionStorage.removeItem("selectedCategoryName");
+    }
+  }, [selectedCategory]);
+
   // Sync session storage when activeFilterPayload changes
   useEffect(() => {
     if (activeFilterPayload) {
@@ -118,6 +137,23 @@ const Products = () => {
       sessionStorage.removeItem("activeFilterPayload");
     }
   }, [activeFilterPayload]);
+
+  // Listen for navigation state changes (e.g. clicking category in Index or Footer)
+  useEffect(() => {
+    if (location.state?.category?.categoryName && navType !== "POP") {
+      const newCat = location.state.category.categoryName;
+      setSelectedCategory(newCat);
+      setSelectedSubCategories([]);
+      setCurrentPage(1);
+      setActiveFilterPayload(null);
+      setIsFilterActive(false);
+
+      // Clear these from session storage immediately
+      sessionStorage.removeItem("activeFilterPayload");
+      sessionStorage.removeItem("currentPage");
+      sessionStorage.setItem("selectedCategoryName", newCat);
+    }
+  }, [location.state, navType]);
 
   // Fetch initial Category List (once)
   useEffect(() => {
@@ -129,12 +165,14 @@ const Products = () => {
         const cats = json.categories || [];
         setCategories(cats);
 
-        // Recover active filter payload if it exists
-        const savedPayload = sessionStorage.getItem("activeFilterPayload");
-        if (savedPayload) {
-          const payload = JSON.parse(savedPayload);
-          setActiveFilterPayload(payload);
-          setIsFilterActive(true);
+        // Recover active filter payload ONLY if we aren't coming from a fresh explicit category selection
+        if (!location.state?.category || navType === "POP") {
+          const savedPayload = sessionStorage.getItem("activeFilterPayload");
+          if (savedPayload) {
+            const payload = JSON.parse(savedPayload);
+            setActiveFilterPayload(payload);
+            setIsFilterActive(true);
+          }
         }
       } catch (err) {
         console.error("Category fetch error", err);
@@ -145,7 +183,7 @@ const Products = () => {
     fetchCategories();
   }, []);
 
-  // MAIN SYNC: Fetch Products and Filter Schema whenever Category or Page changes
+  // UNIFIED DATA FETCH: Products, Filters, and Pagination
   useEffect(() => {
     if (!categories.length) return;
 
@@ -153,111 +191,56 @@ const Products = () => {
       (c) => c.categoryName === selectedCategory,
     )?.id;
 
-    const fetchByCategory = async () => {
+    const performFetch = async () => {
       try {
         setFilterLoading(true);
 
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/search/product`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              categoryId: catId || undefined,
-              page: currentPage,
-              limit: 12,
-            }),
-          },
-        );
+        let url = `${import.meta.env.VITE_API_URL}/search/product`;
+        let options: RequestInit = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            categoryId: catId || undefined,
+            page: currentPage,
+            limit: 12,
+          }),
+        };
 
+        // If Filter is active and we have a payload, use the filter endpoint
+        if (isFilterActive && activeFilterPayload) {
+          url = `${import.meta.env.VITE_API_URL}/search/filter`;
+          options.body = JSON.stringify({
+            ...activeFilterPayload,
+            page: currentPage,
+          });
+        }
+
+        const res = await fetch(url, options);
         const json = await res.json();
 
-        setFilteredProducts(json?.products?.length > 0 ? json?.products : []);
-        setFilterValues(json?.filterValues || {}); // ✅ ONLY HERE
+        setFilteredProducts(json?.products || []);
+
+        // Only update filter schema (filterValues) if we are NOT in filter mode 
+        // OR it's a fresh category fetch, to prevent UI flickering.
+        if (json?.filterValues) {
+          setFilterValues(json.filterValues);
+        }
 
         setMeta({
           totalPages: json?.meta?.totalPages || 1,
           total: json?.meta?.total || 0,
-          page: json?.meta?.page || 1,
+          page: json?.meta?.page || currentPage,
         });
 
-        setIsFilterActive(!!selectedCategory);
       } catch (err) {
-        console.error(err);
+        console.error("Fetch error:", err);
       } finally {
         setFilterLoading(false);
       }
     };
 
-    fetchByCategory();
-  }, [selectedCategory, categories]);
-
-  useEffect(() => {
-    if (!categories.length) return;
-
-    const fetchPage = async () => {
-      try {
-        // ✅ FILTER MODE
-        if (isFilterActive && activeFilterPayload) {
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/search/filter`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...activeFilterPayload,
-                page: currentPage,
-              }),
-            },
-          );
-
-          const json = await res.json();
-
-          setFilteredProducts(json?.products || []);
-
-          setMeta({
-            totalPages: json?.meta?.totalPages || 1,
-            total: json?.meta?.total || 0,
-            page: json?.meta?.page || currentPage,
-          });
-        }
-
-        // ✅ NORMAL MODE
-        else {
-          const catId = categories.find(
-            (c) => c.categoryName === selectedCategory,
-          )?.id;
-
-          const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/search/product`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                categoryId: catId || undefined,
-                page: currentPage,
-                limit: 12,
-              }),
-            },
-          );
-
-          const json = await res.json();
-
-          setFilteredProducts(json?.products || []);
-
-          setMeta({
-            totalPages: json?.meta?.totalPages || 1,
-            total: json?.meta?.total || 0,
-            page: json?.meta?.page || currentPage,
-          });
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchPage();
-  }, [currentPage, isFilterActive, activeFilterPayload]);
+    performFetch();
+  }, [selectedCategory, categories, currentPage, isFilterActive, activeFilterPayload]);
 
   // Derived State: Grouping products by Category Name
   const groupedResults = useMemo(() => {
@@ -346,9 +329,15 @@ const Products = () => {
                   items={categories.map((c) => c.categoryName)}
                   selected={selectedCategory}
                   onChange={(val: any) => {
-                    setSelectedCategory(val);
-                    setSelectedSubCategories([]);
-                    setCurrentPage(1);
+                    if (val !== selectedCategory) {
+                      setSelectedCategory(val);
+                      setSelectedSubCategories([]);
+                      setCurrentPage(1);
+                      setActiveFilterPayload(null);
+                      setIsFilterActive(false);
+                      sessionStorage.removeItem("activeFilterPayload");
+                      sessionStorage.removeItem("currentPage");
+                    }
                   }}
                 />
 
@@ -381,6 +370,7 @@ const Products = () => {
                   setIsFilterActive={setIsFilterActive}
                   setCurrentPage={setCurrentPage}
                   setActiveFilterPayload={setActiveFilterPayload}
+                  activeFilterPayload={activeFilterPayload}
                 />
               </div>
             </div>

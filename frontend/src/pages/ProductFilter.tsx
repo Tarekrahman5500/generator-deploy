@@ -15,6 +15,7 @@ export default function GeneratorFilterCard({
   setIsFilterActive,
   setCurrentPage,
   setActiveFilterPayload,
+  activeFilterPayload,
 }: any) {
   const [selectedValues, setSelectedValues] = useState<
     Record<string, string[]>
@@ -24,32 +25,58 @@ export default function GeneratorFilterCard({
     {},
   );
 
+  // 1. Reset when category changes
   useEffect(() => {
     setSelectedValues({});
     setRanges({});
   }, [categoryId]);
 
-  // Initialize range values from backend
+  // 2. Initialize and Restore values from activeFilterPayload or defaults
   useEffect(() => {
-    const initialRanges: Record<string, [number, number]> = {};
+    if (!filters) return;
 
-    Object.values(filters).forEach((filter: any) => {
-      if (!filter.values) return;
+    const newSelectedValues: Record<string, string[]> = {};
+    const newRanges: Record<string, [number, number]> = {};
 
-      Object.values(filter.values).forEach((field: any) => {
-        if (
-          field.type === "range" &&
-          typeof field.min === "number" &&
-          typeof field.max === "number" &&
-          field.max > field.min
-        ) {
-          initialRanges[field.fieldId] = [field.min, field.max];
+    // First, set default ranges from filters
+    Object.values(filters).forEach((group: any) => {
+      if (!group.values) return;
+      Object.values(group.values).forEach((field: any) => {
+        if (field.type === "range" && typeof field.min === "number" && typeof field.max === "number") {
+          newRanges[field.fieldId] = [field.min, field.max];
         }
       });
     });
 
-    setRanges(initialRanges);
-  }, [filters]);
+    // Then, if we have an active payload (e.g. from session storage/back button), override with those values
+    if (activeFilterPayload) {
+      // Restore Models
+      if (activeFilterPayload.modelNames) {
+        newSelectedValues["model"] = activeFilterPayload.modelNames;
+      }
+
+      // Restore other filters
+      Object.values(filters).forEach((group: any) => {
+        if (!group.values) return;
+        Object.entries(group.values).forEach(([fieldName, field]: [string, any]) => {
+          const payloadValue = activeFilterPayload.filters?.[field.fieldId];
+          if (payloadValue === undefined) return;
+
+          if (field.type === "range") {
+            if (payloadValue.min !== undefined && payloadValue.max !== undefined) {
+              newRanges[field.fieldId] = [payloadValue.min, payloadValue.max];
+            }
+          } else {
+            const key = fieldName.toLowerCase() === "model" ? "model" : fieldName;
+            newSelectedValues[key] = [payloadValue];
+          }
+        });
+      });
+    }
+
+    setSelectedValues((prev) => (Object.keys(newSelectedValues).length > 0 ? newSelectedValues : prev));
+    setRanges((prev) => ({ ...prev, ...newRanges }));
+  }, [filters, activeFilterPayload]);
 
   const toggleExpand = (fieldName: string) => {
     setExpandedFields((prev) => ({ ...prev, [fieldName]: !prev[fieldName] }));
@@ -224,8 +251,8 @@ export default function GeneratorFilterCard({
                               key={v}
                               variant={isSelected ? "default" : "secondary"}
                               className={`cursor-pointer ${isSelected ? "bg-[#163859]" : ""} ${isDisabled
-                                  ? "opacity-30 pointer-events-none"
-                                  : ""
+                                ? "opacity-30 pointer-events-none"
+                                : ""
                                 }`}
                               onClick={() =>
                                 !isDisabled && toggleValue(fieldName, v)
